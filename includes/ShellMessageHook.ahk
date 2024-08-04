@@ -34,7 +34,7 @@ class ShellMessageHook extends AKPlugin {
   }
 
   __HooksHelp() {
-    texts := []
+    texts := Map()
     texts["AddEventListener"] := "AddEventListener(eventName, callbackFn)"
     return texts
   }
@@ -42,7 +42,7 @@ class ShellMessageHook extends AKPlugin {
   ; TODO: RemoveEventListener support?
   AddEventListener(eventName, callbackFn) { ;;;
     errorPrefix := "Error adding event listener"
-    if (!this.eventListeners.HasKey(eventName))
+    if (!this.eventListeners.Has(eventName))
       return errorPrefix ": Unsupported event '" eventName "'. Supported: " Join(Object.Keys(this.eventListeners), ", ")
     if (IsFunc(callbackFn))
       return errorPrefix ": callbackFn for event '" eventName "' is not a function"
@@ -116,7 +116,7 @@ class ShellMessageHook extends AKPlugin {
     
 
   ; watchActiveWindow() {
-  ;   WinGet, hwnd, ID, A
+  ;   hwnd := WinGetID("A")
   ;   windowClass := GetWindowClass(hwnd)
 
   ;   ; if (InStr(this.Config.GENERAL.KeyboardHookStealersList, windowClass, CaseSensitive = false) != 0) {

@@ -4,7 +4,7 @@ class SwapButtonsHandler extends AKPlugin {
   }
 
   __ActionsHelp() {
-    texts := []
+    texts := Map()
     texts["IsRDPClientWindowActive"] :=           "IsRDPClientWindowActive()"
     texts["MinimizeRestoreRDPClientWindows"] :=   "MinimizeRestoreRDPClientWindows()"
     texts["RestoreFullscreenRDPClientWindow"] :=  "RestoreFullscreenRDPClientWindow()"

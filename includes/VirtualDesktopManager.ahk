@@ -42,7 +42,7 @@ class VirtualDesktopManager extends AKPlugin {
   }
 
   __ActionsHelp() {
-    texts := []
+    texts := Map()
     texts["GetDesktopName"] := "GetDesktopName(desktopNumber)"
     texts["SetDesktopName"] := "SetDesktopName(desktopNumber, name)"
     texts["CreateDesktop"] := "CreateDesktop()"
@@ -72,7 +72,7 @@ class VirtualDesktopManager extends AKPlugin {
 
   GetDesktopName(desktopNumber) { ;;;
     utf8_buffer := ""
-    utf8_buffer_len := VarSetCapacity(utf8_buffer, 1024, 0)
+    utf8_buffer_len := VarSetStrCapacity(utf8_buffer, 1024)
     ran := DllCall(this.GetDesktopNameProc, "Int", desktopNumber, "Ptr", &utf8_buffer, "Ptr", utf8_buffer_len, "Int")
     name := StrGet(&utf8_buffer, 1024, "UTF-8")
     return name
@@ -80,7 +80,7 @@ class VirtualDesktopManager extends AKPlugin {
 
   SetDesktopName(desktopNumber, name) { ;;;
     ; NOTICE! For UTF-8 to work AHK file must be saved with UTF-8 with BOM
-    VarSetCapacity(name_utf8, 1024, 0)
+    VarSetStrCapacity(name_utf8, 1024)
     StrPut(name, &name_utf8, "UTF-8")
     ran := DllCall(this.SetDesktopNameProc, "Int", desktopNumber, "Ptr", &name_utf8, "Int")
     return ran
@@ -143,7 +143,7 @@ class VirtualDesktopManager extends AKPlugin {
 
   MoveWindowToDesktop(desktopNumber, hwnd:=0) { ;;;
     if (hwnd=0)
-      WinGet, hwnd, ID, A
+      hwnd := WinGetID("A")
     DllCall(this.MoveWindowToDesktopNumberProc, "Ptr", hwnd, "Int", desktopNumber - 1, "Int")
   }
 
@@ -156,23 +156,23 @@ class VirtualDesktopManager extends AKPlugin {
   }
 
   MoveHoveredWindowToDesktop(desktopNumber) { ;;;
-    MouseGetPos,,, hwnd
+    MouseGetPos(, , &hwnd)
     this.MoveWindowToDesktop(desktopNumber, hwnd)
   }
 
   MoveHoveredWindowToPrevDesktop() { ;;;
-    MouseGetPos,,, hwnd
+    MouseGetPos(, , &hwnd)
     this.MoveWindowToDesktop(this.GetPrevDesktopNumber(), hwnd)
   }
 
   MoveHoveredWindowToNextDesktop() { ;;;
-    MouseGetPos,,, hwnd
+    MouseGetPos(, , &hwnd)
     this.MoveWindowToDesktop(this.GetNextDesktopNumber(), hwnd)
   }
 
   GoWithWindowToDesktop(desktopNumber, hwnd:=0) { ;;;
     if (hwnd=0)
-      WinGet, hwnd, ID, A
+      hwnd := WinGetID("A")
     this.MoveWindowToDesktop(desktopNumber, hwnd)
     this.GoToDesktop(desktopNumber)
   }
@@ -186,17 +186,17 @@ class VirtualDesktopManager extends AKPlugin {
   }
   
   GoWithHoveredWindowToDesktop(desktopNumber) { ;;;
-    MouseGetPos,,, hwnd
+    MouseGetPos(, , &hwnd)
     this.GoWithWindowToDesktop(desktopNumber, hwnd)
   }
 
   GoWithHoveredWindowToPrevDesktop() { ;;;
-    MouseGetPos,,, hwnd
+    MouseGetPos(, , &hwnd)
     this.GoWithWindowToDesktop(this.GetPrevDesktopNumber(), hwnd)
   }
 
   GoWithHoveredWindowToNextDesktop() { ;;;
-    MouseGetPos,,, hwnd
+    MouseGetPos(, , &hwnd)
     this.GoWithWindowToDesktop(this.GetNextDesktopNumber(), hwnd)
   }
   addDesktopChangedHook() {
@@ -206,7 +206,7 @@ class VirtualDesktopManager extends AKPlugin {
     OnMessage(CHANGE_DESKTOP_MESSAGE, onChangeDesktopFn)
   }
   onChangeDesktop(wParam, lParam, msg, hwnd) {
-    Critical, 100
+    Critical(100)
     OldDesktop := wParam + 1
     NewDesktop := lParam + 1
     this.outputDebugLine("Desktop changed from " OldDesktop " to " NewDesktop)

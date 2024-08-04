@@ -1,8 +1,8 @@
 class AKPlugin extends AKBase {
+  Config := {} ; reference to App.Config section with plugin's name
   App := {} ; reference to app
   ; TODO: add callback for plugin config injection into the app
   __New() {
-    this.processConfig()
   }
   __ConfigHelp() {
     return [] ; TODO

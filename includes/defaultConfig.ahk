@@ -1,46 +1,46 @@
-processGereralConfigSection(ByRef configSection) {
-  if (!configSection.HasKey("HotkeyInterval"))
+processGereralConfigSection(configSection) {
+  if (!configSection.Has("HotkeyInterval"))
     configSection.HotkeyInterval                         := 1000
-  if (!configSection.HasKey("MaxHotkeysPerInterval"))
+  if (!configSection.Has("MaxHotkeysPerInterval"))
     configSection.MaxHotkeysPerInterval                  := 1000
-  if (!configSection.HasKey("KeyboardHookStealersList")) 
+  if (!configSection.Has("KeyboardHookStealersList")) 
     configSection.KeyboardHookStealersList               := "TscShellContainerClass"
-  if (!configSection.HasKey("BlacklistedWindowAhkIds")) 
+  if (!configSection.Has("BlacklistedWindowAhkIds")) 
     configSection.BlacklistedWindowAhkIds                := "WorkerW Progman Shell_TrayWnd Shell_SecondaryTrayWnd TscShellContainerClass"
-  if (!configSection.HasKey("WindowOnTopBorderColor") || IsValidHexColor(configSection.WindowOnTopBorderColor))
+  if (!configSection.Has("WindowOnTopBorderColor") || IsValidHexColor(configSection.WindowOnTopBorderColor))
     configSection.WindowOnTopBorderColor                 := "0xAACCFF"
-  if (!configSection.HasKey("WindowTransparencyValue"))
+  if (!configSection.Has("WindowTransparencyValue"))
     configSection.WindowTransparencyValue                := 128
-  if (!configSection.HasKey("WelcomeMessage"))
+  if (!configSection.Has("WelcomeMessage"))
     configSection.WelcomeMessage                         := "Enjoy"
-  if (!configSection.HasKey("ToolTipTimeoutMs"))
+  if (!configSection.Has("ToolTipTimeoutMs"))
     configSection.ToolTipTimeoutMs                       := 1000
-  if (!configSection.HasKey("StartupSound"))
+  if (!configSection.Has("StartupSound"))
     configSection.StartupSound                           := "Assets/mixkit-light-button-2580.wav"
-  if (!configSection.HasKey("NotificationSound"))
+  if (!configSection.Has("NotificationSound"))
     configSection.NotificationSound                      := "Assets/mixkit-light-button-2580.wav"
-  if (!configSection.HasKey("ReloadAppHotkey"))
+  if (!configSection.Has("ReloadAppHotkey"))
     configSection.ReloadAppHotkey                        := "^#!Backspace"
-  if (!configSection.HasKey("SuspendAppHotkey"))
+  if (!configSection.Has("SuspendAppHotkey"))
     configSection.SuspendAppHotkey                       := "^#!Esc"
-  if (!configSection.HasKey("DarkTheme"))
+  if (!configSection.Has("DarkTheme"))
     configSection.DarkTheme                              := 1
-  if (!configSection.HasKey("SwapMouseXButtons"))
+  if (!configSection.Has("SwapMouseXButtons"))
     configSection.SwapMouseXButtons                      := 0
-  if (!configSection.HasKey("ModifierHotkeysHint"))
+  if (!configSection.Has("ModifierHotkeysHint"))
     configSection.ModifierHotkeysHint                    := "Alt=!, Ctrl=^, Shift=+, LWin=#, AltGr=<^>!"
 }
 
-processWindowManagementConfigSection(ByRef configSection) {
-  if (!configSection.HasKey("BringToFront")) 
+processWindowManagementConfigSection(configSection) {
+  if (!configSection.Has("BringToFront")) 
     configSection.BringToFront                       := 0
-  if (!configSection.HasKey("QuickPosition_Hotkey")) 
+  if (!configSection.Has("QuickPosition_Hotkey")) 
     configSection.QuickPosition_Hotkey               := "Alt"
-  if (!configSection.HasKey("LockAxis_Hotkey")) 
+  if (!configSection.Has("LockAxis_Hotkey")) 
     configSection.LockAxis_Hotkey                    := "Shift"
-  if (!configSection.HasKey("ShowWindowContent")) 
+  if (!configSection.Has("ShowWindowContent")) 
     configSection.ShowWindowContent                  := 1
-  if (!configSection.HasKey("EnableSnapping")) 
+  if (!configSection.Has("EnableSnapping")) 
     configSection.EnableSnapping                     := 1
 }
 
@@ -81,7 +81,7 @@ getDefaultHotkeysConfig() {
   config["RButton"]      := "EnterGestureMode(2)"
 
   config["#!i"]    := "ShowHoveredWindowInfo"
-  config["#W"]   := "GetWindowList"
+  config["#W"]   := "ShowWindowList"
 
   config["#LButton"]     := "EnterWindowMovingMode"
   config["#RButton"]     := "EnterWindowResizingMode"

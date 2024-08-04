@@ -4,7 +4,7 @@ class TextLocaleManager extends AKPlugin {
   }
 
   __ActionsHelp() {
-    texts := []
+    texts := Map()
     texts["IsRDPClientWindowActive"] :=           "IsRDPClientWindowActive()"
 
     return texts
@@ -16,7 +16,7 @@ class TextLocaleManager extends AKPlugin {
     OCR_IBEAM := 32513  ; I-beam cursor
 
     ; Struct to hold cursor information
-    VarSetCapacity(cursorInfo, 20, 0)
+    VarSetStrCapacity(cursorInfo, 20)
     NumPut(20, cursorInfo, 0, "UInt")  ; cbSize
     ; Call GetCursorInfo to get cursor information
     if (DllCall("GetCursorInfo", "UInt", &cursorInfo)) {

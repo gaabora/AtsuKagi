@@ -20,7 +20,7 @@ TODO:
 - GUI table with human readabkle-keys
 off|hotkey|action|exclusions|showInMenu(+menuType:action/launch//toggleTimer/selectWindow?)
 - json config?
-- v2 port?
+- v2 port
 
 - take some ideas from https://www.highrez.co.uk/downloads/xmousebuttoncontrol.htm
 
@@ -28,7 +28,6 @@ off|hotkey|action|exclusions|showInMenu(+menuType:action/launch//toggleTimer/sel
 Thanks to people for sharing the code.
 sorry if someone's name is missing, feel free to add it here for example
 
-BTT tooltips by telppa https://github.com/telppa/BeautifulToolTip
 Ini class by anonymous1184 https://github.com/anonymous1184/bitwarden-autotype
 KDE Mover-Sizer v2.9 2014-09-10 by various authors http://corz.org/windows/software/accessories/KDE-resizing-moving-for-Windows.php
 RDP-Key v1.0 by gildorwang https://github.com/gildorwang/RDP-Key/tree/master"

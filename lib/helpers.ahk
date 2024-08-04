@@ -1,24 +1,25 @@
-OutputDebug(params*) {
-	tickCount := A_TickCount
-	text := ""
-  if (params.Length() = 1) {
-    text := params[1]
-  } else {
-    sep := "`t"
-    for index,param in params
-      text .= param . sep
-  }
-	FormatTime, time, , hh:mm:ss
-	ms := Mod(tickCount, 1000)
-	text := time . "." . Format("{:03d}", ms) . ": " . text
-	OutputDebug, %text%
-}
+; OutputDebug(params*) {
+; 	tickCount := A_TickCount
+; 	text := ""
+;   if (params.Length = 1) {
+;     text := params[1]
+;   } else {
+;     sep := "`t"
+;     for index,param in params
+;       text .= param . sep
+;   }
+; 	time := FormatTime(, "hh:mm:ss")
+; 	ms := Mod(tickCount, 1000)
+; 	text := time . "." . Format("{:03d}", ms) . ": " . text
+; 	OutputDebug(text)
+; }
+
 
 GetWindowClass(hwnd:=0) {
 	if (hwnd=0)
-		WinGet, hwnd, ID, A
-	WinGetClass, className, ahk_id %hwnd%
-	return ahk_class className
+		hwnd := WinGetID("A")
+	className := WinGetClass("ahk_id " hwnd)
+	return className
 }
 
 ExtractHotkeyInfo(hotkeyString) {
@@ -31,13 +32,13 @@ ExtractHotkeyInfo(hotkeyString) {
 	result.customModifier := ""
 
 	cleanedHotkey := hotkeyString
-	for idx in result.special
-		cleanedHotkey := StrReplace(cleanedHotkey, result.special[idx])
-	for idx in result.modifiers
-		cleanedHotkey := StrReplace(cleanedHotkey, result.modifiers[idx])
+	for char in result.special
+		cleanedHotkey := StrReplace(cleanedHotkey, char)
+	for char in result.modifiers
+		cleanedHotkey := StrReplace(cleanedHotkey, char)
 
 	customCombination := StrSplit(cleanedHotkey, " & ")
-	if (customCombination.Length() = 2) {
+	if (customCombination.Length = 2) {
 		result.customModifier := customCombination[1]
 		result.key := customCombination[2]
 	} else {
@@ -59,38 +60,17 @@ ConvertToUniversalVkHotkey(KeyCombination) {
   return KeyCombination
 }
 
-CheckHotkeyForErrors(KeyCombination) {
-  Hotkey, %KeyCombination%,, Off UseErrorLevel                                               
-  return GetHotkeyBindingErrorText(ErrorLevel)
-}
-
-GetHotkeyBindingErrorText(ErrorLvl) {
-  Switch ErrorLvl	{
-		Case 1:
-			return "The Label parameter specifies a nonexistent label name."
-		Case 2:
-			return "The KeyName parameter specifies one or more keys that are either not recognized or not supported by the current keyboard layout/language."
-		Case 3:
-			return "Unsupported prefix key. For example, using the mouse wheel as a prefix in a hotkey such as WheelDown & Enter is not supported."
-		Case 4:
-			return "The KeyName parameter is not suitable for use with the AltTab or ShiftAltTab actions. A combination of (at most) two keys is required. For example: RControl & RShift::AltTab."
-		Case 5:
-			return "The command attempted to modify a nonexistent hotkey."
-		Case 6:
-			return "The command attempted to modify a nonexistent variant of an existing hotkey. To solve this, use Hotkey IfWin to set the criteria to match those of the hotkey to be modified."
-		Case 98:
-			return "Creating this hotkey would exceed the limit of hotkeys per script (however, each hotkey can have an unlimited number of variants, and there is no limit to the number of hotstrings). The limit was raised from 700 to 1000 in [v1.0.48], and to 32762 in [v1.1.30]."
-		Case 99:
-			return "Out of memory. This is very rare and usually happens only when the operating system has become unstable."
-	}
-	return 0
-}
-
 RegexMatchGlobal(Haystack, NeedleRegEx) {
 	matches := []
 	pos := 1
-	while (pos := RegExMatch(Haystack, NeedleRegEx, match, pos + StrLen(match)))
-		matches.Push(match)
+	while (pos <= StrLen(Haystack)) {
+			if (match := RegExMatch(Haystack, NeedleRegEx, &matchObj, pos)) {
+					matches.Push(matchObj[0])
+					pos := match + StrLen(matchObj[0])
+			} else {
+					break
+			}
+	}
 	return matches
 }
 
@@ -105,7 +85,7 @@ FilterArray(sourceArr, filterVal) {
 }
 
 Join(arr, delimiter) {
-	SetBatchLines, -1 ; Disable line batch to ensure timely execution
+; REMOVED: 	SetBatchLines, -1 ; Disable line batch to ensure timely execution
 	result := ""
 	for index, element in arr
 		result := result . (index > 1 ? delimiter : "") . element
@@ -117,17 +97,17 @@ IsValidHexColor(hexColor) {
 }
 
 IsMouseOverTaskbar() {
-	MouseGetPos,,, hwnd
+	MouseGetPos(, , &hwnd)
 	hoverTaskbar := WinExist("ahk_class Shell_TrayWnd ahk_id " hwnd)
 	hoverSecondaryTaskbar := WinExist("ahk_class Shell_SecondaryTrayWnd ahk_id " hwnd)
 	return hoverTaskbar || hoverSecondaryTaskbar
 }
 
-GetCurrentScreenBorders(ByRef CurrentScreenLeft, ByRef CurrentScreenRight, ByRef CurrentScreenTop, ByRef CurrentScreenBottom) {
-  MouseGetPos, xMouse, yMouse
-  SysGet, MonitorCount, MonitorCount
-  Loop, %MonitorCount% {
-    SysGet, MonitorWorkArea, MonitorWorkArea, %A_Index%
+GetCurrentScreenBorders(&CurrentScreenLeft, &CurrentScreenRight, &CurrentScreenTop, &CurrentScreenBottom) {
+  MouseGetPos(&xMouse, &yMouse)
+  MonitorCount := MonitorGetCount()
+  Loop MonitorCount {
+    MonitorGetWorkArea(A_Index, &MonitorWorkAreaLeft, &MonitorWorkAreaTop, &MonitorWorkAreaRight, &MonitorWorkAreaBottom)
     if (xMouse >= MonitorWorkAreaLeft) AND (xMouse <= MonitorWorkAreaRight) AND ( yMouse >= MonitorWorkAreaTop) AND ( yMouse <= MonitorWorkAreaBottom) {
       CurrentScreenLeft   := MonitorWorkAreaLeft
       CurrentScreenRight  := MonitorWorkAreaRight
@@ -139,10 +119,10 @@ GetCurrentScreenBorders(ByRef CurrentScreenLeft, ByRef CurrentScreenRight, ByRef
 }
 
 GetHoveredWindowAreaCode() {
-	CoordMode, Mouse, Screen 
-	MouseGetPos, x, y, hwnd
+	CoordMode("Mouse", "Screen")
+	MouseGetPos(&x, &y, &hwnd)
 	WM_NCHITTEST := 0x84
-	SendMessage, WM_NCHITTEST, 0, (x & 0xFFFF) | (y & 0xFFFF) << 16,, ahk_id %hwnd%
+	ErrorLevel := SendMessage(WM_NCHITTEST, 0, (x & 0xFFFF) | (y & 0xFFFF) << 16, , "ahk_id " hwnd)
 	return 1 * ErrorLevel
 }
 
@@ -213,19 +193,19 @@ GetHoveredAreaName() {
 		Case 21:	; HTHELP              21			In a Help button.
 			return "HELP"
 		Default:
-			return "UNKNOWN_" ErrorLevel
+			return "UNKNOWN_" areaCode
 	}
 }
 
-FormatBinary(ByRef binaryData, groupBytes:=1) {
+FormatBinary(&binaryData, groupBytes:=1) {
 	static CRYPT_STRING_HEX := 0x40000000
 	static CRYPT_STRING_NOCR := 0x00000004
   Local flags := CRYPT_STRING_HEX | CRYPT_STRING_NOCR
-	Local binarySize := VarSetCapacity(binaryData)
-	Local hexBufferSize := (binarySize * (flags ? 3 : 2)) * (A_IsUnicode ? 2 : 1)
-	Local buffer := VarSetCapacity(hexString, hexBufferSize, 0)
+	Local binarySize := VarSetStrCapacity(&binaryData) ; V1toV2: if 'binaryData' is NOT a UTF-16 string, use 'binaryData := Buffer()'
+	Local hexBufferSize := (binarySize * (flags ? 3 : 2)) * (1 ? 2 : 1)
+	Local buffer := hexString := Buffer(hexBufferSize, 0) ; V1toV2: if 'hexString' is a UTF-16 string, use 'VarSetStrCapacity(&hexString, hexBufferSize)'
 	
-	DllCall("Crypt32.dll\CryptBinaryToString", "Ptr", &binaryData, "Int", binarySize, "Int", flags ? flags : 12, "Str", hexString, "UIntP", hexBufferSize)
+	DllCall("Crypt32.dll\CryptBinaryToString", "Ptr", binaryData, "Int", binarySize, "Int", flags ? flags : 12, "Str", hexString, "UIntP", &hexBufferSize)
 
 	if (groupBytes = 1)
 		return hexString

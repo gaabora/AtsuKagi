@@ -1,16 +1,14 @@
-#NoEnv ; Recommended for performance and compatibility with future AutoHotkey releases.
 #SingleInstance force
-ListLines Off
-SetBatchLines -1
-SendMode Input ; Recommended for new scripts due to its superior speed and reliability.
-SetWorkingDir %A_ScriptDir%
+ListLines(false)
+SendMode("Input") ; Recommended for new scripts due to its superior speed and reliability.
+SetWorkingDir(A_ScriptDir)
 ; #KeyHistory 0
 #WinActivateForce
 
 
 
 #UseHook
-#Persistent
+; #Persistent
 
 
 ; Process, Priority,, H
@@ -19,7 +17,9 @@ SetWinDelay -1
 SetControlDelay -1
 
 
-#Include lib/Ini.ahk
+#Include lib/IniFile.ahk
+; #Include lib/Ini.ahk
+; #Include lib/Ini_File.ahk
 #Include lib/helpers.ahk
 #Include includes/defaultConfig.ahk
 #Include includes/AKBase.ahk
@@ -28,7 +28,7 @@ SetControlDelay -1
 
 DebugLevel := 5
 
-APP := new AKApp()
+APP := AKApp()
 APP.Debug(DebugLevel)
 
 ToggleAppSuspend() {
@@ -76,3 +76,16 @@ if (APP.Config.GENERAL.WelcomeMessage) {
 
 ; APP.SoundPlay(APP.Config.GENERAL.StartupSound)
 
+
+; https://www.autohotkey.com/boards/viewtopic.php?f=82&t=124099&p=551999&hilit=rdp#p551999
+; #UseHook
+; #HotIf WinActive("ahk_class TscShellContainerClass")
+; ~vkFF::{
+;     ; An artificial vkFF keystroke is detected when the RDP client becomes active.
+;     ; At that point, the RDP client installs its own keyboard hook which takes
+;     ; precedence over ours, so ...
+;     if (A_TimeIdlePhysical > A_TimeSinceThisHotkey) {
+;         InstallKeybdHook true, true ; ... reinstall our hook.
+;         Sleep 50
+;     }
+; }

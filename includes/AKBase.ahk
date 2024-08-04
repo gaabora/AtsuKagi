@@ -9,14 +9,14 @@ class AKBase {
   static DIALOG_NO := "NO"
   static DIALOG_CONTINUE := "CONTINUE"
 
-  _debugLevel := 0 ; 0: error, 1: warning, 2: notice, 3: info, 4: debug
+  debugLevel := 0 ; 0: error, 1: warning, 2: notice, 3: info, 4: debug
   Debug(level:=0) {
     this.debugLevel := level
-    this.initMenu()
+    ; this.initMenu()
   }
   ShowError(text, title:="") {
     this.outputDebugLine("ERROR: " text, 0)
-    this.MsgBox(text, title ? title : "ERROR", timeout, MSGBOX_OPTS.BUTTONS_CANCEL_TRY_AGAIN_CONTINUE | MSGBOX_OPTS.ICON_ERROR | MSGBOX_OPTS.DEFAULT_BUTTON_2)
+    this.MsgBox(text, title ? title : "ERROR", , MSGBOX_OPTS.BUTTONS_CANCEL_TRY_AGAIN_CONTINUE | MSGBOX_OPTS.ICON_ERROR | MSGBOX_OPTS.DEFAULT_BUTTON_2)
   }
   ShowWarning(text, title:="", timeout:=15000) {
     this.outputDebugLine("WARNING: " text, 1)
@@ -30,43 +30,43 @@ class AKBase {
     this.outputDebugLine("INFO: " text, 3)
     this.splashImage(text, title)
   }
-  msgBox(text, title="", timeout:=0, options:=0) {
-    timeoutSec := timeout ? timeout / 1000 : ""
-    MsgBox, % options, % title, % text, % timeoutSec
+  msgBox(text, title:="", timeout:=0, options:=0) {
+    timeoutSec := timeout ? " T" (timeout / 1000) : ""
+    msgResult := MsgBox(text, title, options . timeoutSec)
 
-    IfMsgBox Timeout
-      return this.DIALOG_TIMEOUT
-    IfMsgBox Ok
-      return this.DIALOG_OK
-    IfMsgBox Cancel
-      return this.DIALOG_CANCEL
-    IfMsgBox Abort
-      return this.DIALOG_ABORT
-    IfMsgBox Retry
-      return this.DIALOG_RETRY
-    IfMsgBox Ignore
-      return this.DIALOG_IGNORE
-    IfMsgBox Yes
-      return this.DIALOG_YES
-    IfMsgBox No
-      return this.DIALOG_NO
-    IfMsgBox Continue
-      return this.DIALOG_CONTINUE
-
+    Switch(msgResult) {
+      Case "Timeout":
+        return this.DIALOG_TIMEOUT
+      Case "Ok":
+        return this.DIALOG_OK
+      Case "Cancel":
+        return this.DIALOG_CANCEL
+      Case "Abort":
+        return this.DIALOG_ABORT
+      Case "Retry":
+        return this.DIALOG_RETRY
+      Case "Ignore":
+        return this.DIALOG_IGNORE
+      Case "Yes":
+        return this.DIALOG_YES
+      Case "No":
+        return this.DIALOG_NO
+      Case "Continue":
+        return this.DIALOG_CONTINUE
+    }
   }
-  splashImage(text, title="", options:=0, timeout:=1000) {
-		local
-		SetTimer splashImageOff, % timeout
+  splashImage(text, title:="", options:=0, timeout:=1000) {
+		SetTimer(splashImageOff, timeout)
 
     options := (options = 0) ? "b1 cw000000 ctffffff" : options
-    SplashImage,, %options%, %text%, %title%
+    SplashImageGui := Gui("ToolWindow -Sysmenu Disabled"), SplashImageGui.SetFont("bold"), SplashImageGui.AddText("w200 Center", title), SplashImageGui.AddPicture("w200 h-1"), SplashImageGui.SetFont("norm"), SplashImageGui.AddText("w200 Center", text), SplashImageGui.Show()
 
     return
 
-    splashImageOff:
-      SplashImage, Off
-      SetTimer splashImageOff, Off
-    return
+    splashImageOff() {
+      SplashImageGui := Gui("ToolWindow -Sysmenu Disabled"), SplashImageGui.MarginY := 0, SplashImageGui.MarginX := 0, SplashImageGui.AddPicture("w200 h-1", "Off"), SplashImageGui.Show()
+      SetTimer(splashImageOff,0)
+    }
   }
   outputDebugLine(line, level:=4) {
     if (level <= this.debugLevel)
