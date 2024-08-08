@@ -1,87 +1,29 @@
 #Requires AutoHotkey >=2.0.18
 
-; ass := Map('GE', 123)
-; OutputDebug(ass['GE'] . "`n")
-; ; OutputDebug(ass['GR'] . "`n")
-; OutputDebug(ass.GE . "`n")
-
-aconf := IniFile("sconfig.ini")
-aconf['ass'] := 'aaa=123'
-; OutputDebug(aconf['D']["xxx"] . "`n")
-; OutputDebug(aconf['D'].xxx . "`n")
-; OutputDebug(aconf.D["xxx"] . "`n")
-; OutputDebug(aconf.D.xxx . "`n")
-
-OutputDebug(aconf['GENERAL']["xxx"] . "`n")
-; OutputDebug(aconf['GENERAL']["yyy"] . "`n")
-OutputDebug(aconf['GENERAL'].xxx . "`n")
-; OutputDebug(aconf['GENERAL'].yyy . "`n")
-OutputDebug(aconf.GENERAL["xxx"] . "`n")
-; OutputDebug(aconf.GENERAL["yyy"] . "`n")
-OutputDebug(aconf.GENERAL.xxx . "`n")
-; OutputDebug(aconf.GENERAL.yyy . "`n")
-; OutputDebug("---yyy=" . aconf.GENERAL.yyy . ".")
-
-For Key , Val in aconf {
-  OutputDebug(key . '=' . Val.ToString() .  "`n")
-}
-For Key , Val in aconf.GENERAL {
-  OutputDebug(key . '=' . Val .  "`n")
-}
-For Key , Val in aconf['GENERAL'] {
-  OutputDebug(key . '=' . Val .  "`n")
-}
-
-
-; aconf.GENERAL :=  {
-;   testInt: -123,
-;   testFloat: 123.456,
-;   testString: "Hello World =) `;",
-; }
-; aconf.GENERAL :=  {
-;   testInt: -1234,
-;   testFloat: 123.456,
-;   testString: "Hello World =) `;",
-; }
-
-ass := aconf['GENERAL'].Has("HotkeyInterval")
-
-
-; make_greeter(f) {
-;     greet(subject) {
-;       OutputDebug(Format(f, subject))
-;     }
-;     return greet
-; }
-
-; g := make_greeter("Hello, {}!")
-; g(A_UserName)
-; g("World")
-
-
-num := 1
-#a::
-{
-  global num
-  global aconf
-  num := num+1
-  OutputDebug("ASS" num)
-  aconf.GENERAL.wtf := num  
-}
-
 class IniFileProto {
-  class IniSection {
-    static Parse(content) {
-      dataObj := map()
-      for _, pair in StrSplit(content, "`n") {
-        pair := StrSplit(pair, "=",, 2)
-        dataObj[pair[1]] := pair.Length = 2 ? pair[2] : ""
+  class IniSectionProto {
+    __Set(Name, Params, Value) {
+      if (this.__isReservedPropName(Name)) {
+        this.DefineProp(name, {
+          Value: Value,
+        })
+        return this.%Name%
       }
-      return dataObj
+      if (IsObject(Value))
+        throw TypeError("You can not set Object as a value to ini prop. Path: " this.__pIniSection_Name "." Name)
+      if (!this.__pIniSection_Data.Has(Name) || Value != this.__pIniSection_Data[Name]) {
+        this.__pIniSection_Data[Name] := Value
+        this.__pIniSection_Owner._autosave()
+      }
     }
     __pIniSection_Name := ''
     __pIniSection_Data := Map()
     __pIniSection_Owner := {}
+    __isReservedPropName(Name) {
+      return Name = "__pIniSection_Name"
+        || Name = "__pIniSection_Data"
+        || Name = "__pIniSection_Owner"
+    }
     _addSectionItem(name) {
       this.DefineProp(name, {
         Get: this._getterFactory(name),
@@ -94,6 +36,8 @@ class IniFileProto {
     _setterFactory(Name) {
       setterFn(this, Params*) {
         Value := Params[1]
+        if (IsObject(Value))
+          throw TypeError("You can not set Object as a value to ini prop. Path: " this.__pIniSection_Name "." Name)
         if (this.__pIniSection_Data[Name] != Value) {
           this.__pIniSection_Data[Name] := Value
           if (this.__pIniSection_Owner)
@@ -103,28 +47,76 @@ class IniFileProto {
       }
       return setterFn
     }
+    static Parse(content) {
+      dataObj := map()
+      for _, pair in StrSplit(content, "`n") {
+        pair := StrSplit(pair, "=",, 2)
+        dataObj[pair[1]] := pair.Length = 2 ? pair[2] : ""
+      }
+      return dataObj
+    }
+    ToString() {
+      iniString := ""
+      for propName, propValue in this.__pIniSection_Data {
+        iniString .= propName "=" propValue "`n"
+      }
+      return iniString
+    }
+    Has(Name) {
+      return this.__pIniSection_Data.Has(Name)
+    }
+    Delete(Name) {
+      if (!this.__pIniSection_Data.Has(Name))
+        throw PropertyError("Can not delete a property that does not exist. Path: " this.__pIniSection_Name "." Name)
+      this.__pIniSection_Data.Delete(Name)
+      this.__pIniSection_Owner._autosave()
+    }
   }
-  static _defaultSettings := Map(
-    'SAVE_AUTOMATICALLY', true,
-    'SECTION_ITEM_EMPTY_VALUE', '',
-    'WRITE_DEBOUNCE_TIMEOUT_MS', 3000,
-  )
+
+  __Set(Name, Params, Value) {
+    if (this.__isReservedPropName(Name)) {
+      this.DefineProp(name, {
+        Value: Value,
+      })
+      return this.%Name%
+    }
+    this.__pIniFile_Data[Name] := IniFile.IniSection(this, Name, Value)
+    this._addSection(Name)
+    return this.__pIniFile_Data[Name]
+  }
   __pIniFile_Path := ''
   __pIniFile_Data := Map()
   __pIniFile_PrevData := Map()
   __pIniFile_Settings := Map()
+  __isReservedPropName(Name) {
+    return Name = "__pIniFile_Data"
+      || Name = "__pIniFile_Path"
+      || Name = "__pIniFile_PrevData"
+      || Name = "__pIniFile_Settings"
+  }
   _initSettings(settingsObject:=-1) {
-    this.__pIniFile_Settings := IniFileProto._defaultSettings.Clone()
+    static _defaultSettings := Map(
+      'SAVE_AUTOMATICALLY', false,
+      'WRITE_DEBOUNCE_TIMEOUT_MS', 3000,
+    )
+    this.__pIniFile_Settings := _defaultSettings.Clone()
     if (settingsObject = -1)
       return
     if (!IsObject(settingsObject))
       throw TypeError("Provided settingsObject is not an object")
-    for settingName, settingValue in IniFileProto._defaultSettings {
+    for settingName, settingValue in _defaultSettings {
       this.__pIniFile_Settings[settingName] := settingValue
     }
   }
   _autosave() {
     OutputDebug('_autosave triggered')
+    if (!this.__pIniFile_Settings["SAVE_AUTOMATICALLY"]) {
+      OutputDebug('SAVE_AUTOMATICALLY is off')
+      return
+    }
+    debounceFn := this._debounceFn
+    writeFn := this._writeIni.bind(this)
+    debounceFn(writeFn)
   }
   _addSection(name) {
     this.DefineProp(name, {
@@ -145,38 +137,18 @@ class IniFileProto {
     return setterFn
   }
   _writeIni() {
-    outputDebug("______TODO: _writeIni`n" )
-    ; outputDebug("______TODO: _writeIni`n" this.ToString())
-    ; buffer := IniRead(this.__pIniFile_Path)
-    ; outputDebug("IniRead " this.__pIniFile_Path "`n")
-    ; sections := Map()
-    ; for _, name in StrSplit(buffer, "`n")
-    ;   sections[name] := true
-    ; for name in this.__pIniFile_Data {
-    ;   this[name].Save()
-    ;   sections.Delete(name)
-    ; }
-    ; for name in sections {
-    ;   IniDelete(this.__pIniFile_Path, name)
-    ;   outputDebug("IniDelete " this.__pIniFile_Path " " name "`n")
-    ; }
-    ;   buffer := IniRead(this.__pIniFile_Path, this.__pIniSection_Name)
-    ;   outputDebug("IniRead " this.__pIniFile_Path " " this.__pIniSection_Name "`n")
-    ;   keys := Map()
-    ;   for _, key in StrSplit(buffer, "`n") {
-    ;       key := StrSplit(key, "=")[1]
-    ;       keys[key] := true
-    ;   }
-    ;   for key, value in this {
-    ;       keys.Delete(key)
-    ;       IniWrite(value, this.__pIniFile_Path, this.__pIniSection_Name, key)
-    ;       outputDebug("IniWrite " this.__pIniFile_Path " " this.__pIniSection_Name " k=" key " v=" value "`n")
-    ;   }
-    ;   for key in keys {
-    ;     IniDelete(this.__pIniFile_Path, this.__pIniSection_Name, key)
-    ;     outputDebug("IniDelete " this.__pIniFile_Path " " this.__pIniSection_Name " k=" key "`n")
-    ;   }
-    ; }
+    oldContent := ""
+    for sectionName, sectionContent in this.__pIniFile_PrevData {
+      oldContent .= "[" sectionName "]`n" sectionContent
+    }
+    newContent := this.ToString()
+    if (oldContent = newContent) {
+      outputDebug("_writeIni: no changes made`n" )
+      return
+    }
+    if (FileExist(this.__pIniFile_Path))
+      FileDelete(this.__pIniFile_Path)
+    FileAppend(newContent, this.__pIniFile_Path)
   }
   _debounceFactory(TimeoutMs := 800) {
     static lastCallback := 0
@@ -196,36 +168,23 @@ class IniFileProto {
     }
     return debounceFn
   }
-}
-class IniFile extends IniFileProto {
-  ;#region Public
-  Has(Name) {
-    return this.__pIniFile_Data.Has(Name)
-  }
   Load(filePath) {
+    this.__pIniFile_Path := filePath
     outputDebug("IniRead(" filePath ")`n")
     buffer := IniRead(filePath)
-
     for idx, sectionName in StrSplit(buffer, "`n") {
+      if (this.__isReservedPropName(sectionName))
+        throw TypeError("Not allowed to use reserved name for section name " . sectionName . " found in file " . filePath)
       outputDebug("IniRead(" filePath ", " sectionName ")`n")
       sectionContent := IniRead(filePath, sectionName)
       this.__pIniFile_PrevData[sectionName] := sectionContent
-
       this.__pIniFile_Data[sectionName] := IniFile.IniSection(this, sectionName, sectionContent)
-
       this._addSection(sectionName)
     }
   }
   Save() {
-    outputDebug("Save`n")
-
-    outputDebug("TODO: SaveDebounced >>> debounce Save()`n")
-    ; outputDebug("TODO: SaveDebounced >>> debounce Save()`n" this.ToString())
-    debounceFn := this._debounceFn
-    writeFn := this._writeIni.bind(this)
-    debounceFn(writeFn)
+    this._writeIni()
   }
-
   ToString() {
     iniString := ""
     for sectionName, iniSection in this.__pIniFile_Data {
@@ -233,133 +192,83 @@ class IniFile extends IniFileProto {
     }
     return iniString
   }
-
+  Has(Name) {
+    return this.__pIniFile_Data.Has(Name)
+  }
   Delete(Name) {
     if (!this.__pIniFile_Data.Has(Name))
       throw PropertyError("Can not delete a section that does not exist. Path: " Name)
     this.__pIniFile_Data.Delete(Name)
     this._autosave()
   }
-  ;#endregion
-
-  ;#region Meta
-
+}
+class IniFile extends IniFileProto {
   __New(filePath, settingsObject:=-1) {
     this._initSettings(settingsObject)
-    
-    ; this.DefineMethod( "__Enum", (this, NumberOfVars) => this.OwnProps() )
-    
-    debounceFn := this._debounceFactory(this.__pIniFile_Settings["WRITE_DEBOUNCE_TIMEOUT_MS"])
-    this.DefineProp("_debounceFn", { Call: debounceFn })
+    if (this.__pIniFile_Settings["SAVE_AUTOMATICALLY"]) {
+      debounceFn := this._debounceFactory(this.__pIniFile_Settings["WRITE_DEBOUNCE_TIMEOUT_MS"])
+      this.DefineProp("_debounceFn", { Call: debounceFn })
+    }
     this.Load(filePath)
-
-
-
   }
-  ; __Get(Name, Params*) {
-  ;   this.__pIniFile_Data[Name] := IniFile.IniSection(Name, {}, this)
-  ;   OutputDebug("IniFile __GET(" . Name . ")`n")
-  ;   this.DefineProp(Name, {
-  ;     Get: this._getterFactory(Name),
-  ;     Set: this._setterFactory(Name),
-  ;   })
-  ;   return this.__pIniFile_Data[Name]
-  ; }
-  ; __Set(Name, Params, Value*) {
-  ;   this.__pIniFile_Data[Name] := IniFile.IniSection(Name, Value, this)
-  ;   this.DefineProp(Name, {
-  ;     Get: this._getterFactory(Name),
-  ;     Set: this._setterFactory(Name),
-  ;   })
-  ;   return this.__pIniFile_Data[Name]
-  ; }
-  
-                  __Enum(NumberOfVars) {
-                    total := this.__pIniFile_Data.Count
-                    remained := total
-
-                    EnumerateVals(&LoopVal) {
-                      if (remained = 0)
-                        return false
-                      idx := 1
-                      For Key in this.__pIniFile_Data {
-                        if (idx == (total + 1 - remained)) {
-                          LoopVal := Key
-                          break
-                        }
-                        idx += 1
-                      }
-                      remained -= 1
-                      return true
-                    }
-
-                    EnumerateKeysVals(&LoopKey, &LoopVal) {
-                      if (remained = 0)
-                        return false
-                      idx := 1
-                      For Key, Val in this.__pIniFile_Data {
-                        if (idx == (total + 1 - remained)) {
-                          LoopKey := Key
-                          LoopVal := Val
-                          break
-                        }
-                        idx += 1
-                      }
-                      remained -= 1
-                      return true
-                    }
-
-                    return (NumberOfVars = 1)
-                      ? EnumerateVals
-                      : EnumerateKeysVals
-                    
-                  }
-                  __Item[Params*] {
-                    get {
-                      name := Params[1]
-                      return this.__pIniFile_Data[name]
-                    }
-                    set {
-                      name := params[1]
-                      this.__pIniFile_Data[name] := IniFile.IniSection(this, name, value)
-                      if (!this.HasOwnProp(name))
-                        this._addSection(name)
-                    }
-                  }
-                  static get(Params*) {
-                    throw Error("WTF get")
-                  }
-                  static set(Params*) {
-                    throw Error("WTF set")
-                  }
-  ;#endregion
-
-  class IniSection extends IniFileProto.IniSection {
-    
-
-    ;#region Public
-    Has(Name) {
-      return this.__pIniSection_Data.Has(Name)
+  __Delete() {
+    debounceFn := this._debounceFn
+    doNothing() {
+      nothing := 0
     }
-    ToString() {
-      iniString := ""
-      for propName, propValue in this.__pIniSection_Data {
-        iniString .= propName "=" propValue "`n"
+    OutputDebug('debounce nothing`n')
+    debounceFn(doNothing)
+  }
+  __Enum(NumberOfVars) {
+    total := this.__pIniFile_Data.Count
+    remained := total
+    EnumerateVals(&LoopVal) {
+      if (remained = 0)
+        return false
+      idx := 1
+      For Key in this.__pIniFile_Data {
+        if (idx == (total + 1 - remained)) {
+          LoopVal := Key
+          break
+        }
+        idx += 1
       }
-      return iniString
+      remained -= 1
+      return true
     }
-    ;#endregion
-
-    ;#region Overload
-    Delete(Name) {
-      if (!this.__pIniSection_Data.Has(Name))
-        throw PropertyError("Can not delete a property that does not exist. Path: " this.__pIniSection_Name "." Name)
-      this.__pIniSection_Data.Delete(Name)
-      this._autosave()
+    EnumerateKeysVals(&LoopKey, &LoopVal) {
+      if (remained = 0)
+        return false
+      idx := 1
+      For Key, Val in this.__pIniFile_Data {
+        if (idx == (total + 1 - remained)) {
+          LoopKey := Key
+          LoopVal := Val
+          break
+        }
+        idx += 1
+      }
+      remained -= 1
+      return true
     }
-    ;#endregion
+    return (NumberOfVars = 1)
+      ? EnumerateVals
+      : EnumerateKeysVals
+  }
+  __Item[Params*] {
+    get {
+      name := Params[1]
+      return this.__pIniFile_Data[name]
+    }
+    set {
+      name := params[1]
+      this.__pIniFile_Data[name] := IniFile.IniSection(this, name, value)
+      if (!this.HasOwnProp(name))
+        this._addSection(name)
+    }
+  }
 
-    ;#region Meta
+  class IniSection extends IniFileProto.IniSectionProto {
     __New(Owner, Name, Data) {
       this.__pIniSection_Owner := Owner
       this.__pIniSection_Name := Name
@@ -367,71 +276,26 @@ class IniFile extends IniFileProto {
 
       dataProps := (dataObject.__Class = "Map") ? dataObject : dataObject.OwnProps()
       for propName, value in dataProps {
-        ; if (propName = "__pIniSection_Name" || propName = "__pIniSection_Data" || propName = "__pIniSection_Owner")
-        ;   Continue
-        ; this[propName] := value ; will call __Item[Params*] { set()
+        if (propName = "__pIniSection_Name" || propName = "__pIniSection_Data" || propName = "__pIniSection_Owner")
+          throw TypeError("Not allowed to use internal propName " . propName . " found in section " . Name)
         this.__pIniSection_Data[propName] := value
-        this.DefineProp(propName, {
-          Get: this._getterFactory(propName),
-          Set: this._setterFactory(propName),
-        })
+        this._addSectionItem(propName)
       }
-      
     }
-    ; __Get(Name, Params*) {
-    ;   if (Name == '__pIniSection_Data')
-    ;     return this.__pIniSection_Data
-    ;   if (Name == '__pIniFile_Settings')
-    ;     return this.__pIniFile_Settings
-
-    ;   val := (this.__pIniSection_Data.Has(Name)) ? this.__pIniSection_Data[Name] : this.__pIniFile_Settings['SECTION_ITEM_EMPTY_VALUE']
-    ;   return val
-    ; }
-    ; __Set(Name, Params, Value) {
-    ;   if (IsObject(Value))
-    ;     throw TypeError("You can not set Object as a value to ini prop. Path: " this.__pIniSection_Name "." Name)
-    ;   if (!this.__pIniSection_Data.Has(Name) || Value != this.__pIniSection_Data[Name]) {
-    ;     this.__pIniSection_Data[Name] := Value
-    ;     this._autosave()
-    ;   }
-    ; }
- 
-              __Enum(Params*) {
-                return this.__pIniSection_Data.__Enum(Params*)
-              }
-              __Item[Params*] {
-                get {
-                  name := Params[1]
-                  return this.__pIniSection_Data[name]
-                  ; val := (this.__pIniSection_Data.Has(name)) ? this.__pIniSection_Data[name] : this.__pIniSection_Owner.__pIniFile_Settings['SECTION_ITEM_EMPTY_VALUE']
-                  ; return val
-                }
-                set {
-                  ; called by this[propName] := ...
-
-                  ; throw Error("WTF __Item set")
-
-                  newValue := value
-                  newName := params[1]
-                  this.%newName% := newValue
-                  ; this.%newName% := IniFile.IniSection(this, newName, newValue)
-
-
-                  ; this._autosave() ;nnada???
-
-                  ; local el, _, param, i, arr, found, path, m
-                  ; el := this
-                  ; for _, param in params {
-                  ;   m := param
-                  ; }
-                }
-              }
-              static get(Params*) {
-                throw Error("WTF get")
-              }
-              static set(Params*) {
-                throw Error("WTF set")
-              }
-    ;#endregion
+    __Enum(Params*) {
+      return this.__pIniSection_Data.__Enum(Params*)
+    }
+    __Item[Params*] {
+      get {
+        name := Params[1]
+        return this.__pIniSection_Data[name]
+      }
+      set {
+        newValue := value
+        newName := params[1]
+        this.%newName% := newValue
+        
+      }
+    }
   }
 }
