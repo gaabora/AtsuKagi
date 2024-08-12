@@ -8,11 +8,11 @@ class RDPWindowHandler extends AKPlugin {
 
   __ActionsHelp() {
     texts := Map()
-    texts["IsRDPClientWindowActive"] :=           "IsRDPClientWindowActive()"
-    texts["MinimizeRestoreRDPClientWindows"] :=   "MinimizeRestoreRDPClientWindows()"
-    texts["RestoreFullscreenRDPClientWindow"] :=  "RestoreFullscreenRDPClientWindow()"
-    texts["LoopRDPClientWindows"] :=              "LoopRDPClientWindows()"
-    texts["SwitchToNextRDPClientWindow"] :=       "SwitchToNextRDPClientWindow()"
+    texts["IsRDPClientWindowActive"]          := "IsRDPClientWindowActive()"
+    texts["MinimizeRestoreRDPClientWindows"]  := "MinimizeRestoreRDPClientWindows()"
+    texts["RestoreFullscreenRDPClientWindow"] := "RestoreFullscreenRDPClientWindow()"
+    ; texts["LoopRDPClientWindows"]             := "LoopRDPClientWindows()"
+    texts["SwitchToNextRDPClientWindow"]      := "SwitchToNextRDPClientWindow()"
     return texts
   }
 
@@ -51,7 +51,8 @@ class RDPWindowHandler extends AKPlugin {
   }
 
   MinimizeRestoreRDPClientWindows() { ;;;
-
+    ; TODO TEST!!!!
+    RDCMWindowTitle := ""
     if(this.IsRDPClientWindowActive()) {
       ; Store the title of the topmost one
       RDCMWindowTitle := WinGetTitle("A")
@@ -73,12 +74,13 @@ class RDPWindowHandler extends AKPlugin {
   }
 
   RestoreFullscreenRDPClientWindow() { ;;;
+        ; TODO TEST!!!!
     if(this.IsRDPClientWindowActive()) {
         Send("^!{CtrlBreak}")
     }
   }
 
-  ; LoopRDPClientWindows() { ;;; TODO test, style
+  LoopRDPClientWindows() { ;;; TODO test, style
   ;   if (OldTime = "") {
   ;     OldTime := A_TickCount
   ;     ;next: whether the next window should be activated; otherwise the first one
@@ -96,7 +98,7 @@ class RDPWindowHandler extends AKPlugin {
   ;     ; Go the normal way
   ;     OldIndex := this.SwitchToNextRDPClientWindow()
   ;   }
-  ; }
+  }
 
   SwitchToNextRDPClientWindow() { ;;; TODO test, style
     local wins2_title, wins1_title

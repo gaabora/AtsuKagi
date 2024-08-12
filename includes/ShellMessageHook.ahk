@@ -1,21 +1,21 @@
 class ShellMessageHook extends AKPlugin {
-  static HSHELL_WINDOWCREATED :=       1
-  static HSHELL_WINDOWDESTROYED :=     2
+  static HSHELL_WINDOWCREATED       := 1
+  static HSHELL_WINDOWDESTROYED     := 2
   static HSHELL_ACTIVATESHELLWINDOW := 3
-  static HSHELL_WINDOWACTIVATED :=     4
-  static HSHELL_GETMINRECT :=          5
-  static HSHELL_REDRAW :=              6
-  static HSHELL_TASKMAN :=             7
-  static HSHELL_LANGUAGE :=            8
-  static HSHELL_SYSMENU :=             9
-  static HSHELL_ENDTASK :=             10
-  static HSHELL_ACCESSIBILITYSTATE :=  11
-  static HSHELL_APPCOMMAND :=          12
-  static HSHELL_WINDOWREPLACED :=      13
-  static HSHELL_WINDOWREPLACING :=     14
-  static HSHELL_HIGHBIT :=             15
-  static HSHELL_FLASH :=               16
-  static HSHELL_RUDEAPPACTIVATED :=    17
+  static HSHELL_WINDOWACTIVATED     := 4
+  static HSHELL_GETMINRECT          := 5
+  static HSHELL_REDRAW              := 6
+  static HSHELL_TASKMAN             := 7
+  static HSHELL_LANGUAGE            := 8
+  static HSHELL_SYSMENU             := 9
+  static HSHELL_ENDTASK             := 10
+  static HSHELL_ACCESSIBILITYSTATE  := 11
+  static HSHELL_APPCOMMAND          := 12
+  static HSHELL_WINDOWREPLACED      := 13
+  static HSHELL_WINDOWREPLACING     := 14
+  static HSHELL_HIGHBIT             := 15
+  static HSHELL_FLASH               := 16
+  static HSHELL_RUDEAPPACTIVATED    := 17
   static messageNames := { 1: "WINDOW_CREATED", 2: "WINDOW_DESTROYED", 3: "ACTIVATE_SHELL_WINDOW", 4: "WINDOW_ACTIVATED", 5: "GET_MIN_RECT", 6: "REDRAW", 7: "TASK_MAN", 8: "LANGUAGE", 9: "SYS_MENU", 10: "END_TASK", 11: "ACCESSIBILITY_STATE", 12: "APP_COMMAND", 13: "WINDOW_REPLACED", 14: "WINDOW_REPLACING", 15: "HIGH_BIT", 16: "FLASH", 17: "RUDE_APP_ACTIVATED" }
 
   eventListeners := { "WindowCreated": [], "WindowActivated": [], "WindowDestroyed": [] }
@@ -94,16 +94,16 @@ class ShellMessageHook extends AKPlugin {
   ; WinGet, pname, ProcessName, ahk_id %hwnd%
   ; WinGet, pid, PID, ahk_id %hwnd%
 
-	
-	; If wParam not in %Filters%
-	; {
-	; 	If ( Pause = 0 )
-	; 	{	
-	; 		DecToHex( lParam )
-	; 		LV_Add( "", lParam, pname, wParam, msg )
-	; 		SendMessage, WM_VSCROLL, SB_BOTTOM, 0, SysListView321, ahk_id %Hwnd%		
-	; 	}	
-	; }	
+  
+  ; If wParam not in %Filters%
+  ; {
+  ;   If ( Pause = 0 )
+  ;   {  
+  ;     DecToHex( lParam )
+  ;     LV_Add( "", lParam, pname, wParam, msg )
+  ;     SendMessage, WM_VSCROLL, SB_BOTTOM, 0, SysListView321, ahk_id %Hwnd%    
+  ;   }  
+  ; }  
 
   
 

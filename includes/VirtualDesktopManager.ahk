@@ -1,28 +1,29 @@
 class VirtualDesktopManager extends AKPlugin {
   dllPathDefault := "\VirtualDesktopAccessor.dll"
   recentDesktopNumber := 1
-
+  loopFirtAndLast := 0
+  
   __New(dllPath:=0, loopFirtAndLast:=0) {
     this.dllPath := (dllPath) ? dllPath : A_ScriptDir . this.dllPathDefault
 
-    this.hVirtualDesktopAccessor :=             DllCall("LoadLibrary", "Str", this.dllPath, "Ptr")
-    this.GetDesktopCountProc :=                 DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")
-    this.GoToDesktopNumberProc :=               DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GoToDesktopNumber", "Ptr")
-    this.GetCurrentDesktopNumberProc :=         DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetCurrentDesktopNumber", "Ptr")
+    this.hVirtualDesktopAccessor             := DllCall("LoadLibrary", "Str", this.dllPath, "Ptr")
+    this.GetDesktopCountProc                 := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")
+    this.GoToDesktopNumberProc               := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GoToDesktopNumber", "Ptr")
+    this.GetCurrentDesktopNumberProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetCurrentDesktopNumber", "Ptr")
     this.IsWindowOnCurrentVirtualDesktopProc := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsWindowOnCurrentVirtualDesktop", "Ptr")
-    this.IsWindowOnDesktopNumberProc :=         DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsWindowOnDesktopNumber", "Ptr")
-    this.MoveWindowToDesktopNumberProc :=       DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "MoveWindowToDesktopNumber", "Ptr")
-    this.IsPinnedWindowProc :=                  DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsPinnedWindow", "Ptr")
-    this.GetDesktopNameProc :=                  DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopName", "Ptr")
-    this.SetDesktopNameProc :=                  DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "SetDesktopName", "Ptr")
-    this.CreateDesktopProc :=                   DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "CreateDesktop", "Ptr")
-    this.RemoveDesktopProc :=                   DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "RemoveDesktop", "Ptr")
+    this.IsWindowOnDesktopNumberProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsWindowOnDesktopNumber", "Ptr")
+    this.MoveWindowToDesktopNumberProc       := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "MoveWindowToDesktopNumber", "Ptr")
+    this.IsPinnedWindowProc                  := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsPinnedWindow", "Ptr")
+    this.GetDesktopNameProc                  := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopName", "Ptr")
+    this.SetDesktopNameProc                  := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "SetDesktopName", "Ptr")
+    this.CreateDesktopProc                   := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "CreateDesktop", "Ptr")
+    this.RemoveDesktopProc                   := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "RemoveDesktop", "Ptr")
 
     ; On change listeners
-    this.RegisterPostMessageHookProc :=         DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "RegisterPostMessageHook", "Ptr")
-    this.UnregisterPostMessageHookProc :=       DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "UnregisterPostMessageHook", "Ptr")
+    this.RegisterPostMessageHookProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "RegisterPostMessageHook", "Ptr")
+    this.UnregisterPostMessageHookProc       := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "UnregisterPostMessageHook", "Ptr")
 
-
+    this.loopFirtAndLast := loopFirtAndLast
     ; TODO hook
     this.addDesktopChangedHook()
   }

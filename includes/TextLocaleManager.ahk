@@ -5,13 +5,13 @@ class TextLocaleManager extends AKPlugin {
 
   __ActionsHelp() {
     texts := Map()
-    texts["IsRDPClientWindowActive"] :=           "IsRDPClientWindowActive()"
+    texts["IsTextSelectCursor"] := "IsTextSelectCursor()"
 
     return texts
   }
 
  ; Function to check if the cursor is in text selection mode
-  IsTextSelectCursor() {
+  IsTextSelectCursor() { ;;;
     ; Constants for cursor types
     OCR_IBEAM := 32513  ; I-beam cursor
 

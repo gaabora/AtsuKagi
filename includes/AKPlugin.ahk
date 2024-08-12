@@ -16,7 +16,10 @@ class AKPlugin extends AKBase {
   __HooksHelp() {
     return [] ; MUST return array like ["FnName": "FnName(params) description", ...] for all hooks you want to register in the app
   }
-  processConfig() {
+  ProcessConfig() {
+  }
+  RunAction(ActionString) {
+    return this.App.RunAction(ActionString)
   }
   IsKeyboardHookStealerWindowActive() {
     return this.App.IsKeyboardHookStealerWindowActive()
@@ -35,7 +38,7 @@ class AKPlugin extends AKBase {
   }
   beautifyActionName(fnName) {
     parts := StrSplit(fnName, ".")
-    methodName := (parts.Length() = 2) ? parts[2] : parts[1]
+    methodName := parts[parts.Length]
     return FormatCamelCaseToSentence(methodName)
   }
 }

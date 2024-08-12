@@ -17,6 +17,7 @@ SetWinDelay -1
 SetControlDelay -1
 
 
+#Include lib/Notify.ahk
 #Include lib/IniFile.ahk
 ; #Include lib/Ini.ahk
 ; #Include lib/Ini_File.ahk
@@ -42,6 +43,10 @@ ToggleAppSuspend() {
 ;   #Include includes/ShellMessageHook.ahk
 ;   APP.AddLib("ShellMessageHook", DebugLevel)
 ; }
+if FileExist("includes/GeneralHandlers.ahk") {
+  #Include includes/GeneralHandlers.ahk
+  APP.AddLib("GeneralHandlers", DebugLevel)
+}
 if FileExist("includes/RDPWindowHandler.ahk") {
   #Include includes/RDPWindowHandler.ahk
   APP.AddLib("RDPWindowHandler", DebugLevel)
@@ -72,7 +77,7 @@ if (APP.Config.GENERAL.WelcomeMessage) {
   APP.ShowInfo(APP.Config.GENERAL.WelcomeMessage)
 
 }
-; APP.Speak("opachika превед медвед, йя кревед")
+; APP.Speak("何 opachika превед медвед, йя кревед")
 
 ; APP.SoundPlay(APP.Config.GENERAL.StartupSound)
 

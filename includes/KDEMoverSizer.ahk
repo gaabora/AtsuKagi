@@ -1,8 +1,8 @@
 class KDEMoverSizer extends AKPlugin {
-  frameGui := {}
-  drawGridGUIOptions := "+Border"
-  drawGridColor := "White"
-  processConfig() {
+  _frameGui := {}
+  _drawGridGUIOptions := "+Border"
+  _drawGridColor := "White"
+  ProcessConfig() {
     if (!this.Config.Has("BlacklistedWindowSelectors"))
       this.Config.BlacklistedWindowSelectors := "MultitaskingViewFrame,ForegroundStaging,TaskSwitcherWnd,TaskSwitcherOverlayWnd,XamlExplorerHostIslandWindow"
   }
@@ -13,8 +13,8 @@ class KDEMoverSizer extends AKPlugin {
 
   __ActionsHelp() {
     texts := Map()
-    texts["EnterWindowMovingMode"] :=		"EnterWindowMovingMode(LockAxisHotkey:=Shift, QuickPositionHotkey:=LWin, EnableSnapping:=1, ShowWindowContent:=1, BringToFront:=0)"
-    texts["EnterWindowResizingMode"] :=	"EnterWindowResizingMode(LockAxisHotkey:=Shift, QuickPositionHotkey:=LWin, EnableSnapping:=1, ShowWindowContent:=1, BringToFront:=0)"
+    texts["EnterWindowMovingMode"]   := "EnterWindowMovingMode(LockAxisHotkey:=Shift, QuickPositionHotkey:=LWin, EnableSnapping:=1, ShowWindowContent:=1, BringToFront:=0)"
+    texts["EnterWindowResizingMode"] := "EnterWindowResizingMode(LockAxisHotkey:=Shift, QuickPositionHotkey:=LWin, EnableSnapping:=1, ShowWindowContent:=1, BringToFront:=0)"
     return texts
   }
   
@@ -32,7 +32,7 @@ class KDEMoverSizer extends AKPlugin {
     MouseGetPos(&xMouSrc, &yMouSrc, &hwnd)
     hotkeyInfo := ExtractHotkeyInfo(A_ThisHotkey)
     MouseButton := hotkeyInfo.key
-    ; if WinActive("ahk_class Notepad") TODO
+
     if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
       SendEvent("{Blind}{" MouseButton " down}")
       KeyWait(MouseButton, "U")
@@ -159,7 +159,7 @@ class KDEMoverSizer extends AKPlugin {
     MouseGetPos(&xMouSrc, &yMouSrc, &hwnd)
     hotkeyInfo := ExtractHotkeyInfo(A_ThisHotkey)
     MouseButton := hotkeyInfo.key
-    ; if WinActive("ahk_class Notepad") TODO
+
     if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
       SendEvent("{Blind}{" MouseButton " down}")
       KeyWait(MouseButton, "U")
@@ -459,26 +459,26 @@ class KDEMoverSizer extends AKPlugin {
   drawRectFrame_Prepare() {
     global
     Loop 4 {
-        this.frameGui[A_Index] := Gui()
-        this.frameGui[A_Index].Opt("-Caption +ToolWindow +AlwaysOnTOp +OwnDialogs " this.drawGridGUIOptions)
-        this.frameGui[A_Index].Color(this.drawGridColor)
+        this._frameGui[A_Index] := Gui()
+        this._frameGui[A_Index].Opt("-Caption +ToolWindow +AlwaysOnTOp +OwnDialogs " this._drawGridGUIOptions)
+        this._frameGui[A_Index].Color(this._drawGridColor)
     }
   }
 
   drawRectFrame_Show(KDE_WinX2, yWinDst, KDE_WinW2, KDE_WinH2, FrameWidth) {
-    this.frameGui[1] := Gui()
-    this.frameGui[1].Show("x" KDE_WinX2 - 2 " y" yWinDst - 2 " w" FrameWidth + 1 " h" KDE_WinH2 " NoActivate")
-    this.frameGui[2] := Gui()
-    this.frameGui[2].Show("x" KDE_WinX2 - 2 " y" yWinDst - 2 " w" KDE_WinW2 " h" FrameWidth + 1 " NoActivate")
-    this.frameGui[3] := Gui()
-    this.frameGui[3].Show("x" KDE_WinX2 + KDE_WinW2 - 2 " y" yWinDst - 2 " w" FrameWidth + 1 " h" KDE_WinH2 " NoActivate")
-    this.frameGui[4] := Gui()
-    this.frameGui[4].Show("x" KDE_WinX2 - 2 " y" yWinDst + KDE_WinH2 - 2 " w" KDE_WinW2 " h" FrameWidth + 1 " NoActivate")
+    this._frameGui[1] := Gui()
+    this._frameGui[1].Show("x" KDE_WinX2 - 2 " y" yWinDst - 2 " w" FrameWidth + 1 " h" KDE_WinH2 " NoActivate")
+    this._frameGui[2] := Gui()
+    this._frameGui[2].Show("x" KDE_WinX2 - 2 " y" yWinDst - 2 " w" KDE_WinW2 " h" FrameWidth + 1 " NoActivate")
+    this._frameGui[3] := Gui()
+    this._frameGui[3].Show("x" KDE_WinX2 + KDE_WinW2 - 2 " y" yWinDst - 2 " w" FrameWidth + 1 " h" KDE_WinH2 " NoActivate")
+    this._frameGui[4] := Gui()
+    this._frameGui[4].Show("x" KDE_WinX2 - 2 " y" yWinDst + KDE_WinH2 - 2 " w" KDE_WinW2 " h" FrameWidth + 1 " NoActivate")
   }
 
   drawRectFrame_Cancel() {
     Loop 4
-      this.frameGui[A_Index].Cancel()
+      this._frameGui[A_Index].Cancel()
     ;DllCall("RedrawWindow", "Uint", curwin_id , "Uint", 0, "Uint", 0, "Uint", 0x81)    ; Workaround for WinSet, Redraw,, ahk_id %curwin_id% (didn't work for Gimp)
   }
 
