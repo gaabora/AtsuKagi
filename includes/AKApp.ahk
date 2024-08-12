@@ -319,6 +319,7 @@ class AKApp extends AKBase {
       Tray.Delete() ; V1toV2: not 100% replacement of NoStandard, Only if NoStandard is used at the beginning
     TraySetIcon(this.TrayIconDefault, "1")
     ; this.runMenuHooks() ; TODO
+    Tray.Add("KeyHistory", fn)
     Tray.Add("Help", fn)
     Tray.Add("Test", fn)
     Tray.Add()
@@ -334,6 +335,9 @@ class AKApp extends AKBase {
     Switch (ItemName) {
       Case "Test":
         this.TestActions()
+        return
+      Case "KeyHistory":
+        KeyHistory
         return
       Case "Help":
         this.ShowHelp()

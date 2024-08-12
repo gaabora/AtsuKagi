@@ -1,4 +1,27 @@
 class WindowManager extends AKPlugin {
+  static WS_BORDER           := 0x800000   ; 	+/-Border. Creates a window that has a thin-line border.
+  static WS_POPUP            := 0x80000000 ; 	Creates a pop-up window. This style cannot be used with the WS_CHILD style.
+  static WS_CAPTION          := 0xC00000   ; 	+/-Caption. Creates a window that has a title bar. This style is a numerical combination of WS_BORDER and WS_DLGFRAME.
+  static WS_CLIPSIBLINGS     := 0x4000000  ; 	Clips child windows relative to each other; that is, when a particular child window receives a WM_PAINT message, the WS_CLIPSIBLINGS style clips all other overlapping child windows out of the region of the child window to be updated. If WS_CLIPSIBLINGS is not specified and child windows overlap, it is possible, when drawing within the client area of a child window, to draw within the client area of a neighboring child window.
+  static WS_DISABLED         := 0x8000000  ; 	+/-Disabled. Creates a window that is initially disabled.
+  static WS_DLGFRAME         := 0x400000   ; 	Creates a window that has a border of a style typically used with dialog boxes.
+  static WS_GROUP            := 0x20000    ; 	+/-Group. Indicates that this control is the first one in a group of controls. This style is automatically applied to manage the "only one at a time" behavior of radio buttons. In the rare case where two groups of radio buttons are added consecutively (with no other control types in between them), this style may be applied manually to the first control of the second radio group, which splits it off from the first.
+  static WS_HSCROLL          := 0x100000   ; 	Creates a window that has a horizontal scroll bar.
+  static WS_MAXIMIZE         := 0x1000000  ; 	Creates a window that is initially maximized.
+  static WS_MAXIMIZEBOX      := 0x10000    ; 	+/-MaximizeBox. Creates a window that has a maximize button. Cannot be combined with the WS_EX_CONTEXTHELP style. The WS_SYSMENU style must also be specified.
+  static WS_MINIMIZE         := 0x20000000 ; 	Creates a window that is initially minimized.
+  static WS_MINIMIZEBOX      := 0x20000    ; 	+/-MinimizeBox. Creates a window that has a minimize button. Cannot be combined with the WS_EX_CONTEXTHELP style. The WS_SYSMENU style must also be specified.
+  static WS_OVERLAPPED       := 0x0        ; 	Creates an overlapped window. An overlapped window has a title bar and a border. Same as the WS_TILED style.
+  static WS_OVERLAPPEDWINDOW := 0xCF0000   ; 	Creates an overlapped window with the WS_OVERLAPPED, WS_CAPTION, WS_SYSMENU, WS_THICKFRAME, WS_MINIMIZEBOX, and WS_MAXIMIZEBOX styles. Same as the WS_TILEDWINDOW style.
+  static WS_POPUPWINDOW      := 0x80880000 ; 	Creates a pop-up window with WS_BORDER, WS_POPUP, and WS_SYSMENU styles. The WS_CAPTION and WS_POPUPWINDOW styles must be combined to make the window menu visible.
+  static WS_SIZEBOX          := 0x40000    ; 	+/-Resize. Creates a window that has a sizing border. Same as the WS_THICKFRAME style.
+  static WS_SYSMENU          := 0x80000    ; 	+/-SysMenu. Creates a window that has a window menu on its title bar. The WS_CAPTION style must also be specified.
+  static WS_TABSTOP          := 0x10000    ; 	+/-Tabstop. Specifies a control that can receive the keyboard focus when the user presses Tab. Pressing Tab changes the keyboard focus to the next control with the WS_TABSTOP style.
+  static WS_THICKFRAME       := 0x40000    ; 	Creates a window that has a sizing border. Same as the WS_SIZEBOX style.
+  static WS_VSCROLL          := 0x200000   ; 	Creates a window that has a vertical scroll bar.
+  static WS_VISIBLE          := 0x10000000 ; 	Creates a window that is initially visible.
+  static WS_CHILD            := 0x40000000 ; 	Creates a child window. A window with this style cannot have a menu bar. This style cannot be used with the WS_POPUP style.
+  
   __ConfigHelp() {
     ; TODO
     return []
@@ -55,61 +78,57 @@ class WindowManager extends AKPlugin {
       vCmdLn := oProcess.CommandLine      , vPPath32 := oProcess.ExecutablePath
     oWMI := oQueryEnum := oProcess := ""
 
-    this.showNotice("WindowClass: "  GetWindowClass(hwnd) "`nHoveredArea: " this.GetHoveredAreaName() "`nPID" vPID "`nProcessName: " vPName "`nProcessPath:`n" vPPath ((vPPath != vPPath32) ? "`n" vPPath32 : "") "`nCommandLine: " vCmdLn)
+    this.ShowNotice("WindowClass: "  GetWindowClass(hwnd) "`nHoveredArea: " this.GetHoveredAreaName() "`nPID" vPID "`nProcessName: " vPName "`nProcessPath:`n" vPPath ((vPPath != vPPath32) ? "`n" vPPath32 : "") "`nCommandLine: " vCmdLn)
     return
   }
 
   ShowWindowList() { ;;;
-    ;; TODO port v2
     windowList := WinGetList()
     text := ""
-    For hwnd in windowList { 
+    For hwnd in windowList {
+      className := WinGetClass("ahk_id " hwnd)
       try {
-
         fileName := WinGetProcessName("ahk_id " hwnd)
+        minMaxState := WinGetMinMax("ahk_id " hwnd)
       } catch Error as err {
         fileName := Format("{1}: {2} for hwnd {3}"
             , type(err), err.Message, hwnd)
+        minMaxState := '?'
       }
-      minMaxState := WinGetMinMax("ahk_id " hwnd)
-      minMaxState := WinGetMinMax("ahk_id " hwnd)
-      className := WinGetClass("ahk_id " hwnd)
       text .= fileName " class=" className ", minMax=" minMaxState "`n"
     }
-    this.showNotice(text) 
+    this.ShowNotice(text, 'Windows list', 0) 
   }
 
   ShowResizeWindowDialog(hwnd:=0) { ;;;
-    ;; TODO PORT v2
     static SelectedWindowhwnd := 0
     static OldW := 0
     static OldH := 0
     static NewW := 0
     static NewH := 0
-    static ResizeDialog := Gui()
+    static ResizeDialog := ''
 
-    SelectedWindowhwnd := WinGetID(hwnd ? "ahk_id " . hwnd : "A")
-
-    IsMaximized := WinGetMinMax("ahk_id " SelectedWindowhwnd)
-    
-    if (IsMaximized) {
-      WinRestore("ahk_id " SelectedWindowhwnd) ; restore, cause can not resize maximized
-    }
-
-    WinGetPos(&OldX, &OldY, &OldW, &OldH, "ahk_id " SelectedWindowhwnd)
-
-    DialogTitle := "Set window size"
-
-    if (WinActive(DialogTitle)) {
-      ; ResizeDialog := Gui()
-      ResizeDialog.OnEvent("Escape", ResizeDialogGuiEscape)
+    if (ResizeDialog) {
       ResizeDialog.Destroy()
+      ResizeDialog := ''
       return
     }
 
-    ResizeDialog.New()
-    ResizeDialog.Opt("+ToolWindow +AlwaysOnTop")
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
+      return
+
+    SelectedWindowhwnd := hwnd
+
+    if (WinGetMinMax("ahk_id " SelectedWindowhwnd)) {
+      WinRestore("ahk_id " SelectedWindowhwnd)
+    }
+
+    WinGetPos(&OldX, &OldY, &OldW, &OldH, "ahk_id " SelectedWindowhwnd)
     
+    ResizeDialog := Gui()
+    ResizeDialog.Title := "Window size: " WinGetProcessName("ahk_id " SelectedWindowhwnd)
+    ResizeDialog.Opt("+ToolWindow +AlwaysOnTop")
+  
     ResizeDialog.Add("Edit", "w50 number right")
     ResizeDialog.Add("UpDown", "vNewW Range24-9999", OldW)
       .OnEvent("Change", Apply.Bind("Change"))
@@ -118,39 +137,33 @@ class WindowManager extends AKPlugin {
     ResizeDialog.Add("UpDown", "vNewH Range24-9999", OldH)
       .OnEvent("Change", Apply.Bind("Change"))
 
-    ResizeDialog.Add("Button", "ys  Default", "Apply")
-      .OnEvent("Change", Apply.Bind("Change"))
+    ResizeDialog.Add("Button", "ys Default", "Apply")
+      .OnEvent("Click", Apply.Bind("Change"))
     ResizeDialog.Add("Button", "ys", "Revert")
-      .OnEvent("Change", Revert.Bind("Change"))
+      .OnEvent("Click", Revert.Bind("Change"))
 
-    ResizeDialog.Show(, DialogTitle)
+    ResizeDialog.OnEvent('Escape', (*) => Revert())
+
+    ResizeDialog.Show()
 
     Return
 
-    ResizeDialogGuiEscape(){
-      ResizeDialog.Destroy()
-    }
-
-    Apply(A_GuiEvent, GuiCtrlObj, Info) {
+    Apply(*) {
       oSaved := ResizeDialog.Submit("0")
       NewW := oSaved.NewW
       NewH := oSaved.NewH
       WinMove(,,NewW, NewH, "ahk_id " SelectedWindowhwnd)
     }
-
-    Revert(A_GuiEvent, GuiCtrlObj, Info) {
+    Revert(*) {
         WinMove(,,OldW, OldH, "ahk_id " SelectedWindowhwnd)
         ResizeDialog.Destroy()
     }
   }
 
   MinimizeWindow(hwnd:=0) { ;;;
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
-      this.ShowInfo(this._getFunctionDisabledMessage(A_ThisFunc, hwnd))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
-    }
+
     PostMessage(0x112, 0xF020,,, "ahk_id " hwnd) ; 0x112 = WM_SYSCOMMAND, 0xF020 = SC_MINIMIZE
     ; WinMinimize, ahk_id %hwnd%
     this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd))
@@ -162,12 +175,9 @@ class WindowManager extends AKPlugin {
   }
   
   CloseWindow(hwnd:=0) { ;;;
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
-      this.ShowInfo(this._getFunctionDisabledMessage(A_ThisFunc, hwnd))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
-    }
+
     this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd))
     WinClose("ahk_id " hwnd)
   }
@@ -178,12 +188,9 @@ class WindowManager extends AKPlugin {
   }
 
   ToggleWindowMaximized(hwnd:=0) { ;;;
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
-      this.ShowInfo(this._getFunctionDisabledMessage(A_ThisFunc, hwnd))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
-    }
+
     maximized := WinGetMinMax("ahk_id " hwnd)
     if (maximized) {
       WinRestore("ahk_id " hwnd)
@@ -206,12 +213,8 @@ class WindowManager extends AKPlugin {
   ToggleWindowOnTop(BorderColor:=-1, hwnd:=0) { ;;;
     HexColor := (BorderColor = -1) ? 0x00FFFF : BorderColor
 
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
-      this.ShowInfo(this._getFunctionDisabledMessage(A_ThisFunc, hwnd))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
-    }
 
     windowStyle := WinGetExStyle("ahk_id " . hwnd)
     if (windowStyle & 0x8) { ; 0x8 is WS_EX_TOPMOST.
@@ -226,26 +229,22 @@ class WindowManager extends AKPlugin {
   }
 
   ToggleWindowFullScreen(hwnd:=0) { ;;;
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
-      this.ShowInfo(this._getFunctionDisabledMessage(A_ThisFunc, hwnd))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
-    }
 
-    style := WinGetStyle("ahk_id " hwnd)
-    maximized := WinGetMinMax("ahk_id " hwnd)
-
-    if (style & 0xC40000) != 0xC40000 { ; WS_CAPTION|WS_SIZEBOX is removed
-      WinSetStyle(+0xC40000, "ahk_id " hwnd)  ; Restore WS_CAPTION|WS_SIZEBOX.
+    if (WinGetMinMax("ahk_id " hwnd)) {
       WinRestore("ahk_id " hwnd)
+    }
+    if (this._hasWindowStyle(hwnd, WindowManager.WS_CAPTION)) {
+      this._setWindowStyleState(hwnd, WindowManager.WS_CAPTION, false)
+      this._setWindowStyleState(hwnd, WindowManager.WS_SIZEBOX, false)
+      WinMaximize("ahk_id " hwnd)
+
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "ON"))
     } else {
-      if (maximized) {
-        WinRestore("ahk_id " hwnd)
-      }
-      WinSetStyle(-0xC40000, "ahk_id " hwnd)  ; Remove WS_CAPTION|WS_SIZEBOX.
-      WinMaximize("ahk_id " hwnd)
+      this._setWindowStyleState(hwnd, WindowManager.WS_CAPTION, true)
+      this._setWindowStyleState(hwnd, WindowManager.WS_SIZEBOX, true)
+      
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "OFF"))
     }
   }
@@ -257,26 +256,23 @@ class WindowManager extends AKPlugin {
 
 
   ToggleWindowFrame(hwnd:=0) { ;;;
-    ;;; TODO FIXME port v2
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
-      this.ShowInfo(this._getFunctionDisabledMessage(A_ThisFunc, hwnd))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
-    }
 
-    style := WinGetStyle("ahk_id " hwnd)
     WinGetPos(&Xpos, &Ypos, &Width, &Height, "ahk_id " hwnd)
-    
-    if (style & 0xC40000) != 0xC40000 { ; WS_CAPTION|WS_SIZEBOX is removed
-      WinSetStyle(+0xC40000, "ahk_id " hwnd)  ; Restore WS_CAPTION|WS_SIZEBOX.
-      WinMove(Xpos, Ypos, Width, Height, "ahk_id " hwnd)
+
+    if (this._hasWindowStyle(hwnd, WindowManager.WS_CAPTION)) {
+      this._setWindowStyleState(hwnd, WindowManager.WS_CAPTION, false)
+      ; this._setWindowStyleState(hwnd, WindowManager.WS_SIZEBOX, false)
+      
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "ON"))
     } else {
-      WinSetStyle(-0xC40000, "ahk_id " hwnd)  ; Remove WS_CAPTION|WS_SIZEBOX.
-      WinMove(Xpos, Ypos, Width, Height, "ahk_id " hwnd)
+      this._setWindowStyleState(hwnd, WindowManager.WS_CAPTION, true)
+      ; this._setWindowStyleState(hwnd, WindowManager.WS_SIZEBOX, true)
+      
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "OFF"))
     }
+    WinMove(Xpos, Ypos, Width, Height, "ahk_id " hwnd)
   }
 
   ToggleHoveredWindowFrame() { ;;;
@@ -286,12 +282,9 @@ class WindowManager extends AKPlugin {
 
 
   ToggleWindowTransparency(TransparencyValue:=128, hwnd:=0) { ;;;
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
-      this.ShowInfo(this._getFunctionDisabledMessage(A_ThisFunc, hwnd))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
-    }
+
     Transparency := WinGetTransparent("ahk_id " . hwnd)
     if (Transparency = "") {
       WinSetTransparent(TransparencyValue, "ahk_id " . hwnd)
@@ -308,12 +301,9 @@ class WindowManager extends AKPlugin {
   }
 
   IncreaseWindowTransparency(ByValue:=32, hwnd:=0) { ;;;
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
-      this.ShowInfo(this._getFunctionDisabledMessage(A_ThisFunc, hwnd))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
-    }
+
     DetectHiddenWindows(true)
     Transparency := WinGetTransparent("ahk_id " . hwnd)
     if (Transparency = "")
@@ -331,12 +321,9 @@ class WindowManager extends AKPlugin {
   }
 
   DecreaseWindowTransparency(ByValue:=32, hwnd:=0) { ;;;
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
-      this.ShowInfo(this._getFunctionDisabledMessage(A_ThisFunc, hwnd))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
-    }
+
     DetectHiddenWindows(true)
     Transparency := WinGetTransparent("ahk_id " . hwnd)
     if (Transparency = "")
@@ -480,13 +467,32 @@ class WindowManager extends AKPlugin {
     return this.beautifyActionName(fnName) " " (state="" ? "" : " " state " ") this._getWindowDescription(hwnd)
   }
 
-  _getFunctionDisabledMessage(fnName, hwnd) {
-    return this.beautifyActionName(fnName) " disabled for blacklisted " this._getWindowDescription(hwnd)
-  }
-
   _getWindowDescription(hwnd) {
     windowClass := GetWindowClass(hwnd)
     vPName := WinGetProcessName("ahk_id " hwnd)
     return vPName " (" windowClass ")"
+  }
+  _checkHwnd(&hwnd, fnName) {
+    if (hwnd=0)
+      hwnd := WinGetID("A")
+    if (this.IsWindowBlacklisted(hwnd, fnName)) {
+      this.ShowInfo(this.beautifyActionName(fnName) " disabled for blacklisted " this._getWindowDescription(hwnd))
+      return false
+    }
+    return true
+  }
+
+  _hasWindowStyle(hwnd, style) {
+    Style := WinGetStyle("ahk_id " hwnd)
+    if (style & WindowManager.WS_CAPTION) {
+      return true
+    } else {
+      return false
+    }
+  }
+
+  _setWindowStyleState(hwnd, style, enable) {
+    prefix := (enable) ? '+' : '-'
+    WinSetStyle(Format("{2}{1:#x}", style, prefix), "ahk_id " hwnd)
   }
 }
