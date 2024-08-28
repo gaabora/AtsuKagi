@@ -5,6 +5,16 @@ class KDEMoverSizer extends AKPlugin {
   ProcessConfig() {
     if (!this.Config.Has("BlacklistedWindowSelectors"))
       this.Config.BlacklistedWindowSelectors := "MultitaskingViewFrame,ForegroundStaging,TaskSwitcherWnd,TaskSwitcherOverlayWnd,XamlExplorerHostIslandWindow"
+    if (!this.Config.Has("LockAxisHotkey"))
+      this.Config.LockAxisHotkey := 'Shift'
+    if (!this.Config.Has("QuickPositionHotkey"))
+      this.Config.QuickPositionHotkey := 'LWin'
+    if (!this.Config.Has("EnableSnapping"))
+      this.Config.EnableSnapping := true
+    if (!this.Config.Has("ShowWindowContent"))
+      this.Config.ShowWindowContent := true
+    if (!this.Config.Has("BringToFront"))
+      this.Config.BringToFront := false
   }
 
   __UsageHelp() {
@@ -13,15 +23,15 @@ class KDEMoverSizer extends AKPlugin {
 
   __ActionsHelp() {
     texts := Map()
-    texts["EnterWindowMovingMode"]   := "EnterWindowMovingMode(LockAxisHotkey:=Shift, QuickPositionHotkey:=LWin, EnableSnapping:=1, ShowWindowContent:=1, BringToFront:=0)"
-    texts["EnterWindowResizingMode"] := "EnterWindowResizingMode(LockAxisHotkey:=Shift, QuickPositionHotkey:=LWin, EnableSnapping:=1, ShowWindowContent:=1, BringToFront:=0)"
+    texts["EnterWindowMovingMode"]   := "EnterWindowMovingMode()"
+    texts["EnterWindowResizingMode"] := "EnterWindowResizingMode()"
     return texts
   }
   
-  EnterWindowMovingMode(LockAxisHotkey:="Shift", QuickPositionHotkey:="LWin", EnableSnapping:=1, ShowWindowContent:=1, BringToFront:=0) { ;;;
+  EnterWindowMovingMode() { ;;;
     FrameDrawWidth := 1
     SnappingDistance := 10
-
+    
     CoordMode("Mouse", "Screen")
     CoordMode("Pixel", "Screen")
     CoordMode("ToolTip", "Screen")
@@ -45,12 +55,12 @@ class KDEMoverSizer extends AKPlugin {
     this.saveOriginalWindowState(hwnd)
     this.enableEscapeHook()
     
-    if (NOT ShowWindowContent)
+    if (NOT this.Config.ShowWindowContent)
       this.drawRectFrame_Prepare()
 
     
 
-    if (BringToFront)
+    if (this.Config.BringToFront)
       WinActivate("ahk_id " hwnd)
     
     IsMaximized := WinGetMinMax("ahk_id " hwnd)
@@ -61,8 +71,8 @@ class KDEMoverSizer extends AKPlugin {
       this.windowState.max := 1
     }
 
-    QuickPositionHotkey_wasUp := NOT GetKeyState(QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
-    LockAxisHotkey_wasUp := NOT GetKeyState(LockAxisHotkey, "P") ; check that button was released once before movement is locked
+    QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
+    LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P") ; check that button was released once before movement is locked
 
     WinGetPos(&xWinSrc, &yWinSrc, &wWinSrc, &hWinSrc, "ahk_id " hwnd)
 
@@ -84,19 +94,19 @@ class KDEMoverSizer extends AKPlugin {
       }
 
       if (NOT QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := NOT GetKeyState(QuickPositionHotkey, "P")
+        QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P")
       if (NOT LockAxisHotkey_wasUp)
-        LockAxisHotkey_wasUp := NOT GetKeyState(LockAxisHotkey, "P")
+        LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P")
       
-      if (QuickPositionHotkey_wasUp AND GetKeyState(QuickPositionHotkey , "P")) {
-        this.quickPositionWindowOnEdge(xWinDst, yWinDst, wWinDst, hWinDst)
+      if (QuickPositionHotkey_wasUp AND GetKeyState(this.Config.QuickPositionHotkey , "P")) {
+        this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
       } else {
 
         MouseGetPos(&xMouLst, &yMouLst)
         xMouDif := xMouLst - xMouSrc
         yMouDif := yMouLst - yMouSrc
         
-        if (LockAxisHotkey_wasUp AND GetKeyState(LockAxisHotkey , "P")) {
+        if (LockAxisHotkey_wasUp AND GetKeyState(this.Config.LockAxisHotkey , "P")) {
           if (abs(xMouDif) - abs(yMouDif) > 0)
             yMouDif := 0 ; lock Y
           else
@@ -110,7 +120,7 @@ class KDEMoverSizer extends AKPlugin {
         ; allow snapping on all monitors without releasing button
         GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
 
-        if (EnableSnapping) {
+        if (this.Config.EnableSnapping) {
           if (xWinDst < CurScrLeft + SnappingDistance) AND (xWinDst > CurScrLeft - SnappingDistance)
             xWinDst := CurScrLeft 
 
@@ -125,7 +135,7 @@ class KDEMoverSizer extends AKPlugin {
         }
       }
 
-      if (ShowWindowContent)
+      if (this.Config.ShowWindowContent)
         WinMove(xWinDst, yWinDst, wWinDst, hWinDst, "ahk_id " hwnd)
       else
         this.drawRectFrame_Show(xWinDst, yWinDst, wWinDst, hWinDst, FrameDrawWidth)
@@ -133,7 +143,7 @@ class KDEMoverSizer extends AKPlugin {
       this.ToolTip(this.formatWindowGeomertyInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst/2, yWinDst + hWinDst/2, 100, toolTipId)
     }
 
-    if (NOT ShowWindowContent) {
+    if (NOT this.Config.ShowWindowContent) {
       this.drawRectFrame_Cancel()
       if (EscButtonState = "U")
         WinMove(xWinDst, yWinDst, wWinDst, hWinDst, "ahk_id " hwnd)  ; Move the window to the new position.
@@ -143,7 +153,7 @@ class KDEMoverSizer extends AKPlugin {
     return
   }
 
-  EnterWindowResizingMode(LockAxisHotkey:="Shift", QuickPositionHotkey:="LWin", EnableSnapping:=1, ShowWindowContent:=1, BringToFront:=0) { ;;;
+  EnterWindowResizingMode() { ;;;
     FrameDrawWidth := 1
     SnappingDistance := 10
     RestoreOnResize := 1
@@ -173,10 +183,10 @@ class KDEMoverSizer extends AKPlugin {
     this.saveOriginalWindowState(hwnd)
     this.enableEscapeHook()
 
-    if (NOT ShowWindowContent)
+    if (NOT this.Config.ShowWindowContent)
       this.drawRectFrame_Prepare()
 
-    if (BringToFront)
+    if (this.Config.BringToFront)
       WinActivate("ahk_id " hwnd)
 
     IsMaximized := WinGetMinMax("ahk_id " hwnd)
@@ -196,8 +206,8 @@ class KDEMoverSizer extends AKPlugin {
 
     }
 
-    QuickPositionHotkey_wasUp := NOT GetKeyState(QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
-    LockAxisHotkey_wasUp := NOT GetKeyState(LockAxisHotkey, "P") ; check that button was released once before movement is locked
+    QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
+    LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P") ; check that button was released once before movement is locked
 
     QuickPosition_wasOn    := 0
     locked := 0
@@ -241,15 +251,15 @@ class KDEMoverSizer extends AKPlugin {
       }
 
       if (NOT QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := NOT GetKeyState(QuickPositionHotkey, "P")
+        QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P")
       if (NOT LockAxisHotkey_wasUp)
-        LockAxisHotkey_wasUp := NOT GetKeyState(LockAxisHotkey, "P")
+        LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P")
 
       MouseGetPos(&xMouLst, &yMouLst)
       xMouDif := xMouLst - xMouSrc
       yMouDif := yMouLst - yMouSrc
 
-      if (LockAxisHotkey_wasUp AND GetKeyState(LockAxisHotkey , "P")) {
+      if (LockAxisHotkey_wasUp AND GetKeyState(this.Config.LockAxisHotkey , "P")) {
         ; locking for default Resizing
         if (abs(xMouDif) - abs(yMouDif) > 0)
           yMouDif := 0 ; lock Y
@@ -257,7 +267,7 @@ class KDEMoverSizer extends AKPlugin {
           xMouDif := 0 ; lock X
       }
       
-      if (LockAxisHotkey_wasUp AND NOT GetKeyState(LockAxisHotkey , "P") AND locked != 0) {
+      if (LockAxisHotkey_wasUp AND NOT GetKeyState(this.Config.LockAxisHotkey , "P") AND locked != 0) {
         locked := 0
       }
 
@@ -268,11 +278,11 @@ class KDEMoverSizer extends AKPlugin {
       GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
 
       if (NOT QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := NOT GetKeyState(QuickPositionHotkey, "P")
+        QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P")
       if (NOT LockAxisHotkey_wasUp)
-        LockAxisHotkey_wasUp := NOT GetKeyState(LockAxisHotkey, "P")
+        LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P")
 
-      if (QuickPositionHotkey_wasUp AND GetKeyState(QuickPositionHotkey, "P")) {
+      if (QuickPositionHotkey_wasUp AND GetKeyState(this.Config.QuickPositionHotkey, "P")) {
         ; save mouse and window position to allow clean switch between magnetic resizing and QuickPositioning
         if (NOT QuickPosition_wasOn) {
           xMouLstQP := xMouLst
@@ -283,8 +293,8 @@ class KDEMoverSizer extends AKPlugin {
           hWinDstQP := hWinDst
           QuickPosition_wasOn := 1
         }
-        this.quickPositionWindowOnEdge(xWinDst, yWinDst, wWinDst, hWinDst)
-      } else if (EnableSnapping) {
+        this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
+      } else if (this.Config.EnableSnapping) {
         ; "normal" resizing
         xWinDst := (xWinSrc + (xMultiplier =1 ? 1 : 0) * xMouDif)
         yWinDst := (yWinSrc + (yMultiplier =1 ? 1 : 0) * yMouDif)
@@ -313,7 +323,7 @@ class KDEMoverSizer extends AKPlugin {
         hWinDst := (hWinSrc - yMultiplier * yMouDif)
       }
 
-      if (ShowWindowContent)
+      if (this.Config.ShowWindowContent)
         WinMove(xWinDst, yWinDst, wWinDst, hWinDst, "ahk_id " hwnd)
       else
         this.drawRectFrame_Show(xWinDst, yWinDst, wWinDst, hWinDst, FrameDrawWidth)
@@ -322,7 +332,7 @@ class KDEMoverSizer extends AKPlugin {
       ; Sleep, 1
     }
 
-    if (NOT ShowWindowContent) {
+    if (NOT this.Config.ShowWindowContent) {
       this.drawRectFrame_Cancel()
       if (EscButtonState = "U")
         WinMove(xWinDst, yWinDst, wWinDst, hWinDst, "ahk_id " hwnd)
@@ -397,7 +407,7 @@ class KDEMoverSizer extends AKPlugin {
     ;  inner:       0.333
 
     GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
-    GetCurrentScreenBorders(CurScrLeft, CurScrRight, CurScrTop, CurScrBottom)
+    GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
     scrWidth  := CurScrRight - CurScrLeft
     scrHeight := CurScrBottom - CurScrTop
     MouseGetPos(&WinCenterX, &WinCenterY)

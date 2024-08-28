@@ -1,27 +1,13 @@
 #SingleInstance force
-ListLines(false)
-SendMode("Input") ; Recommended for new scripts due to its superior speed and reliability.
 SetWorkingDir(A_ScriptDir)
-; #KeyHistory 0
-#WinActivateForce
+ListLines(false)
+SetWinDelay(-1)
+SetControlDelay(-1)
 
 
-
-#UseHook
-; #Persistent
-
-
-; Process, Priority,, H
-
-SetWinDelay -1
-SetControlDelay -1
-
-
+#Include lib/helpers.ahk
 #Include lib/Notify.ahk
 #Include lib/IniFile.ahk
-; #Include lib/Ini.ahk
-; #Include lib/Ini_File.ahk
-#Include lib/helpers.ahk
 #Include includes/defaultConfig.ahk
 #Include includes/AKBase.ahk
 #Include includes/AKApp.ahk
@@ -47,13 +33,13 @@ if FileExist("includes/GeneralHandlers.ahk") {
   #Include includes/GeneralHandlers.ahk
   APP.AddLib("GeneralHandlers", DebugLevel)
 }
-if FileExist("includes/RDPWindowHandler.ahk") {
-  #Include includes/RDPWindowHandler.ahk
-  APP.AddLib("RDPWindowHandler", DebugLevel)
-}
 if FileExist("includes/WindowManager.ahk") {
   #Include includes/WindowManager.ahk
   APP.AddLib("WindowManager", DebugLevel)
+}
+if FileExist("includes/VirtualDesktopManager.ahk") {
+  #Include includes/VirtualDesktopManager.ahk
+  APP.AddLib("VirtualDesktopManager", DebugLevel)
 }
 if FileExist("includes/KDEMoverSizer.ahk") {
   #Include includes/KDEMoverSizer.ahk
@@ -63,13 +49,10 @@ if FileExist("includes/TouchGesturesSimulator.ahk") {
   #Include includes/TouchGesturesSimulator.ahk
   APP.AddLib("TouchGesturesSimulator", DebugLevel)
 }
-if FileExist("includes/VirtualDesktopManager.ahk") {
-  #Include includes/VirtualDesktopManager.ahk
-  APP.AddLib("VirtualDesktopManager", DebugLevel)
+if FileExist("includes/RDPWindowHandler.ahk") {
+  #Include includes/RDPWindowHandler.ahk
+  APP.AddLib("RDPWindowHandler", DebugLevel)
 }
-
-
-
 
 APP.BindAll()
 
@@ -77,6 +60,7 @@ if (APP.Config.GENERAL.WelcomeMessage) {
   APP.ShowInfo(APP.Config.GENERAL.WelcomeMessage)
 
 }
+
 ; APP.Speak("何 opachika превед медвед, йя кревед")
 
 ; APP.SoundPlay(APP.Config.GENERAL.StartupSound)

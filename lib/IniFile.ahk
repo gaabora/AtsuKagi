@@ -2,19 +2,22 @@
 
 class IniFileProto {
   class IniSectionProto {
-    __Set(Name, Params, Value) {
+    __Set(Name, Params, Val) {
       if (this.__isReservedPropName(Name)) {
         this.DefineProp(name, {
-          Value: Value,
+          Value: Val,
         })
         return this.%Name%
       }
-      if (IsObject(Value))
+      if (IsObject(Val))
         throw TypeError("You can not set Object as a value to ini prop. Path: " this.__pIniSection_Name "." Name)
-      if (!this.__pIniSection_Data.Has(Name) || Value != this.__pIniSection_Data[Name]) {
-        this.__pIniSection_Data[Name] := Value
+
+      if (!this.__pIniSection_Data.Has(Name) || Val != this.__pIniSection_Data[Name]) {
+        this.__pIniSection_Data[Name] := Val
+        this._addSectionProperty(Name)
         this.__pIniSection_Owner._autosave()
       }
+      return this.__pIniSection_Data[Name]
     }
     __pIniSection_Name := ''
     __pIniSection_Data := Map()
@@ -24,7 +27,7 @@ class IniFileProto {
         || Name = "__pIniSection_Data"
         || Name = "__pIniSection_Owner"
     }
-    _addSectionItem(name) {
+    _addSectionProperty(name) {
       this.DefineProp(name, {
         Get: this._getterFactory(name),
         Set: this._setterFactory(name),
@@ -35,11 +38,11 @@ class IniFileProto {
     }
     _setterFactory(Name) {
       setterFn(this, Params*) {
-        Value := Params[1]
-        if (IsObject(Value))
+        val := Params[1]
+        if (IsObject(val))
           throw TypeError("You can not set Object as a value to ini prop. Path: " this.__pIniSection_Name "." Name)
-        if (this.__pIniSection_Data[Name] != Value) {
-          this.__pIniSection_Data[Name] := Value
+        if (this.__pIniSection_Data[Name] != val) {
+          this.__pIniSection_Data[Name] := val
           if (this.__pIniSection_Owner)
             this.__pIniSection_Owner._autosave()
         }
@@ -57,8 +60,8 @@ class IniFileProto {
     }
     ToString() {
       iniString := ""
-      for propName, propValue in this.__pIniSection_Data {
-        iniString .= propName "=" propValue "`n"
+      for propName, val in this.__pIniSection_Data {
+        iniString .= propName "=" val "`n"
       }
       return iniString
     }
@@ -73,14 +76,14 @@ class IniFileProto {
     }
   }
 
-  __Set(Name, Params, Value) {
+  __Set(Name, Params, Val) {
     if (this.__isReservedPropName(Name)) {
       this.DefineProp(name, {
-        Value: Value,
+        Value: Val,
       })
       return this.%Name%
     }
-    this.__pIniFile_Data[Name] := IniFile.IniSection(this, Name, Value)
+    this.__pIniFile_Data[Name] := IniFile.IniSection(this, Name, Val)
     this._addSection(Name)
     return this.__pIniFile_Data[Name]
   }
@@ -109,9 +112,9 @@ class IniFileProto {
     }
   }
   _autosave() {
-    OutputDebug('_autosave triggered')
+    OutputDebug('_autosave triggered`n')
     if (!this.__pIniFile_Settings["SAVE_AUTOMATICALLY"]) {
-      OutputDebug('SAVE_AUTOMATICALLY is off')
+      OutputDebug('SAVE_AUTOMATICALLY is off`n')
       return
     }
     debounceFn := this._debounceFn
@@ -129,9 +132,17 @@ class IniFileProto {
   }
   _setterFactory(Name) {
     setterFn(this, Params*) {
-      Value := Params[1]
-      this.__pIniFile_Data[Name] := IniFile.IniSection(this, Name, Value)
+      if (Params.Length = 2) {
+        propKey := Params[2]
+        propVal := Params[1]
+        val := { %propKey%: propVal }
+      } else {
+        val := Params[1]
+      }
+
+      this.__pIniFile_Data[Name] := IniFile.IniSection(this, Name, val)
       this._autosave()
+    
       return this.__pIniFile_Data[Name]
     }
     return setterFn
@@ -212,6 +223,7 @@ class IniFile extends IniFileProto {
     this.Load(filePath)
   }
   __Delete() {
+    ; TODO: refactor debounce, properly save on exit, save and remove timer on exit
     debounceFn := this._debounceFn
     doNothing() {
       nothing := 0
@@ -262,7 +274,7 @@ class IniFile extends IniFileProto {
     }
     set {
       name := params[1]
-      this.__pIniFile_Data[name] := IniFile.IniSection(this, name, value)
+      this.__pIniFile_Data[name] := IniFile.IniSection(this, name, Value)
       if (!this.HasOwnProp(name))
         this._addSection(name)
     }
@@ -275,11 +287,12 @@ class IniFile extends IniFileProto {
       dataObject := IsObject(Data) ? Data : IniFile.IniSection.Parse(Data)
 
       dataProps := (dataObject.__Class = "Map") ? dataObject : dataObject.OwnProps()
-      for propName, value in dataProps {
-        if (propName = "__pIniSection_Name" || propName = "__pIniSection_Data" || propName = "__pIniSection_Owner")
+      for propName, propVal in dataProps {
+        if (this.__isReservedPropName(propName))
           throw TypeError("Not allowed to use internal propName " . propName . " found in section " . Name)
-        this.__pIniSection_Data[propName] := value
-        this._addSectionItem(propName)
+        this.__pIniSection_Data[propName] := propVal
+        if (!this.HasOwnProp(name))
+          this._addSectionProperty(propName)
       }
     }
     __Enum(Params*) {
@@ -291,10 +304,10 @@ class IniFile extends IniFileProto {
         return this.__pIniSection_Data[name]
       }
       set {
-        newValue := value
-        newName := params[1]
-        this.%newName% := newValue
-        
+        name := params[1]
+        this.__pIniSection_Data[name] := Value
+        if (!this.HasOwnProp(name))
+          this._addSectionProperty(name)
       }
     }
   }

@@ -97,20 +97,18 @@ class TouchGesturesSimulator extends AKPlugin {
     return texts
   }
 
-  EnterGestureMode(fingers:=1) { ;;;
+  EnterGestureMode(fingers:=1, movingThreshold:=-1) { ;;;
     MouseGetPos(&xMouSrc, &yMouSrc)
-    hotkeyInfo := ExtractHotkeyInfo(A_ThisHotkey)
-    if (this.shouldBypassMouseButton(hotkeyInfo, xMouSrc, yMouSrc)) {
+
+    if (movingThreshold = -1)
+      movingThreshold := this.MovingThreshold
+    if (movingThreshold > 0 && ArrayContains(this.BypassMouseButtonsWhenNotMoved, A_ThisHotkey) && this.shouldBypassMouseButton(A_ThisHotkey, xMouSrc, yMouSrc)) {
       this.outputDebugLine("BYPASS")
-      mouseButton := hotkeyInfo.key
-      Send("{Blind}{" mouseButton "}")
-    } else {
-      
-      if (fingers > 2) {
-        
-      }
-      this.runGesture(hotkeyInfo.key, fingers, xMouSrc, yMouSrc)
+      Send("{Blind}{" A_ThisHotkey "}")
+      return
     }
+    hotkeyInfo := ExtractHotkeyInfo(A_ThisHotkey)
+    this.runGesture(hotkeyInfo.key, fingers, xMouSrc, yMouSrc)
   }
 
   SetPrecisionTouchpadRegistryConfig(key, value) { ;;;
@@ -124,33 +122,31 @@ class TouchGesturesSimulator extends AKPlugin {
     return true
   }
 
-  shouldBypassMouseButton(hotkeyInfo, xMouSrc:=-1, yMouSrc:=-1) {
-    mouseButton := hotkeyInfo.key
-    if (hotkeyInfo.modifiers.Length = 0 && hotkeyInfo.customModifier = "" && ArrayContains(this.BypassMouseButtonsWhenNotMoved, mouseButton)) {
-      if (xMouSrc = -1 || yMouSrc = -1)
-        MouseGetPos(&xMouSrc, &yMouSrc)
-      xMouDst := xMouSrc
-      yMouDst := yMouSrc
-      movedDistance := 0
+  shouldBypassMouseButton(mouseButton, xMouSrc:=-1, yMouSrc:=-1) {
+    if (xMouSrc = -1 || yMouSrc = -1)
+      MouseGetPos(&xMouSrc, &yMouSrc)
+    xMouDst := xMouSrc
+    yMouDst := yMouSrc
+    movedDistance := 0
 
-      Loop{
-        MouseButtonState := GetKeyState(mouseButton, "P") ? "D" : "U"
-        if (MouseButtonState = "U") {
-          this.outputDebugLine(mouseButton " UP " MouseButtonState)
-          break
-        }
-        xMouLst := xMouDst
-        yMouLst := yMouDst
-        MouseGetPos(&xMouDst, &yMouDst)
-        movedDistance += this.getDistance(xMouLst, yMouLst, xMouDst, yMouDst)
-        if (movedDistance > this.MovingThreshold) {
-          break
-        }
+    Loop{
+      MouseButtonState := GetKeyState(mouseButton, "P") ? "D" : "U"
+      if (MouseButtonState = "U") {
+        this.outputDebugLine(mouseButton " UP " MouseButtonState)
+        break
       }
-      this.outputDebugLine("movedDistance=" movedDistance)
-      if (movedDistance < this.MovingThreshold) 
-        return true
+      xMouLst := xMouDst
+      yMouLst := yMouDst
+      MouseGetPos(&xMouDst, &yMouDst)
+      movedDistance += this.getDistance(xMouLst, yMouLst, xMouDst, yMouDst)
+      if (movedDistance > this.MovingThreshold) {
+        break
+      }
     }
+    this.outputDebugLine("movedDistance=" movedDistance)
+    if (movedDistance < this.MovingThreshold) 
+      return true
+
     return false
   }
 

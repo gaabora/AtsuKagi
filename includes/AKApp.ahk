@@ -36,7 +36,7 @@ class AKApp extends AKBase {
     ; #HotkeyInterval this.Config.GENERAL.HotkeyInterval
     ; #MaxHotkeysPerInterval this.Config.GENERAL.MaxHotkeysPerInterval
 
-    ; this.setTimer("toolTipOff", 100)
+    this.setTimer("toolTipOff", 100)
     ; this.setTimer("checkAhkHook", 100)
 
     this.textToSpeechObj := ComObject("SAPI.SpVoice")
@@ -149,29 +149,13 @@ class AKApp extends AKBase {
   }
   
   BindAll() {
-    ; runRemapFn := this.runRemap.bind(this)
     runHotkeyActionFn := this.runHotkeyAction.bind(this)
 
-    ; if (this.Config.Has("Remaps")) {
-    ;   For k, v In this.Config.Remaps {
-    ;     this.BindHotkey(k, runRemapFn,,'Remap to ' v)
-    ;   }
-    ; }
-    if (this.Config.Has("Hotkeys")) {
-      For k, v In this.Config.Hotkeys {
+    if (this.Config.Has("HOTKEYS")) {
+      For k, v In this.Config.HOTKEYS {
         this.BindHotkey(k, runHotkeyActionFn, v, v)
       }
     }
-    ; if (this.Config.Has("TitlebarActions")) {
-    ;   For k, v In this.Config.TitlebarActions {
-    ;     this.BindHotkey(k, runHotkeyActionFn, v, v ' over Titlebar')
-    ;   }
-    ; }
-    ; if (this.Config.Has("TaskbarActions")) {
-    ;   For k, v In this.Config.TitlebarActions {
-    ;     this.BindHotkey(k, runHotkeyActionFn, v, v ' over Taskbar')
-    ;   }
-    ; }
   }
 
   ReloadApp() {
@@ -203,7 +187,9 @@ class AKApp extends AKBase {
     idx := (forceIdx = 0) ? this.getFreeTooltipId() : forceIdx
     expireTime := A_TickCount + msec
     this._toolTipIdsArr[idx] := expireTime
-    ToolTip(text, x, y, idx) ; , this.tooltipStyle)
+
+    ToolTip(text, x, y, idx) ; , this.themeSettings)
+    
     return idx
   }
 
@@ -305,7 +291,9 @@ class AKApp extends AKBase {
   toolTipOff() {
     for idx, val in this._toolTipIdsArr {
       if (val > 0 && A_TickCount >= val) {
+        
         ToolTip(,,, idx) ; remove tooltip
+
         this._toolTipIdsArr[idx] := 0
       }
     }
@@ -382,24 +370,12 @@ class AKApp extends AKBase {
       this.Config.GENERAL := {} 
     ProcessGereralConfigSection(this.Config.GENERAL)
     
-    if (!this.Config.Has("WindowManagement"))
-      this.Config.WindowManagement := {}
-    ProcessWindowManagementConfigSection(this.Config.WindowManagement)
+    if (!this.Config.Has("THEME"))
+      this.Config.THEME := {} 
+    ProcessThemeConfigSection(this.Config.THEME)
     
-    ; this.tooltipStyle := getTooltipStyleConfig(this.Config.GENERAL.DarkTheme)
-    
-    ; if (!this.Config.Has("TitlebarActions"))
-    ;   this.Config.TitlebarActions := GetDefaultTitlebarActionsConfig()
-    
-    ; if (!this.Config.Has("TaskbarActions"))
-    ;   this.Config.TaskbarActions := getDefaultTaskbarActionsConfig()
-    
-    if (!this.Config.Has("Hotkeys"))
-      this.Config.Hotkeys := getDefaultHotkeysConfig()
-
-    ; if (!this.Config.Has("Remaps"))
-    ;   this.Config.Remaps := getDefaultRemapsConfig()
-
+    if (!this.Config.Has("HOTKEYS"))
+      this.Config.HOTKEYS := getDefaultHotkeysConfig()
   }
 
   getFreeTooltipId() {
@@ -415,14 +391,6 @@ class AKApp extends AKBase {
     }
     return closestIdx
   }
-
-  ; runRemap(some*) {
-  ;   keyCombination := this._assignedHotkeys[A_ThisHotkey]['original']
-  ;   key := this.Config.Remaps[keyCombination]
-  ;   if (key = "")
-  ;     return
-  ;   SendInput("{" key "}")
-  ; }
 
   runHotkeyAction(some*) {
 

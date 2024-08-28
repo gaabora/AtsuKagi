@@ -107,6 +107,7 @@ class WindowManager extends AKPlugin {
     static NewW := 0
     static NewH := 0
     static ResizeDialog := ''
+    static OldMax := 0
 
     if (ResizeDialog) {
       ResizeDialog.Destroy()
@@ -114,12 +115,13 @@ class WindowManager extends AKPlugin {
       return
     }
 
-    if (!this._checkHwnd(&hwnd, A_ThisFunc))
+    if (!this._checkHwnd(&hwnd, A_ThisFunc)) ; TODO ignore start menu
       return
 
     SelectedWindowhwnd := hwnd
 
-    if (WinGetMinMax("ahk_id " SelectedWindowhwnd)) {
+    OldMax := WinGetMinMax("ahk_id " SelectedWindowhwnd)
+    if (OldMax) {
       WinRestore("ahk_id " SelectedWindowhwnd)
     }
 
@@ -130,19 +132,22 @@ class WindowManager extends AKPlugin {
     ResizeDialog.Opt("+ToolWindow +AlwaysOnTop")
   
     ResizeDialog.Add("Edit", "w50 number right")
+      ; .OnEvent('Enter', (*) => Apply())
     ResizeDialog.Add("UpDown", "vNewW Range24-9999", OldW)
       .OnEvent("Change", Apply.Bind("Change"))
     
     ResizeDialog.Add("Edit", "ys w50 number right")
+      ; .OnEvent('Enter', (*) => Apply())
     ResizeDialog.Add("UpDown", "vNewH Range24-9999", OldH)
       .OnEvent("Change", Apply.Bind("Change"))
 
-    ResizeDialog.Add("Button", "ys Default", "Apply")
+    ResizeDialog.Add("Button", "ys Default", "OK")
       .OnEvent("Click", Apply.Bind("Change"))
     ResizeDialog.Add("Button", "ys", "Revert")
       .OnEvent("Click", Revert.Bind("Change"))
 
     ResizeDialog.OnEvent('Escape', (*) => Revert())
+
 
     ResizeDialog.Show()
 
@@ -155,6 +160,9 @@ class WindowManager extends AKPlugin {
       WinMove(,,NewW, NewH, "ahk_id " SelectedWindowhwnd)
     }
     Revert(*) {
+        if (OldMax) {
+          WinMaximize("ahk_id " SelectedWindowhwnd)
+        }
         WinMove(,,OldW, OldH, "ahk_id " SelectedWindowhwnd)
         ResizeDialog.Destroy()
     }
@@ -459,8 +467,12 @@ class WindowManager extends AKPlugin {
     CoordMode("Mouse", "Screen")
     MouseGetPos(&x, &y, &hwnd)
     WM_NCHITTEST := 0x84
-    ErrorLevel := SendMessage(WM_NCHITTEST, 0, (x & 0xFFFF) | (y & 0xFFFF) << 16, , "ahk_id " hwnd)
-    return 1 * ErrorLevel
+    try {
+      ErrorLevel := SendMessage(WM_NCHITTEST, 0, (x & 0xFFFF) | (y & 0xFFFF) << 16, , "ahk_id " hwnd)
+      return 1 * ErrorLevel
+    } catch {
+      return -2
+    }
   }
 
   _getFunctionExecutedMessage(fnName, hwnd, state:="") {
