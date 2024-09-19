@@ -1,18 +1,19 @@
 class AKApp extends AKBase {
-  ; public (let's agree on pascal case)
+  ; public (let's agree on PascalCase)
   AvailableActions := Map()
   AvailableHooks := Map()
+
   TrayIconDefault := A_ScriptDir "/assets/app.ico"
   TrayIconDisabled := A_ScriptDir "/assets/disabled.ico"
   HotkeyThrottlingTimeout := 50
-  ; private (let's agree on camel case)
+  ScriptName := 'AKApp'
+  ; private (let's agree on _camelCase)
   _addedLibs := Map()
   _configFile := A_ScriptDir "/config.ini"
   _configFileDefault := A_ScriptDir "/config.ini"
   _assignedHotkeys := Map()
   _toolTipIdsArr := Map()
-  
-  isAhkHookTakenByRDP := false
+  _textToSpeechObj := ComObject("SAPI.SpVoice")
 
   __New(ConfigFile:=0) {
 
@@ -26,20 +27,22 @@ class AKApp extends AKBase {
     this._initMenu()
     this._initConfig(this._configFile)
     
-    reloadAppFn := this.ReloadApp.bind(this)
-    if (this.Config.GENERAL.ReloadAppHotkey)
-      this.BindHotkey(this.Config.GENERAL.ReloadAppHotkey, reloadAppFn, ,'ReloadApp')
-
-    if (this.Config.GENERAL.SuspendAppHotkey)
-      this.BindHotkey(this.Config.GENERAL.SuspendAppHotkey, "ToggleAppSuspend",, 'ToggleAppSuspend') ; FIXME: 1. move into the class and make unsuspend work 
+    actionName := 'ReloadApp'
+    this._registerAction(this, actionName, '', actionName)
+    if (this.Config.GENERAL.ReloadAppHotkey) {
+      this.BindHotkey(this.Config.GENERAL.ReloadAppHotkey, this.%actionName%.bind(this), actionName)
+    }
+    
+    actionName := 'ToggleAppSuspend'
+    this._registerAction(this, actionName, '', actionName)
+    if (this.Config.GENERAL.SuspendAppHotkey) {
+      this.BindHotkey(this.Config.GENERAL.SuspendAppHotkey, this.%actionName%.bind(this), actionName, 'On S')
+    }
 
     ; #HotkeyInterval this.Config.GENERAL.HotkeyInterval
     ; #MaxHotkeysPerInterval this.Config.GENERAL.MaxHotkeysPerInterval
 
-    this.setTimer("toolTipOff", 100)
-    ; this.setTimer("checkAhkHook", 100)
-
-    this.textToSpeechObj := ComObject("SAPI.SpVoice")
+    this._setTimer("_toolTipOff", 100)
   }
 
   TestActions() {
@@ -60,12 +63,11 @@ class AKApp extends AKBase {
     }
   }
   ShowHelp() {
-
     helpText := "Enabled hotkeys:`n"
 
     usedActions := Map()
     for key, action in this.AvailableActions {
-      functionName := this.parseActionInfo(action['description']).fnName
+      functionName := this._parseActionInfo(action['description']).fnName
       usedActions[functionName] := Map(
         'className', action['className'],
         'description', action['description'],
@@ -74,7 +76,7 @@ class AKApp extends AKBase {
     }
 
     for key, hkDef in this._assignedHotkeys {
-      functionName := functionName := this.parseActionInfo(hkDef['action']).fnName
+      functionName := functionName := this._parseActionInfo(hkDef['action']).fnName
       if (usedActions.Has(functionName)) {
         usedActions[functionName]['assignedHotkeys'].Push([hkDef['readable']])
       } else {
@@ -94,34 +96,28 @@ class AKApp extends AKBase {
   }
 
   Speak(text) {
-    this.textToSpeechObj.Speak(text)
+    this._textToSpeechObj.Speak(text)
   }
   
   AddLib(className, debug:=0) {
     libObj := %className%()
     if (!IsObject(libObj)) {
-      this.outputDebugLine("AddLib ERROR: Unable to create instance of " className)
+      this.ShowWarning("AddLib ERROR: Unable to create instance of " className)
       return
     }
     libObj.Debug(debug)
     libObj.App := this
-    ; libObj.AvailableActions := this.AvailableActions
     if (!this.Config.Has(className))
       this.Config[className] := {}
     libObj.Config := this.Config[className]
-    libObj.ProcessConfig()
+    libObj.ProcessPluginConfig()
+    libObj.ProcessBlacklistConfig()
     this._addedLibs[className] := libObj
     ; TODO: inject configs in libs
 
     actions := libObj.__ActionsHelp()
     for actionString, description in actions {
-      if (this.AvailableActions.Has(actionString)) {
-        this.showWarning("Action '" actionString "' from Plugin '"  this.AvailableActions[actionString]["className"] "' overriden by Plugin '" className "'")
-      }
-      this.AvailableActions[actionString] := Map()
-      this.AvailableActions[actionString]["handlerFn"] := ObjBindMethod(libObj, actionString)
-      this.AvailableActions[actionString]["className"] := className
-      this.AvailableActions[actionString]["description"] := description
+      this._registerAction(libObj, actionString, className, description)
     }
 
     ; hooks := libObj.__HooksHelp()
@@ -135,38 +131,26 @@ class AKApp extends AKBase {
     ;   this.AvailableHooks[hookString]["description"] := description
     ; }
   }
-
-  RegisterAppMethod(methodName, handlerFn) {
-    errorPrefix := "Error registering new app method"
-    if (this.Has(methodName))
-      return errorPrefix ": name '" methodName "' is already used"
-    ; TODO: similar check if this has function with same name as methodName
-
-    if (Func(handlerFn))
-      return errorPrefix ": handlerFn for method '" methodName "' is not a function"
-    this[methodName] := Func(handlerFn).Bind(this) ; maybe fix? handlerFn can be string of Bound Func object
-    return 0
-  }
   
-  BindAll() {
-    runHotkeyActionFn := this.runHotkeyAction.bind(this)
-
+  BindAllHotkeys() {
+    runHotkeyActionFn := this._runHotkeyAction.bind(this)
     if (this.Config.Has("HOTKEYS")) {
       For k, v In this.Config.HOTKEYS {
-        this.BindHotkey(k, runHotkeyActionFn, v, v)
+        this.BindHotkey(k, runHotkeyActionFn, v)
       }
     }
   }
 
-  ReloadApp() {
+  ReloadApp(some*) {
     this.ShowInfo("Reloading " this.ScriptName " ...")
     sleep 1000
     Reload
     return
   }
 
-  SoundPlay(fileName) {
-    SoundPlay(fileName)
+  ToggleAppSuspend(some*) {
+    Suspend
+    this.UpdateAppSuspendedStatus()
   }
 
   UpdateAppSuspendedStatus() {
@@ -183,8 +167,12 @@ class AKApp extends AKBase {
     return
   }
 
+  SoundPlay(fileName) {
+    SoundPlay(fileName)
+  }
+
   ToolTip(text, x:=-1, y:=-1, msec:=1000, forceIdx:=0) {
-    idx := (forceIdx = 0) ? this.getFreeTooltipId() : forceIdx
+    idx := (forceIdx = 0) ? this._getFreeTooltipId() : forceIdx
     expireTime := A_TickCount + msec
     this._toolTipIdsArr[idx] := expireTime
 
@@ -193,36 +181,39 @@ class AKApp extends AKBase {
     return idx
   }
 
-  BindHotkey(KeyCombination, HandlerFn, HandlerName:="", description:="") {
-    actionString := IsObject(HandlerFn) ? HandlerName : HandlerFn
-    actionInfo := this.parseActionInfo(actionString)
+  BindHotkey(KeyCombination, HandlerFn, ActionName:='', Options:='On') {
+    handlerFnType := Type(HandlerFn)
+    if (handlerFnType != 'BoundFunc')
+      throw TypeError("HandlerFn parameter must be of type BoundFunc, but got " . handlerFnType)
+
+    actionInfo := this._parseActionInfo(ActionName)
+   
     hkDef := Map()
-    hkDef['description'] := description
     hkDef['original'] := KeyCombination
     hkDef['universal'] := convertToUniversalVkHotkey(KeyCombination)
     hkDef['readable'] := convertToReadableHotkey(KeyCombination)
-    hkDef['action'] := actionString
-    hkDef['handler'] := this.getActionHandler(actionInfo.fnName)
+    hkDef['action'] := ActionName
+    hkDef['handler'] := this._getActionHandler(actionInfo.fnName)
     hkDef['params'] := actionInfo.params
 
-    hkDef['description'] " " 
-    universalHotkey := (KeyCombination = hkDef['universal']) ? "" : " (" hkDef['universal'] ")"
-    debugText := "Setting " KeyCombination . universalHotkey " [ " hkDef['readable'] " ] " hkDef['description']
-    errorPrefix := "Error setting hotkey"
-    if (hkDef['action'] != "" && hkDef['handler'] = -1) {
-      hotkeyError := "Action not found"
-      this.outputDebugLine("ERROR " debugText " FAILED: " hotkeyError)
-      return errorPrefix " " KeyCombination "=" hkDef['action'] ": " hotkeyError
-    }
+    universalHotkey := (KeyCombination = hkDef['universal']) ? '' : ' (' hkDef['universal'] ')'
+    debugText := 'BindHotkey ' KeyCombination . universalHotkey ' [ ' hkDef['readable'] ' ] ' hkDef['action']
+
+    if (hkDef['action'] != '' && hkDef['handler'] = -1) {
+      hotkeyError := 'Action not found'
+      errorText := 'ERROR: ' . debugText . ' FAILED: ' . hotkeyError
+      this.ShowWarning(errorText)
+      return errorText
+    } 
 
     try
-      Hotkey(hkDef['universal'], HandlerFn, "On")
+      Hotkey(hkDef['universal'], HandlerFn, Options)
     catch Error as err {
       hotkeyError := Format("{1}: {2}.`n`nFile:`t{3}`nLine:`t{4}`nWhat:`t{5}`nStack:`n{6}"
         , type(err), err.Message, err.File, err.Line, err.What, err.Stack)
- 
-      this.outputDebugLine(debugText " FAILED: " hotkeyError)
-      return errorPrefix " " KeyCombination "=" hkDef['action'] ": " hotkeyError
+      errorText := "ERROR: " . debugText . " FAILED: " . hotkeyError
+      this.ShowWarning(errorText)
+      return errorText
     }
 
     this._assignedHotkeys[hkDef['universal']] := hkDef
@@ -231,78 +222,62 @@ class AKApp extends AKBase {
   }
 
   RunAction(ActionString) {
-    actionInfo := this.parseActionInfo(ActionString)
-    actionHandler := this.getActionHandler(actionInfo.fnName)
+    actionInfo := this._parseActionInfo(ActionString)
+    actionHandler := this._getActionHandler(actionInfo.fnName)
     return this._callActionHandler(actionHandler, actionInfo.params)
   }
 
-  IsKeyboardHookStealerWindowActive() {
-    ; WinActive("ahk_class Notepad") or WinActive("ahk_class" ClassName)
-    return (WinActive("ahk_class TscShellContainerClass"))
-  }
-
-  IsWindowBlacklisted(hwnd:=0, method:=0) {
-    ; TODO: per method blacklist check
+  IsWindowBlacklisted(hwnd:=0, method:='') {
     windowClass := GetWindowClass(hwnd)
+    
+    if (RegExMatch(method, '(\w+)\.\w+\.(\S+)', &match)) {
+      actionName := match[1]
+      ; TODO: per method blacklist check
+      ; [BlacklistGroups]
+      ; NoMoveResize=
+      ; NoDecoration=
+    ; } else {
+    }
     isBlacklisted := (InStr(this.Config.GENERAL.BlacklistedWindowAhkIds, windowClass, false) != 0)
-    ; if (isBlacklisted)
-    this.outputDebugLine(((isBlacklisted) ? "BLACKLISTED " : "OK ") "" windowClass " hwnd=" hwnd)
+
+    this.outputDebugLine(((isBlacklisted) ? "BLACKLISTED " : "OK ") '' windowClass " hwnd=" hwnd)
     return isBlacklisted
   }
 
-  IsRDPClientWindowActive() { ;;;
-    return WinActive("ahk_class TscShellContainerClass")
-  }
 
-  setTimer(method, period){
+  _setTimer(method, period) {
     fn := this.%method%.bind(this)
     SetTimer(fn,period)
-    return &fn ; TODO: delete timer fn
+    return &fn ; TODO: make fns to delete timers
   }
 
-  checkAhkHook() {
-
-    if (WinActive("ahk_class TscShellContainerClass")) {
-      if (!this.isAhkHookTakenByRDP) {
-        this.isAhkHookTakenByRDP := true
-        ; Short sleep to make sure the remote desktop keyboard hook is active
-        Sleep 100
-        ; Coming out of suspend mode recreates the keyboard hook, giving
-        ; our hook priority over the remote desktop client's.
-        Suspend False
-        ; this.ToggleAppSuspend()
-
-        SoundBeep 880
-        
-      }
-    } else {
-      if (this.isAhkHookTakenByRDP) {
-        this.isAhkHookTakenByRDP := false
-        Suspend True
-        ; this.ToggleAppSuspend()
-
-        SoundBeep 1760
-      }
-    }
-
-
-
-  }
-  toolTipOff() {
+  _toolTipOff() {
     for idx, val in this._toolTipIdsArr {
       if (val > 0 && A_TickCount >= val) {
-        
         ToolTip(,,, idx) ; remove tooltip
-
         this._toolTipIdsArr[idx] := 0
       }
     }
   }
+  _getFreeTooltipId() {
+    closestIdx := 1
+    closestVal := A_TickCount + 10000
+    for idx, val in this._toolTipIdsArr {
+      if val = 0
+        return idx
+      if (closestVal > val) {
+        closestVal := val
+        closestIdx := idx
+      }
+    }
+    return closestIdx
+  }
+
 
   _initMenu() {
     Tray:= A_TrayMenu
     Tray.Delete()
-    fn := this.menuHandler.bind(this)
+    fn := this._menuHandler.bind(this)
     if (this.debugLevel = 0)
       Tray.Delete() ; V1toV2: not 100% replacement of NoStandard, Only if NoStandard is used at the beginning
     TraySetIcon(this.TrayIconDefault, "1")
@@ -319,29 +294,29 @@ class AKApp extends AKBase {
     Tray.Add("Exit", fn)
   }
 
-  menuHandler(ItemName, ItemPos, MyMenu) {
-    Switch (ItemName) {
-      Case "Test":
+  _menuHandler(ItemName, ItemPos, MyMenu) {
+    switch (ItemName) {
+      case "Test":
         this.TestActions()
         return
-      Case "KeyHistory":
+      case "KeyHistory":
         KeyHistory
         return
-      Case "Help":
+      case "Help":
         this.ShowHelp()
         return
-      Case "Settings":
+      case "Settings":
         ConfigFile := this._configFile
         RunWait(ConfigFile)
         this.ReloadApp()
         return
-      Case "Reload":
+      case "Reload":
         this.ReloadApp()
         return
-      Case "Disable":
-        ToggleAppSuspend() ; FIXME: 1.
+      case "Disable":
+        this.ToggleAppSuspend()
         return
-      Case "Exit":
+      case "Exit":
         ExitApp
         return
       Default:
@@ -351,16 +326,10 @@ class AKApp extends AKBase {
   }
 
   _initConfig(ConfigFile) {
-
-
-
     ; FileDelete(ConfigFile) ; FIXME: for debug, REMOVE BEFORE RELEASE!
 
-
-
-
     if !FileExist(ConfigFile) {
-      DefaultSettings := ""
+      DefaultSettings := ''
       FileAppend(DefaultSettings, ConfigFile)
     }
 
@@ -375,67 +344,26 @@ class AKApp extends AKBase {
     ProcessThemeConfigSection(this.Config.THEME)
     
     if (!this.Config.Has("HOTKEYS"))
-      this.Config.HOTKEYS := getDefaultHotkeysConfig()
+      this.Config.HOTKEYS := GetDefaultHotkeysConfig()
   }
 
-  getFreeTooltipId() {
-    closestIdx := 1
-    closestVal := A_TickCount + 10000
-    for idx, val in this._toolTipIdsArr {
-      if val = 0
-        return idx
-      if (closestVal > val) {
-        closestVal := val
-        closestIdx := idx
-      }
+  _registerAction(libObj, actionString, className, description) {
+    if (this.AvailableActions.Has(actionString)) {
+      this.showWarning("Action '" actionString "' from Plugin '"  this.AvailableActions[actionString]["className"] "' overriden by Plugin '" className "'")
     }
-    return closestIdx
+    this.AvailableActions[actionString] := Map()
+    this.AvailableActions[actionString]["handlerFn"] := ObjBindMethod(libObj, actionString) ; SAME AS libObj.%actionString%.bind(libObj)
+    this.AvailableActions[actionString]["className"] := className
+    this.AvailableActions[actionString]["description"] := description
   }
 
-  runHotkeyAction(some*) {
-
-    if (WinActive("ahk_class TscShellContainerClass")) {
-      SoundBeep 440
-
-      Send("{LCtrl down}{LAlt down}{Home}{LAlt up}{LCtrl up}")
-      Sleep 500
-    }
-
-    ; Sleep 50
-    ; WinMinimize ahk_class TscShellContainerClass
-    ; if (WinActive(ahk_class TscShellContainerClass))
-    ;   WinActivate, ahk_class Shell_TrayWnd
-    ; if (WinActive("ahk_class TscShellContainerClass")) {
-    ;   WinActivate, ahk_class Shell_TrayWnd
-    ; }
-
-
-    ; if(WinActive("ahk_class TscShellContainerClass")) {
-    ;   ; Store the title of the topmost one
-    ;   WinGetActiveTitle, RDCMWindowTitle
-    ;   Loop {
-    ;       ; Need a short sleep here for focus to restore properly.
-    ;       Sleep 50
-    ;       ; WinMinimize
-    ;       ; this.getCenterPos(centerX, centerY)
-    ;       ; this.getWinAtPos(centerX, centerY, title)
-    ;       ; WinActivate % title
-    ;       WinActivate, ahk_class WorkerW ; Shell_TrayWnd
-
-    ;       ; Continue to minimize other RDP windows
-    ;   } Until (!WinActive("ahk_class TscShellContainerClass"))
-    ;   ;this.ShowInfo(RDCMWindowTitle, "Minimized")
-    ; }
-
+  _runHotkeyAction(some*) {
     hkDef := this._assignedHotkeys[A_ThisHotKey]
-    ; keyCombination := hkDef['original']
-
     ; TODO: HotkeyThrottlingBlacklist?
     if (A_PriorHotkey = A_ThisHotkey && A_TimeSincePriorHotkey < this.HotkeyThrottlingTimeout) {
       this.outputDebugLine("Hotkey " hkDef['readable'] " throttled")
       return
     }
-
     return this._callActionHandler(hkDef['handler'], hkDef['params'])
   }
 
@@ -451,9 +379,9 @@ class AKApp extends AKBase {
     }
   }
 
-  parseActionInfo(actionString) {
-    result := { fnName: "", params: [] }
-    if RegExMatch(actionString, "(\w+)\((.*)\)", &match) {
+  _parseActionInfo(actionString) {
+    result := { fnName: '', params: [] }
+    if (RegExMatch(actionString, "(\w+)\((.*)\)", &match)) {
       result.fnName := match[1]
       result.params := StrSplit(match[2], ",", " ")
     } else {
@@ -462,11 +390,15 @@ class AKApp extends AKBase {
     return result
   }
 
-  getActionHandler(actionName) {
+  _getActionHandler(actionName) {
     if (this.AvailableActions.Has(actionName))
       return this.AvailableActions[actionName]['handlerFn']
-    if (HasMethod(actionName))
-      return actionName
-    return -1
+    try {
+      if (%actionName%)
+        return %actionName%.bind(A_ThisHotKey)
+    } catch {
+    }
+    this.ShowWarning('Unable get action handler for ' . actionName)
+    return (*) => this.ShowWarning('Unable get action handler for ' . actionName)
   }
 }

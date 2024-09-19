@@ -45,8 +45,9 @@ ProcessThemeConfigSection(configSection) {
 ;   return config
 ; }
 
-getDefaultHotkeysConfig() {
+GetDefaultHotkeysConfig() {
   config := {}
+  config["#Esc"]         := 'Run("scrnsave.scr /s")'
   config["RButton"]      := "EnterGestureMode(2)"
   config["XButton2"]     := "EnterGestureMode(4)"
 

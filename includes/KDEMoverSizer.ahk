@@ -2,10 +2,11 @@ class KDEMoverSizer extends AKPlugin {
   _frameGui := {}
   _drawGridGUIOptions := "+Border"
   _drawGridColor := "White"
-  ProcessConfig() {
-    if (!this.Config.Has("BlacklistedWindowSelectors"))
-      this.Config.BlacklistedWindowSelectors := "MultitaskingViewFrame,ForegroundStaging,TaskSwitcherWnd,TaskSwitcherOverlayWnd,XamlExplorerHostIslandWindow"
-    if (!this.Config.Has("LockAxisHotkey"))
+  ProcessBlacklistConfig() {
+    
+  }
+  ProcessPluginConfig() {
+   if (!this.Config.Has("LockAxisHotkey"))
       this.Config.LockAxisHotkey := 'Shift'
     if (!this.Config.Has("QuickPositionHotkey"))
       this.Config.QuickPositionHotkey := 'LWin'

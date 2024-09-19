@@ -60,25 +60,25 @@ class WindowManager extends AKPlugin {
     texts["IsMouseOverWindowTitlebar"]         := "IsMouseOverWindowTitlebar()"
     texts["IsMouseOverWindowAnyBorder"]        := "IsMouseOverWindowAnyBorder()"
     texts["IsMouseOverWindowResizableBorder"]  := "IsMouseOverWindowResizableBorder()"
-    texts["GetHoveredAreaName"]                := "GetHoveredAreaName()"
     
     return texts
   }
-  
+
+  ProcessBlacklistConfig() {
+  }
+
+  ProcessPluginConfig() {
+    if (!this.Config.Has("WindowTitlebarAreaHeight"))
+      this.Config.WindowTitlebarAreaHeight := 32
+  }
+
   ShowHoveredWindowInfo() { ;;;
-    ;; TODO PORT v2
     MouseGetPos(,, &hwnd)
     vPName := WinGetProcessName("ahk_id " hwnd)
     vPPath := WinGetProcessPath("ahk_id " hwnd)
     vPID := WinGetPID("ahk_id " hwnd)
-    ;Win32_Process class - Windows applications | Microsoft Docs https://docs.microsoft.com/en-us/windows/win32/cimwin32prov/win32-process
-    oWMI := ComObjGet("winmgmts:")
-    oQueryEnum := oWMI.ExecQuery("Select * from Win32_Process where ProcessId=" vPID)._NewEnum()
-    if oQueryEnum[oProcess]
-      vCmdLn := oProcess.CommandLine      , vPPath32 := oProcess.ExecutablePath
-    oWMI := oQueryEnum := oProcess := ""
 
-    this.ShowNotice("WindowClass: "  GetWindowClass(hwnd) "`nHoveredArea: " this.GetHoveredAreaName() "`nPID" vPID "`nProcessName: " vPName "`nProcessPath:`n" vPPath ((vPPath != vPPath32) ? "`n" vPPath32 : "") "`nCommandLine: " vCmdLn)
+    this.ShowNotice("WindowClass: "  GetWindowClass(hwnd) "`nHoveredArea: " this._getHoveredAreaName() "`nPID" vPID "`nProcessName: " vPName )
     return
   }
 
@@ -132,17 +132,19 @@ class WindowManager extends AKPlugin {
     ResizeDialog.Opt("+ToolWindow +AlwaysOnTop")
   
     ResizeDialog.Add("Edit", "w50 number right")
-      ; .OnEvent('Enter', (*) => Apply())
+
     ResizeDialog.Add("UpDown", "vNewW Range24-9999", OldW)
       .OnEvent("Change", Apply.Bind("Change"))
     
     ResizeDialog.Add("Edit", "ys w50 number right")
-      ; .OnEvent('Enter', (*) => Apply())
+
     ResizeDialog.Add("UpDown", "vNewH Range24-9999", OldH)
       .OnEvent("Change", Apply.Bind("Change"))
 
-    ResizeDialog.Add("Button", "ys Default", "OK")
+    ResizeDialog.Add("Button", "ys Default", "Apply")
       .OnEvent("Click", Apply.Bind("Change"))
+    ResizeDialog.Add("Button", "ys", "OK")
+      .OnEvent("Click", OK.Bind("Change"))
     ResizeDialog.Add("Button", "ys", "Revert")
       .OnEvent("Click", Revert.Bind("Change"))
 
@@ -153,6 +155,11 @@ class WindowManager extends AKPlugin {
 
     Return
 
+    OK(*) {
+      Apply()
+      ResizeDialog.Destroy()
+      ResizeDialog := ''
+    }
     Apply(*) {
       oSaved := ResizeDialog.Submit("0")
       NewW := oSaved.NewW
@@ -165,6 +172,7 @@ class WindowManager extends AKPlugin {
         }
         WinMove(,,OldW, OldH, "ahk_id " SelectedWindowhwnd)
         ResizeDialog.Destroy()
+        ResizeDialog := ''
     }
   }
 
@@ -312,7 +320,7 @@ class WindowManager extends AKPlugin {
     if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
 
-    DetectHiddenWindows(true)
+    ; DetectHiddenWindows(true)
     Transparency := WinGetTransparent("ahk_id " . hwnd)
     if (Transparency = "")
       Transparency := 255
@@ -332,7 +340,7 @@ class WindowManager extends AKPlugin {
     if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
 
-    DetectHiddenWindows(true)
+    ; DetectHiddenWindows(true)
     Transparency := WinGetTransparent("ahk_id " . hwnd)
     if (Transparency = "")
       Transparency := 255
@@ -393,7 +401,13 @@ class WindowManager extends AKPlugin {
 
   IsMouseOverWindowTitlebar() { ;;;
     areaCode := this._getHoveredWindowAreaCode()
-		; TODO treat top area as titlebar for non-standard windows
+    if (areaCode = 1) {
+      CoordMode("Mouse", "Client")
+      MouseGetPos(, &y)
+      ; treat top area as titlebar for windows without standard CAPTION
+      if (y < this.Config.WindowTitlebarAreaHeight)
+        return true
+    }
     return (areaCode = 2 || areaCode = 3 || areaCode = 8 || areaCode = 9 || areaCode = 20 || areaCode = 21) && !this.IsMouseOverTaskbar()
   }
 
@@ -407,58 +421,58 @@ class WindowManager extends AKPlugin {
     return (areaCode >= 10 && areaCode <= 17) && !this.IsMouseOverTaskbar()
   }
 
-  GetHoveredAreaName() { ;;;
+  _getHoveredAreaName() {
     if (this.IsMouseOverTaskbar())
       return "TASKBAR"
     areaCode := this._getHoveredWindowAreaCode()
-    Switch areaCode  {
-      Case -2:  ; HTERROR             (-2)      On the screen background or on a dividing line between windows (same as HTNOWHERE, except that the DefWindowProc function produces a system beep to indicate an error).
+    switch areaCode  {
+      case -2:  ; HTERROR             (-2)      On the screen background or on a dividing line between windows (same as HTNOWHERE, except that the DefWindowProc function produces a system beep to indicate an error).
         return "ERROR"
-      Case -1:  ; HTTRANSPARENT       (-1)      In a window currently covered by another window in the same thread (the message will be sent to underlying windows in the same thread until one of them returns a code that is not HTTRANSPARENT).
+      case -1:  ; HTTRANSPARENT       (-1)      In a window currently covered by another window in the same thread (the message will be sent to underlying windows in the same thread until one of them returns a code that is not HTTRANSPARENT).
         return "TRANSPARENT"
-      Case 0:    ; HTNOWHERE           0        On the screen background or on a dividing line between windows.
+      case 0:    ; HTNOWHERE           0        On the screen background or on a dividing line between windows.
         return "NOWHERE"
-      Case 1:    ; HTCLIENT            1        In a client area.
+      case 1:    ; HTCLIENT            1        In a client area.
         return "CLIENT"
-      Case 2:    ; HTCAPTION           2        In a title bar.
+      case 2:    ; HTCAPTION           2        In a title bar.
         return "CAPTION"
-      Case 3:    ; HTSYSMENU           3        In a window menu or in a Close button in a child window.
+      case 3:    ; HTSYSMENU           3        In a window menu or in a Close button in a child window.
         return "SYSMENU"
-      Case 4:    ; HTGROWBOX or HTSIZE 4        In a size box (same as HTSIZE).
+      case 4:    ; HTGROWBOX or HTSIZE 4        In a size box (same as HTSIZE).
         return "GROWBOX"
-      Case 5:    ; HTMENU              5        In a menu (works for basic menus like notepad, not for menu **bars like in MS Word)
+      case 5:    ; HTMENU              5        In a menu (works for basic menus like notepad, not for menu **bars like in MS Word)
         return "MENU"
-      Case 6:    ; HTHSCROLL           6        In a horizontal scroll bar.
+      case 6:    ; HTHSCROLL           6        In a horizontal scroll bar.
         return "HSCROLL"
-      Case 7:    ; HTVSCROLL           7        In the vertical scroll bar.
+      case 7:    ; HTVSCROLL           7        In the vertical scroll bar.
         return "VSCROLL"
-      Case 8:    ; HTMINBUTTON         8        In a Minimize button.
+      case 8:    ; HTMINBUTTON         8        In a Minimize button.
         return "MINBUTTON"
-      Case 9:    ; HTMAXBUTTON         9        In a Maximize button.
+      case 9:    ; HTMAXBUTTON         9        In a Maximize button.
         return "MAXBUTTON"
-      Case 10:  ; HTLEFT              10      In the left border of a resizable window (the user can click the mouse to resize the window horizontally).
+      case 10:  ; HTLEFT              10      In the left border of a resizable window (the user can click the mouse to resize the window horizontally).
         return "LEFT"
-      Case 11:  ; HTRIGHT             11      In the right border of a resizable window (the user can click the mouse to resize the window horizontally).
+      case 11:  ; HTRIGHT             11      In the right border of a resizable window (the user can click the mouse to resize the window horizontally).
         return "RIGHT"
-      Case 12:  ; HTTOP               12      In the upper-horizontal border of a window.
+      case 12:  ; HTTOP               12      In the upper-horizontal border of a window.
         return "TOP"
-      Case 13:  ; HTTOPLEFT           13      In the upper-left corner of a window border.
+      case 13:  ; HTTOPLEFT           13      In the upper-left corner of a window border.
         return "TOPLEFT"
-      Case 14:  ; HTTOPRIGHT          14      In the upper-right corner of a window border.
+      case 14:  ; HTTOPRIGHT          14      In the upper-right corner of a window border.
         return "TOPRIGHT"
-      Case 15:  ; HTBOTTOM            15      In the lower-horizontal border of a resizable window (the user can click the mouse to resize the window vertically).
+      case 15:  ; HTBOTTOM            15      In the lower-horizontal border of a resizable window (the user can click the mouse to resize the window vertically).
         return "BOTTOM"
-      Case 16:  ; HTBOTTOMLEFT        16      In the lower-left corner of a border of a resizable window (the user can click the mouse to resize the window diagonally).
+      case 16:  ; HTBOTTOMLEFT        16      In the lower-left corner of a border of a resizable window (the user can click the mouse to resize the window diagonally).
         return "BOTTOMLEFT"
-      Case 17:  ; HTBOTTOMRIGHT       17      In the lower-right corner of a border of a resizable window (the user can click the mouse to resize the window diagonally).
+      case 17:  ; HTBOTTOMRIGHT       17      In the lower-right corner of a border of a resizable window (the user can click the mouse to resize the window diagonally).
         return "BOTTOMRIGHT"
-      Case 18:  ; HTBORDER            18      In the border of a window that does not have a sizing border.
+      case 18:  ; HTBORDER            18      In the border of a window that does not have a sizing border.
         return "BORDER"
-      Case 20:  ; HTCLOSE             20      In a Close button.
+      case 20:  ; HTCLOSE             20      In a Close button.
         return "CLOSE"
-      Case 21:  ; HTHELP              21      In a Help button.
+      case 21:  ; HTHELP              21      In a Help button.
         return "HELP"
-      Default:
+      default:
         return "UNKNOWN_" areaCode
     }
   }
@@ -476,7 +490,7 @@ class WindowManager extends AKPlugin {
   }
 
   _getFunctionExecutedMessage(fnName, hwnd, state:="") {
-    return this.beautifyActionName(fnName) " " (state="" ? "" : " " state " ") this._getWindowDescription(hwnd)
+    return this.beautifyActionName(fnName) " " (state="" ? "" : state " ") this._getWindowDescription(hwnd)
   }
 
   _getWindowDescription(hwnd) {
@@ -484,6 +498,7 @@ class WindowManager extends AKPlugin {
     vPName := WinGetProcessName("ahk_id " hwnd)
     return vPName " (" windowClass ")"
   }
+  
   _checkHwnd(&hwnd, fnName) {
     if (hwnd=0)
       hwnd := WinGetID("A")

@@ -18,11 +18,6 @@ DebugLevel := 5
 APP := AKApp()
 APP.Debug(DebugLevel)
 
-ToggleAppSuspend() {
-  Suspend
-  global APP
-  APP.ToggleAppSuspend()
-}
 
 
 ; if FileExist("includes/ShellMessageHook.ahk") {
@@ -53,8 +48,12 @@ if FileExist("includes/RDPWindowHandler.ahk") {
   #Include includes/RDPWindowHandler.ahk
   APP.AddLib("RDPWindowHandler", DebugLevel)
 }
+; if FileExist("includes/TextLocaleManager.ahk") {
+;   #Include includes/TextLocaleManager.ahk
+;   APP.AddLib("TextLocaleManager", DebugLevel)
+; }
 
-APP.BindAll()
+APP.BindAllHotkeys()
 
 if (APP.Config.GENERAL.WelcomeMessage) {
   APP.ShowInfo(APP.Config.GENERAL.WelcomeMessage)

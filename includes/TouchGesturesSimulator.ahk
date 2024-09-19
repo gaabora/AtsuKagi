@@ -39,7 +39,6 @@ class TouchGesturesSimulator extends AKPlugin {
   ; TwoFingerTapEnabled ; maybe TODO?
 
   TouchPointRadius := 1
-  MovingThreshold := 4
   MaxTouchPoints := 10
 
   _injected := false
@@ -97,12 +96,10 @@ class TouchGesturesSimulator extends AKPlugin {
     return texts
   }
 
-  EnterGestureMode(fingers:=1, movingThreshold:=-1) { ;;;
+  EnterGestureMode(fingers:=1, movingThreshold:=0) { ;;;
     MouseGetPos(&xMouSrc, &yMouSrc)
 
-    if (movingThreshold = -1)
-      movingThreshold := this.MovingThreshold
-    if (movingThreshold > 0 && ArrayContains(this.BypassMouseButtonsWhenNotMoved, A_ThisHotkey) && this.shouldBypassMouseButton(A_ThisHotkey, xMouSrc, yMouSrc)) {
+    if (movingThreshold > 0 && ArrayContains(this.BypassMouseButtonsWhenNotMoved, A_ThisHotkey) && this.shouldBypassMouseButton(A_ThisHotkey, movingThreshold, xMouSrc, yMouSrc)) {
       this.outputDebugLine("BYPASS")
       Send("{Blind}{" A_ThisHotkey "}")
       return
@@ -122,7 +119,7 @@ class TouchGesturesSimulator extends AKPlugin {
     return true
   }
 
-  shouldBypassMouseButton(mouseButton, xMouSrc:=-1, yMouSrc:=-1) {
+  shouldBypassMouseButton(mouseButton, movingThreshold, xMouSrc:=-1, yMouSrc:=-1) {
     if (xMouSrc = -1 || yMouSrc = -1)
       MouseGetPos(&xMouSrc, &yMouSrc)
     xMouDst := xMouSrc
@@ -139,12 +136,12 @@ class TouchGesturesSimulator extends AKPlugin {
       yMouLst := yMouDst
       MouseGetPos(&xMouDst, &yMouDst)
       movedDistance += this.getDistance(xMouLst, yMouLst, xMouDst, yMouDst)
-      if (movedDistance > this.MovingThreshold) {
+      if (movedDistance > movingThreshold) {
         break
       }
     }
     this.outputDebugLine("movedDistance=" movedDistance)
-    if (movedDistance < this.MovingThreshold) 
+    if (movedDistance < movingThreshold) 
       return true
 
     return false
@@ -152,10 +149,23 @@ class TouchGesturesSimulator extends AKPlugin {
 
   runGesture(mouseButton, fingers:=1, xMouSrc:=-1, yMouSrc:=-1) {
     feedbackType := (this.debugLevel > 0) ? TouchGesturesSimulator.TOUCH_FEEDBACK_DEFAULT : TouchGesturesSimulator.TOUCH_FEEDBACK_NONE
-    if (!this._injected)
-      this._injected := DllCall("InitializeTouchInjection", "UInt", this.MaxTouchPoints, "UInt", feedbackType)
-    if (!this._injected)
-      this.showError("InitializeTouchInjection FAILED in " A_ThisFunc)
+
+    if (!this._injected) {
+      loop
+      {
+        this._injected := DllCall("InitializeTouchInjection", "UInt", this.MaxTouchPoints, "UInt", feedbackType)
+        if (this._injected) {
+          break
+        } else {
+          switch (this.ShowError("InitializeTouchInjection FAILED in " A_ThisFunc)) {
+            case AKBase.DIALOG_CANCEL: ExitApp
+            case AKBase.DIALOG_RETRY: continue
+            case AKBase.DIALOG_IGNORE: break
+          }
+        }
+      }
+
+    }
 
     if (this.isInGesture) {
       this.outputDebugLine("START " fingers " fingers gesture FAILED (busy)")

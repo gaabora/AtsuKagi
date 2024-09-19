@@ -16,7 +16,9 @@ class AKPlugin extends AKBase {
   __HooksHelp() {
     return [] ; MUST return array like ["FnName": "FnName(params) description", ...] for all hooks you want to register in the app
   }
-  ProcessConfig() {
+  ProcessBlacklistConfig() {
+  }
+  ProcessPluginConfig() {
   }
   RunAction(ActionString) {
     return this.App.RunAction(ActionString)

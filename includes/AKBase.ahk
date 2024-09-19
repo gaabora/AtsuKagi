@@ -16,15 +16,15 @@ class AKBase {
   }
   ShowError(text, title:="") {
     this.outputDebugLine("ERROR: " text, 0)
-    this.MsgBox(text, title ? title : "ERROR", , MSGBOX_OPTS.BUTTONS_CANCEL_TRY_AGAIN_CONTINUE | MSGBOX_OPTS.ICON_ERROR | MSGBOX_OPTS.DEFAULT_BUTTON_2)
+    return this.MsgBox(text, title ? title : "ERROR", , MSGBOX_OPTS.BUTTONS_CANCEL_RETRY_CONTINUE | MSGBOX_OPTS.ICON_ERROR | MSGBOX_OPTS.DEFAULT_BUTTON_2)
   }
   ShowWarning(text, title:="", timeout:=15000) {
     this.outputDebugLine("WARNING: " text, 1)
-    this.msgBox(text, title ? title : "WARNING", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_WARNING)
+    return this.msgBox(text, title ? title : "WARNING", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_WARNING)
   }
   ShowNotice(text, title:="", timeout:=10000) {
     this.outputDebugLine("NOTICE: " text, 2)
-    this.msgBox(text, title ? title : "NOTICE", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_INFO)
+    return this.msgBox(text, title ? title : "NOTICE", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_INFO)
   }
   ShowInfo(text, title:="", timeout:=2000) {
     this.outputDebugLine("INFO: " text, 3)
@@ -42,24 +42,24 @@ class AKBase {
     timeoutSec := timeout ? " T" (timeout / 1000) : ""
     msgResult := MsgBox(text, title, options . timeoutSec)
 
-    Switch(msgResult) {
-      Case "Timeout":
+    switch(msgResult) {
+      case "Timeout":
         return AKBase.DIALOG_TIMEOUT
-      Case "Ok":
+      case "Ok":
         return AKBase.DIALOG_OK
-      Case "Cancel":
+      case "Cancel":
         return AKBase.DIALOG_CANCEL
-      Case "Abort":
+      case "Abort":
         return AKBase.DIALOG_ABORT
-      Case "Retry":
+      case "Retry":
         return AKBase.DIALOG_RETRY
-      Case "Ignore":
+      case "Ignore":
         return AKBase.DIALOG_IGNORE
-      Case "Yes":
+      case "Yes":
         return AKBase.DIALOG_YES
-      Case "No":
+      case "No":
         return AKBase.DIALOG_NO
-      Case "Continue":
+      case "Continue":
         return AKBase.DIALOG_CONTINUE
     }
   }
