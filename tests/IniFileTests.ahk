@@ -15,7 +15,7 @@ class IniFileTests {
       this.EmptySettings := ""
    }
    
-   EmptyIniToString() {
+   T01_EmptyIniToString() {
       RecreateIniFile(this.ConfFile, this.EmptySettings)
       conf := IniFile(this.ConfFile)
       expected := this.EmptySettings
@@ -24,9 +24,9 @@ class IniFileTests {
       conf := ""
    }
 
-   NonEmptyIniToString() {
+   T02_NonEmptyIniToString() {
       DefaultSettings := "[GENERAL]`ntest=1"
-      RecreateIniFile(this.ConfFile, DefaultSettings)      
+      RecreateIniFile(this.ConfFile, DefaultSettings)
       WHITESPACE_CHARS := "`t`n "
       conf := IniFile(this.ConfFile)
       expected := Trim(DefaultSettings, WHITESPACE_CHARS)
@@ -35,9 +35,9 @@ class IniFileTests {
       conf := ""
    }
 
-   TypeErrorIfSetObjectAsNewIniProperty() {
+   T03_TypeErrorIfSetObjectAsNewIniProperty() {
       this.ExpectedException := TypeError("You can not set Object as a value to ini prop. Path: GENERAL.new")
-      RecreateIniFile(this.ConfFile, this.EmptySettings)  
+      RecreateIniFile(this.ConfFile, this.EmptySettings)
       conf := IniFile(this.ConfFile)
       try {
          conf.GENERAL := {test: 123}
@@ -46,9 +46,9 @@ class IniFileTests {
          conf := ""
       }
    }
-   TypeErrorIfSetObjectAsExistingIniProperty() {
+   T04_TypeErrorIfSetObjectAsExistingIniProperty() {
       this.ExpectedException := TypeError("You can not set Object as a value to ini prop. Path: GENERAL.test")
-      RecreateIniFile(this.ConfFile, this.EmptySettings)  
+      RecreateIniFile(this.ConfFile, this.EmptySettings)
       conf := IniFile(this.ConfFile)
       try {
          conf.GENERAL := {test: 123}
@@ -58,8 +58,9 @@ class IniFileTests {
       }
    }
   
-   PropertyErrorIfDeleteIniSectionThatNotExist() {
+   T05_PropertyErrorIfDeleteIniSectionThatNotExist() {
       this.ExpectedException := PropertyError("Can not delete a section that does not exist. Path: NOTEXIST")
+      RecreateIniFile(this.ConfFile, this.EmptySettings)
       conf := IniFile(this.ConfFile)
       try {
          conf.Delete('NOTEXIST')
@@ -68,10 +69,11 @@ class IniFileTests {
       }
    }
   
-   PropertyErrorIfDeleteIniPropertyThatNotExist() {
+   T06_PropertyErrorIfDeleteIniPropertyThatNotExist() {
       this.ExpectedException := PropertyError("Can not delete a property that does not exist. Path: GENERAL.no")
+      RecreateIniFile(this.ConfFile, this.EmptySettings)
       conf := IniFile(this.ConfFile)
-      conf.GENERAL.yes := '123'
+      conf.GENERAL := { yes: '123' }
       try {
          conf.GENERAL.Delete('no')
       } finally {
@@ -79,7 +81,7 @@ class IniFileTests {
       }
    }
 
-   CreateSectionFromObject() {
+   T07_CreateSectionFromObject() {
       RecreateIniFile(this.ConfFile, this.EmptySettings)
       conf := IniFile(this.ConfFile)
       expected := {
@@ -95,17 +97,7 @@ class IniFileTests {
       conf := ""
    }
 
-
-
-
-
-
-
-
-
-
-
-   SavingWorks() {
+   T08_SavingWorks() {
       RecreateIniFile(this.ConfFile, this.EmptySettings)
       conf := IniFile(this.ConfFile)
       expected := {
@@ -124,44 +116,93 @@ class IniFileTests {
       conf := ""
    }
    
-   ; LoopThruSectionsAndValues() {
-   ;    RecreateIniFile(this.ConfFile, this.EmptySettings)
-   ;    conf := IniFile(this.ConfFile)
-   ;    expected := {
-   ;       sectionB: "bb=-123`nbbb=123",
-   ;       sectionA: "a=1",
-   ;       sectionC: "Hello World =) `;",
-   ;    }
-   ;    conf.SOME_SECTION := expected
+   T09_LoopThruSections() {
+      RecreateIniFile(this.ConfFile, this.EmptySettings)
+      conf := IniFile(this.ConfFile)
+      expected := {
+         sectionB: "bb=-123`nbbb=123",
+         sectionA: "a=1",
+         sectionC: "Hello World =) `;",
+      }
+
+      conf.sectionB := expected.sectionB
+      conf.sectionA := expected.sectionA
+      conf.sectionC := expected.sectionC
          
-   ;    i := 1
-   ;    For Key , Val in conf {
-   ;       OutputDebug(key . '=' . Val.ToString() .  "`n")
-   ;       Switch (i) {
-   ;          Case 1:
-   ;            Yunit.assert(Key = "sectionA")
-   ;            Yunit.assert(Val.ToString() = expected.sectionA)
-   ;            break
-   ;          Case 2:
-   ;            Yunit.assert(Key = "sectionB")
-   ;            Yunit.assert(Val.ToString() = expected.sectionB)
-   ;            break
-   ;          Case 3:
-   ;            Yunit.assert(Key = "sectionC")
-   ;            Yunit.assert(Val.ToString() = expected.sectionC)
-   ;            break
-   ;       }
-   ;       i += 1
-   ;    }
-   ;    ; For Key , Val in conf.GENERAL {
-   ;    ; OutputDebug(key . '=' . Val .  "`n")
-   ;    ; }
-   ;    ; For Key , Val in conf['GENERAL'] {
-   ;    ; OutputDebug(key . '=' . Val .  "`n")
-   ;    ; }
-    
-   ;    conf := ""
-   ; }
+      For sectionName, sectionData in conf {
+         a := Trim(sectionData.ToString(), '`n')
+         b := Trim(expected.%sectionName%, '`n')
+         Yunit.assert(a = b)
+      }
+      conf := ""
+   }
+
+   T10_LoopThruSectionPropertiesByKeys() {
+      RecreateIniFile(this.ConfFile, this.EmptySettings)
+      conf := IniFile(this.ConfFile)
+      expected := {
+         testInt: -123,
+         testFloat: 123.456,
+         testString: "Hello World =) `;",
+      }
+
+      sectionName := 'SOME_SECTION'
+      conf.%sectionName% := expected
+      
+      For key, val in conf.%sectionName% {
+         Yunit.assert(val = expected.%key%)
+      }
+
+      conf := ""
+   }
+   T11_LoopThruSectionPropertiesByProps() {
+      RecreateIniFile(this.ConfFile, this.EmptySettings)
+      conf := IniFile(this.ConfFile)
+      expected := {
+         testInt: -123,
+         testFloat: 123.456,
+         testString: "Hello World =) `;",
+      }
+
+      sectionName := 'SOME_SECTION'
+      conf[sectionName] := expected
+      
+      For key, val in conf[sectionName] {
+         Yunit.assert(val = expected.%key%)
+      }
+
+      conf := ""
+   }
+   T12_AccessSectionsAndPropertiesAsPropsAndKeys() {
+      RecreateIniFile(this.ConfFile, this.EmptySettings)
+      conf := IniFile(this.ConfFile)
+      sectionName := 'SOME_SECTION'
+      keyName := 'test'
+      expected := '123.45'
+      
+      
+      conf[sectionName] := {}
+      conf[sectionName][keyName] := expected
+      result := conf[sectionName][keyName]
+      Yunit.assert(result = expected, '[][]')
+      
+      conf.%sectionName% := {}
+      conf.%sectionName%[keyName] := expected
+      result := conf.%sectionName%[keyName]
+      Yunit.assert(result = expected, '.%%[]')
+      
+      conf.%sectionName% := {}
+      conf.%sectionName%.%keyName% := expected
+      result := conf.%sectionName%.%keyName%
+      Yunit.assert(result = expected, '.%%.%%')
+      
+      conf[sectionName] := {}
+      conf[sectionName].%keyName% := expected
+      result := conf[sectionName].%keyName%
+      Yunit.assert(result = expected, '[].%%')
+      
+      conf := ""
+   }
 
 
    
