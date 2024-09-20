@@ -35,6 +35,7 @@ class WindowManager extends AKPlugin {
     texts := Map()
     texts["ShowWindowList"]                    := "ShowWindowList()"
     texts["ShowHoveredWindowInfo"]             := "ShowHoveredWindowInfo()"
+    texts["ShowWindowInfo"]                    := "ShowWindowInfo()"
     texts["ShowResizeWindowDialog"]            := "ShowResizeWindowDialog(hwnd:=0)"
     texts["MinimizeWindow"]                    := "MinimizeWindow(hwnd:=0)"
     texts["MinimizeHoveredWindow"]             := "MinimizeHoveredWindow()"
@@ -74,12 +75,17 @@ class WindowManager extends AKPlugin {
 
   ShowHoveredWindowInfo() { ;;;
     MouseGetPos(,, &hwnd)
+    this.ShowWindowInfo(hwnd)
+  }
+
+  ShowWindowInfo(hwnd:=0) { ;;;
+    if (hwnd=0)
+      hwnd := WinGetID("A")
+    MouseGetPos(,, &hwnd)
     vPName := WinGetProcessName("ahk_id " hwnd)
     vPPath := WinGetProcessPath("ahk_id " hwnd)
     vPID := WinGetPID("ahk_id " hwnd)
-
-    this.ShowNotice("WindowClass: "  GetWindowClass(hwnd) "`nHoveredArea: " this._getHoveredAreaName() "`nPID" vPID "`nProcessName: " vPName )
-    return
+    this.ShowNotice("WindowClass: "  GetWindowClass(hwnd) "`nHoveredArea: " this._getHoveredAreaName() "`nPID" vPID "`nProcessName: " vPName, 'Window info')
   }
 
   ShowWindowList() { ;;;

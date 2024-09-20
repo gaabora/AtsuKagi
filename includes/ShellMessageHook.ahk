@@ -57,27 +57,27 @@ class ShellMessageHook extends AKPlugin {
   }
 
   processMessage(msgId, hwnd) {
-    Switch (msgId) {
-      Case this.HSHELL_WINDOWCREATED:
+    switch (msgId) {
+      case this.HSHELL_WINDOWCREATED:
         return this.runMessageCallbacks("WindowCreated", hwnd)
-      Case this.HSHELL_WINDOWDESTROYED:
+      case this.HSHELL_WINDOWDESTROYED:
         return this.runMessageCallbacks("WindowActivated", hwnd)
-      Case this.HSHELL_WINDOWACTIVATED:
+      case this.HSHELL_WINDOWACTIVATED:
         return this.runMessageCallbacks("WindowDestroyed", hwnd)
-      Case this.HSHELL_ACTIVATESHELLWINDOW:
-      Case this.HSHELL_GETMINRECT:
-      Case this.HSHELL_REDRAW:
-      Case this.HSHELL_TASKMAN:
-      Case this.HSHELL_LANGUAGE:
-      Case this.HSHELL_SYSMENU:
-      Case this.HSHELL_ENDTASK:
-      Case this.HSHELL_ACCESSIBILITYSTATE:
-      Case this.HSHELL_APPCOMMAND:
-      Case this.HSHELL_WINDOWREPLACED:
-      Case this.HSHELL_WINDOWREPLACING:
-      Case this.HSHELL_HIGHBIT:
-      Case this.HSHELL_FLASH:
-      Case this.HSHELL_RUDEAPPACTIVATED:
+      case this.HSHELL_ACTIVATESHELLWINDOW:
+      case this.HSHELL_GETMINRECT:
+      case this.HSHELL_REDRAW:
+      case this.HSHELL_TASKMAN:
+      case this.HSHELL_LANGUAGE:
+      case this.HSHELL_SYSMENU:
+      case this.HSHELL_ENDTASK:
+      case this.HSHELL_ACCESSIBILITYSTATE:
+      case this.HSHELL_APPCOMMAND:
+      case this.HSHELL_WINDOWREPLACED:
+      case this.HSHELL_WINDOWREPLACING:
+      case this.HSHELL_HIGHBIT:
+      case this.HSHELL_FLASH:
+      case this.HSHELL_RUDEAPPACTIVATED:
         return this.outputDebugLine("skip " messageNames[msgId] " from hwnd=" hwnd)
       Default:
         return this.outputDebugLine("skip unknown msgId=" msgId " from hwnd=" hwnd)
