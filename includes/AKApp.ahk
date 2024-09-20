@@ -82,7 +82,7 @@ class AKApp extends AKBase {
       } else {
         this.outputDebugLine('WARN: ' hkDef['action'] ' was not found')
       }
-      helpText .= hkDef['readable'] ' (' hkDef['original'] ') ' hkDef['description'] '`n'
+      helpText .= hkDef['readable'] ' (' hkDef['original'] ') ' hkDef['action'] '`n'
     }
     
     helpText .= "`nNot used actions:`n"
