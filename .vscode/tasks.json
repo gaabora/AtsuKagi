@@ -1,0 +1,102 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "command": "c:\\Program Files\\AutoHotkey\\Compiler\\Ahk2Exe.exe",
+      "type": "shell",
+      "args": [
+        "/in",
+        "${workspaceRoot}\\AtsuiKagi.ahk",
+        "/icon",
+        "${workspaceRoot}\\assets\\app.ico",
+        "/base",
+        "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe"
+      ],
+      "problemMatcher": {
+        "owner": "ahk",
+        "fileLocation": [
+          "absolute"
+        ],
+        "pattern": [
+          {
+            "regexp": "^(.*\\.ahk) \\((\\d+)\\) : ==> (.*)$",
+            "file": 1,
+            "line": 2,
+            "message": 3
+          },
+          {
+            "regexp": "^\\s*Specifically: (.*)$",
+            "message": 1
+          }
+        ]
+      }
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
+      "args": [
+        "tests\\IniFileTests.ahk"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": {
+        "owner": "ahk",
+        "fileLocation": [
+          "absolute"
+        ],
+        "pattern": [
+          {
+            "regexp": "^(.*\\.ahk) \\((\\d+)\\) : ==> (.*)$",
+            "file": 1,
+            "line": 2,
+            "message": 3
+          },
+          {
+            "regexp": "^\\s*Specifically: (.*)$",
+            "message": 1
+          }
+        ]
+      }
+    },
+    {
+      "label": "run script",
+      "type": "shell",
+      "command": "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
+      "args": [
+        "${workspaceRoot}\\AtsuiKagi.ahk"
+      ],
+      "problemMatcher": {
+        "owner": "ahk",
+        "fileLocation": [
+          "absolute"
+        ],
+        "pattern": [
+          {
+            "regexp": "^(.*\\.ahk) \\((\\d+)\\) : ==> (.*)$",
+            "file": 1,
+            "line": 2,
+            "message": 3
+          },
+          {
+            "regexp": "^\\s*Specifically: (.*)$",
+            "message": 1
+          }
+        ]
+      }
+    },
+    {
+      "label": "run binary",
+      "command": "${workspaceRoot}\\AtsuiKagi.exe",
+      "type": "shell",
+      "problemMatcher": []
+    }
+  ]
+}
