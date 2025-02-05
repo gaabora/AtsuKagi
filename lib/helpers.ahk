@@ -70,6 +70,8 @@ convertToReadableHotkey(KeyCombination) {
     "<#", "LWin + ",
     ">#", "RWin + ",
     "#", "Win + ",
+    "*", "[wildcard] ",
+    "~", "[passthru] ",
   )
 
   k := ExtractHotkeyInfo(KeyCombination)

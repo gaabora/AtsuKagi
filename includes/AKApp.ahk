@@ -13,7 +13,6 @@ class AKApp extends AKBase {
   _configFileDefault := A_ScriptDir "/config.ini"
   _assignedHotkeys := Map()
   _toolTipIdsArr := Map()
-  _textToSpeechObj := ComObject("SAPI.SpVoice")
 
   __New(ConfigFile:=0) {
 
@@ -95,10 +94,6 @@ class AKApp extends AKBase {
     MsgBox(helpText)
   }
 
-  Speak(text) {
-    this._textToSpeechObj.Speak(text)
-  }
-  
   AddLib(className, debug:=0) {
     libObj := %className%()
     if (!IsObject(libObj)) {
@@ -236,9 +231,10 @@ class AKApp extends AKBase {
       ; [BlacklistGroups]
       ; NoMoveResize=
       ; NoDecoration=
+      ; NoCtrlCHotkey=
     ; } else {
     }
-    isBlacklisted := (InStr(this.Config.GENERAL.BlacklistedWindowAhkIds, windowClass, false) != 0)
+    isBlacklisted := (InStr(this.Config.GENERAL.BlacklistGlobalWindowClasses, windowClass, false) != 0)
 
     this.outputDebugLine(((isBlacklisted) ? "BLACKLISTED " : "OK ") '' windowClass " hwnd=" hwnd)
     return isBlacklisted
@@ -326,7 +322,7 @@ class AKApp extends AKBase {
   }
 
   _initConfig(ConfigFile) {
-    ; FileDelete(ConfigFile) ; FIXME: for debug, REMOVE BEFORE RELEASE!
+    FileDelete(ConfigFile) ; FIXME: for debug, REMOVE BEFORE RELEASE!
 
     if !FileExist(ConfigFile) {
       DefaultSettings := ''
@@ -398,7 +394,8 @@ class AKApp extends AKBase {
         return %actionName%.bind(A_ThisHotKey)
     } catch {
     }
-    this.ShowWarning('Unable get action handler for ' . actionName)
-    return (*) => this.ShowWarning('Unable get action handler for ' . actionName)
+
+    this.ShowWarning('Unable to get action handler for ' . actionName)
+    return (*) => this.ShowWarning('Unable to get action handler for ' . actionName)
   }
 }

@@ -11,7 +11,7 @@ class RDPWindowHandler extends AKPlugin {
     texts["IsRDPClientWindowActive"]          := "IsRDPClientWindowActive()"
     texts["MinimizeRestoreRDPClientWindows"]  := "MinimizeRestoreRDPClientWindows()"
     texts["RestoreFullscreenRDPClientWindow"] := "RestoreFullscreenRDPClientWindow()"
-    ; texts["LoopRDPClientWindows"]             := "LoopRDPClientWindows()"
+    texts["LoopRDPClientWindows"]             := "LoopRDPClientWindows()"
     texts["SwitchToNextRDPClientWindow"]      := "SwitchToNextRDPClientWindow()"
     return texts
   }
@@ -81,23 +81,23 @@ class RDPWindowHandler extends AKPlugin {
   }
 
   LoopRDPClientWindows() { ;;; TODO test, style
-  ;   if (OldTime = "") {
-  ;     OldTime := A_TickCount
-  ;     ;next: whether the next window should be activated; otherwise the first one
-  ;     next := false
-  ;   } else {
-  ;     next := (A_TickCount - OldTime) < 800
-  ;     OldTime := A_TickCount
-  ;   }
-  ;   if (next && OldIndex != "") {
-  ;     OldIndex := Mod(OldIndex, Wins) + 1
-  ;     ahkId := Wins%OldIndex%
-  ;     WinActivate("ahk_id " ahkId)
-  ;     winN_title := WinGetTitle("ahk_id " ahkId)
-  ;   } else {
-  ;     ; Go the normal way
-  ;     OldIndex := this.SwitchToNextRDPClientWindow()
-  ;   }
+    if (OldTime = "") {
+      OldTime := A_TickCount
+      ;next: whether the next window should be activated; otherwise the first one
+      next := false
+    } else {
+      next := (A_TickCount - OldTime) < 800
+      OldTime := A_TickCount
+    }
+    if (next && OldIndex != "") {
+      OldIndex := Mod(OldIndex, Wins) + 1
+      ahkId := Wins%OldIndex%
+      WinActivate("ahk_id " ahkId)
+      winN_title := WinGetTitle("ahk_id " ahkId)
+    } else {
+      ; Go the normal way
+      OldIndex := this.SwitchToNextRDPClientWindow()
+    }
   }
 
   SwitchToNextRDPClientWindow() { ;;; TODO test, style

@@ -13,12 +13,21 @@ SetControlDelay(-1)
 #Include includes/AKApp.ahk
 #Include includes/AKPlugin.ahk
 
-DebugLevel := 5
 
 APP := AKApp()
+
+DebugLevel := A_IsCompiled ? 0 : 5
+
 APP.Debug(DebugLevel)
 
 
+;TODO: make here include of dynamically generatable file for including plugins:
+; App.ScanForPlugins()
+; #Include AutogenPluginsList.ahk
+; rename ./includes to ./plugins
+; list files from ./plugins/
+; get disabled plugin names from ini (GENERAL.DisabledPlugins=SomePlugin,AnotherPlugin)
+; ... PROFIT
 
 ; if FileExist("includes/ShellMessageHook.ahk") {
 ;   #Include includes/ShellMessageHook.ahk
@@ -44,13 +53,13 @@ if FileExist("includes/TouchGesturesSimulator.ahk") {
   #Include includes/TouchGesturesSimulator.ahk
   APP.AddLib("TouchGesturesSimulator", DebugLevel)
 }
-if FileExist("includes/RDPWindowHandler.ahk") {
-  #Include includes/RDPWindowHandler.ahk
-  APP.AddLib("RDPWindowHandler", DebugLevel)
+if FileExist("includes/TextLocaleManager.ahk") {
+  #Include includes/TextLocaleManager.ahk
+  APP.AddLib("TextLocaleManager", DebugLevel)
 }
-; if FileExist("includes/TextLocaleManager.ahk") {
-;   #Include includes/TextLocaleManager.ahk
-;   APP.AddLib("TextLocaleManager", DebugLevel)
+; if FileExist("includes/RDPWindowHandler.ahk") {
+;   #Include includes/RDPWindowHandler.ahk
+;   APP.AddLib("RDPWindowHandler", DebugLevel)
 ; }
 
 APP.BindAllHotkeys()
@@ -60,20 +69,4 @@ if (APP.Config.GENERAL.WelcomeMessage) {
 
 }
 
-; APP.Speak("何 opachika превед медвед, йя кревед")
-
 ; APP.SoundPlay(APP.Config.GENERAL.StartupSound)
-
-
-; https://www.autohotkey.com/boards/viewtopic.php?f=82&t=124099&p=551999&hilit=rdp#p551999
-; #UseHook
-; #HotIf WinActive("ahk_class TscShellContainerClass")
-; ~vkFF::{
-;     ; An artificial vkFF keystroke is detected when the RDP client becomes active.
-;     ; At that point, the RDP client installs its own keyboard hook which takes
-;     ; precedence over ours, so ...
-;     if (A_TimeIdlePhysical > A_TimeSinceThisHotkey) {
-;         InstallKeybdHook true, true ; ... reinstall our hook.
-;         Sleep 50
-;     }
-; }

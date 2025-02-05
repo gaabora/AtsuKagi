@@ -4,21 +4,21 @@ SetPropIfNotExist(configSection, propName, propValue) {
 }
 
 ProcessGereralConfigSection(configSection) {
-  SetPropIfNotExist(configSection, "HotkeyInterval"            , 1000)
-  SetPropIfNotExist(configSection, "MaxHotkeysPerInterval"     , 1000)
-  SetPropIfNotExist(configSection, "KeyboardHookStealersList"  , "TscShellContainerClass")
-  SetPropIfNotExist(configSection, "BlacklistedWindowAhkIds"   , "WorkerW Progman Shell_TrayWnd Shell_SecondaryTrayWnd TscShellContainerClass")
-  SetPropIfNotExist(configSection, "WindowOnTopBorderColor"    , "0xAACCFF")
-  SetPropIfNotExist(configSection, "WindowTransparencyValue"   , 128)
-  SetPropIfNotExist(configSection, "WelcomeMessage"            , "Enjoy")
-  SetPropIfNotExist(configSection, "ToolTipTimeoutMs"          , 1000)
-  SetPropIfNotExist(configSection, "StartupSound"              , "Assets/mixkit-light-button-2580.wav")
-  SetPropIfNotExist(configSection, "NotificationSound"         , "Assets/mixkit-light-button-2580.wav")
-  SetPropIfNotExist(configSection, "ReloadAppHotkey"           , "^#!Backspace")
-  SetPropIfNotExist(configSection, "SuspendAppHotkey"          , "^#!Esc")
-  SetPropIfNotExist(configSection, "DarkTheme"                 , 1)
-  SetPropIfNotExist(configSection, "SwapMouseXButtons"         , 0)
-  SetPropIfNotExist(configSection, "ModifierHotkeysHint"       , "Alt=!, Ctrl=^, Shift=+, LWin=#, AltGr=<^>!")
+  SetPropIfNotExist(configSection, "HotkeyInterval"               , 1000)
+  SetPropIfNotExist(configSection, "MaxHotkeysPerInterval"        , 1000)
+  SetPropIfNotExist(configSection, "KeyboardHookStealersList"     , "TscShellContainerClass")
+  SetPropIfNotExist(configSection, "BlacklistGlobalWindowClasses" , "WorkerW Progman Shell_TrayWnd Shell_SecondaryTrayWnd TscShellContainerClass")
+  SetPropIfNotExist(configSection, "WindowOnTopBorderColor"       , "0xAACCFF")
+  SetPropIfNotExist(configSection, "WindowTransparencyValue"      , 128)
+  SetPropIfNotExist(configSection, "WelcomeMessage"               , "Enjoy")
+  SetPropIfNotExist(configSection, "ToolTipTimeoutMs"             , 1000)
+  SetPropIfNotExist(configSection, "StartupSound"                 , "Assets/mixkit-light-button-2580.wav")
+  SetPropIfNotExist(configSection, "NotificationSound"            , "Assets/mixkit-light-button-2580.wav")
+  SetPropIfNotExist(configSection, "ReloadAppHotkey"              , "^#!Backspace")
+  SetPropIfNotExist(configSection, "SuspendAppHotkey"             , "^#!Esc")
+  SetPropIfNotExist(configSection, "DarkTheme"                    , 1)
+  SetPropIfNotExist(configSection, "SwapMouseXButtons"            , 0)
+  SetPropIfNotExist(configSection, "ModifierHotkeysHint"          , "Alt=!, Ctrl=^, Shift=+, LWin=#, AltGr=<^>!")
 }
 
 ProcessThemeConfigSection(configSection) {
@@ -37,7 +37,7 @@ ProcessThemeConfigSection(configSection) {
 }
 
 ; getDefaultAppBlackListsConfig() {
-;   config := {}
+;   config := Map()
 ;   ; config[""] := "FocusStealers"
 ;   config["NeverResize"]    := ""
 ;   config["NeverMove"]  := ""
@@ -46,17 +46,17 @@ ProcessThemeConfigSection(configSection) {
 ; }
 
 GetDefaultHotkeysConfig() {
-  config := {}
+  config := Map()
   config["#Esc"]         := 'Run("scrnsave.scr /s")'
-  config["RButton"]      := "EnterGestureMode(2)"
+  config["RButton"]      := "EnterGestureMode(2, 4)"
   config["XButton2"]     := "EnterGestureMode(4)"
 
   config["#!i"]          := "ShowHoveredWindowInfo"
-  config["#W"]           := "ShowWindowList"
+  config["#!l"]          := "ShowWindowList"
 
   config["#LButton"]     := "EnterWindowMovingMode"
-  config["#RButton"]     := "(IsMouseOverWindowTitlebar) ? MinimizeHoveredWindow : EnterWindowResizingMode"
-  config["#MButton"]     := "(IsMouseOverWindowTitlebar) ? CloseHoveredWindow : ToggleHoveredWindowMaximized"
+  config["#RButton"]     := "IfThenElse(IsMouseOverWindowTitlebar, MinimizeHoveredWindow, EnterWindowResizingMode)"
+  config["#MButton"]     := "IfThenElse(IsMouseOverWindowTitlebar, CloseHoveredWindow, ToggleHoveredWindowMaximized)"
   config["#!MButton"]    := "ToggleHoveredWindowFullScreen"
   config["#F11"]         := "ToggleWindowFullScreen"
   config["+^#!F11"]      := "ToggleWindowFrame"
@@ -67,8 +67,8 @@ GetDefaultHotkeysConfig() {
   config["^#!WheelDown"] := "DecreaseHoveredWindowTransparency"
   config["^#!WheelUp"]   := "IncreaseHoveredWindowTransparency"
   
-  config["#WheelDown"]   := "(IsMouseOverWindowTitlebar) ? GoWithHoveredWindowToNextDesktop : GoToNextDesktop"
-  config["#WheelUp"]     := "(IsMouseOverWindowTitlebar) ? GoWithHoveredWindowToPrevDesktop : GoToPrevDesktop"
+  config["#WheelDown"]   := "IfThenElse(IsMouseOverWindowTitlebar, GoWithHoveredWindowToNextDesktop, GoToNextDesktop)"
+  config["#WheelUp"]     := "IfThenElse(IsMouseOverWindowTitlebar, GoWithHoveredWindowToPrevDesktop, GoToPrevDesktop)"
   config["+#WheelDown"]  := "GoWithHoveredWindowToPrevDesktop"
   config["+#WheelUp"]    := "GoWithHoveredWindowToNextDesktop"
   config["^+#Left"]      := "GoWithWindowToPrevDesktop"
@@ -90,11 +90,6 @@ GetDefaultHotkeysConfig() {
   config["+#F6"]         := "MoveWindowToDesktop(6)"
   config["+#F7"]         := "MoveWindowToDesktop(7)"
   config["+#F8"]         := "MoveWindowToDesktop(8)"
-
-  config["#!CapsLock"]   := "SwitchToNextRDPClientWindow"
-  config["+CapsLock"]    := "MinimizeRestoreRDPClientWindows"
-  config["!+CapsLock"]   := "RestoreFullscreenRDPClientWindow"
-  config["^CapsLock"]    := "LoopRDPClientWindows"
 
   config["+!^LWin"]      := "RemapTo({Blind} {vkE8})"
   config[">!M"]          := "RemapTo(0)"
@@ -127,5 +122,19 @@ GetDefaultHotkeysConfig() {
 
   config["XButton1"]     := "RemapTo(Backspace)"
 
+  config["!CapsLock"]    := "SwitchSelectedTextCase()"
+  config["CapsLock"]     := "SwitchKeyboardLayout()"
+  config["*~^Shift"]     := "ShowCurrentKeyboardLayout()"
+  config["*~!Shift"]     := "ShowCurrentKeyboardLayout()"
+  config["*~+Control"]   := "ShowCurrentKeyboardLayout()"
+  config["*~+Alt"]       := "ShowCurrentKeyboardLayout()"
+  
+  config["^CapsLock"]    := "SwitchSelectedTextLayout(EN,RU)"
+  
+  ; config["#!CapsLock"]   := "SwitchToNextRDPClientWindow"
+  ; config["+CapsLock"]    := "MinimizeRestoreRDPClientWindows"
+  ; config["!+CapsLock"]   := "RestoreFullscreenRDPClientWindow"
+  ; config["#CapsLock"]    := "LoopRDPClientWindows"
+  
   return config
 }

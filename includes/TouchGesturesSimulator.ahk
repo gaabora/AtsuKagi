@@ -1,4 +1,6 @@
 class TouchGesturesSimulator extends AKPlugin {
+  ; TODO: static consts to separate class?
+  ; TODO: add settings gui for https://learn.microsoft.com/en-us/windows-hardware/design/component-guidelines/touchpad-tuning-guidelines
   static TOUCH_FEEDBACK_DEFAULT         := 0x1
   static TOUCH_FEEDBACK_INDIRECT        := 0x2
   static TOUCH_FEEDBACK_NONE            := 0x3
