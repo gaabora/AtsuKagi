@@ -1,3 +1,56 @@
+; https://www.autohotkey.com/boards/viewtopic.php?f=82&t=124099&p=551999&hilit=rdp#p551999
+#UseHook
+#HotIf WinActive("ahk_class TscShellContainerClass")
+~vkFF::{
+    ; An artificial vkFF keystroke is detected when the RDP client becomes active.
+    ; At that point, the RDP client installs its own keyboard hook which takes
+    ; precedence over ours, so ...
+    if (A_TimeIdlePhysical > A_TimeSinceThisHotkey) {
+        SoundBeep 1500
+        InstallKeybdHook true, true ; ... reinstall our hook.
+        Sleep 50
+    }
+}
+
+
+_isAhkHookTakenByRDP := false
+
+if (WinActive("ahk_class TscShellContainerClass")) {
+  SoundBeep 440
+
+  Send("{LCtrl down}{LAlt down}{Home}{LAlt up}{LCtrl up}")
+  Sleep 500
+}
+
+; Sleep 50
+; WinMinimize ahk_class TscShellContainerClass
+; if (WinActive(ahk_class TscShellContainerClass))
+;   WinActivate, ahk_class Shell_TrayWnd
+; if (WinActive("ahk_class TscShellContainerClass")) {
+;   WinActivate, ahk_class Shell_TrayWnd
+; }
+
+
+; if(WinActive("ahk_class TscShellContainerClass")) {
+;   ; Store the title of the topmost one
+;   WinGetActiveTitle, RDCMWindowTitle
+;   Loop {
+;       ; Need a short sleep here for focus to restore properly.
+;       Sleep 50
+;       ; WinMinimize
+;       ; this.getCenterPos(centerX, centerY)
+;       ; this.getWinAtPos(centerX, centerY, title)
+;       ; WinActivate % title
+;       WinActivate, ahk_class WorkerW ; Shell_TrayWnd
+
+;       ; Continue to minimize other RDP windows
+;   } Until (!WinActive("ahk_class TscShellContainerClass"))
+;   ;this.ShowInfo(RDCMWindowTitle, "Minimized")
+; }
+
+
+
+
 class RDPWindowHandler extends AKPlugin {
   __New() {
     
@@ -76,28 +129,28 @@ class RDPWindowHandler extends AKPlugin {
   RestoreFullscreenRDPClientWindow() { ;;;
         ; TODO TEST!!!!
     if(this.IsRDPClientWindowActive()) {
-        Send("^!{CtrlBreak}")
+        SendInput("^!{CtrlBreak}")
     }
   }
 
   LoopRDPClientWindows() { ;;; TODO test, style
-    if (OldTime = "") {
-      OldTime := A_TickCount
-      ;next: whether the next window should be activated; otherwise the first one
-      next := false
-    } else {
-      next := (A_TickCount - OldTime) < 800
-      OldTime := A_TickCount
-    }
-    if (next && OldIndex != "") {
-      OldIndex := Mod(OldIndex, Wins) + 1
-      ahkId := Wins%OldIndex%
-      WinActivate("ahk_id " ahkId)
-      winN_title := WinGetTitle("ahk_id " ahkId)
-    } else {
-      ; Go the normal way
-      OldIndex := this.SwitchToNextRDPClientWindow()
-    }
+    ; if (OldTime = "") {
+    ;   OldTime := A_TickCount
+    ;   ;next: whether the next window should be activated; otherwise the first one
+    ;   next := false
+    ; } else {
+    ;   next := (A_TickCount - OldTime) < 800
+    ;   OldTime := A_TickCount
+    ; }
+    ; if (next && OldIndex != "") {
+    ;   OldIndex := Mod(OldIndex, Wins) + 1
+    ;   ahkId := Wins%OldIndex%
+    ;   WinActivate("ahk_id " ahkId)
+    ;   winN_title := WinGetTitle("ahk_id " ahkId)
+    ; } else {
+    ;   ; Go the normal way
+    ;   OldIndex := this.SwitchToNextRDPClientWindow()
+    ; }
   }
 
   SwitchToNextRDPClientWindow() { ;;; TODO test, style
@@ -141,5 +194,38 @@ class RDPWindowHandler extends AKPlugin {
     title := WinGetTitle()
     className := WinGetClass()
     WinGetPos(&xWin, &yWin, &wWin, &hWin)
+  }
+
+  IsKeyboardHookStealerWindowActive() {
+    ; WinActive("ahk_class Notepad") or WinActive("ahk_class" ClassName)
+    return (WinActive("ahk_class TscShellContainerClass"))
+  }
+
+  IsRDPClientWindowActive() { ;;;
+    return WinActive("ahk_class TscShellContainerClass")
+  }
+  
+  _checkAhkHook() {
+    if (WinActive("ahk_class TscShellContainerClass")) {
+      if (!this._isAhkHookTakenByRDP) {
+        this._isAhkHookTakenByRDP := true
+        ; Short sleep to make sure the remote desktop keyboard hook is active
+        Sleep 100
+        ; Coming out of suspend mode recreates the keyboard hook, giving
+        ; our hook priority over the remote desktop client's.
+        Suspend False
+        ; this.ToggleAppSuspend()
+
+        SoundBeep 880
+      }
+    } else {
+      if (this._isAhkHookTakenByRDP) {
+        this._isAhkHookTakenByRDP := false
+        Suspend True
+        ; this.ToggleAppSuspend()
+
+        SoundBeep 1760
+      }
+    }
   }
 }
