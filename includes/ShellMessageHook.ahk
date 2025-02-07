@@ -18,14 +18,12 @@ class ShellMessageHook extends AKPlugin {
   static HSHELL_RUDEAPPACTIVATED    := 17
   static messageNames := { 1: "WINDOW_CREATED", 2: "WINDOW_DESTROYED", 3: "ACTIVATE_SHELL_WINDOW", 4: "WINDOW_ACTIVATED", 5: "GET_MIN_RECT", 6: "REDRAW", 7: "TASK_MAN", 8: "LANGUAGE", 9: "SYS_MENU", 10: "END_TASK", 11: "ACCESSIBILITY_STATE", 12: "APP_COMMAND", 13: "WINDOW_REPLACED", 14: "WINDOW_REPLACING", 15: "HIGH_BIT", 16: "FLASH", 17: "RUDE_APP_ACTIVATED" }
 
-  eventListeners := { "WindowCreated": [], "WindowActivated": [], "WindowDestroyed": [] }
+  eventListeners := { WindowCreated: [], WindowActivated: [], WindowDestroyed: [] }
 
   __New(config:=0) {
-    Gui +LastFound
-    hWnd := WinExist()
+    DllCall('RegisterShellHookWindow', 'UInt', A_ScriptHwnd)
+    MsgNum := DllCall("RegisterWindowMessage", "Str", "SHELLHOOK")
     onShellMessageFn := this.onShellMessage.bind(this)
-    DllCall("RegisterShellHookWindow", UInt,hWnd)
-    MsgNum := DllCall("RegisterWindowMessage", Str, "SHELLHOOK")
     OnMessage(MsgNum, onShellMessageFn)
   }
 
@@ -40,14 +38,17 @@ class ShellMessageHook extends AKPlugin {
   }
 
   ; TODO: RemoveEventListener support?
-  AddEventListener(eventName, callbackFn) { ;;;
+  AddEventListener(eventName, handlerFn) { ;;;
     errorPrefix := "Error adding event listener"
+
+    handlerFnType := Type(handlerFn)
+    if (handlerFnType != 'BoundFunc')
+      return errorPrefix ": HandlerFn parameter must be of type BoundFunc, but got " . handlerFnType
+
     if (!this.eventListeners.Has(eventName))
       return errorPrefix ": Unsupported event '" eventName "'. Supported: " Join(Object.Keys(this.eventListeners), ", ")
-    if (IsFunc(callbackFn))
-      return errorPrefix ": callbackFn for event '" eventName "' is not a function"
 
-    this.eventListeners[eventName].Push(callbackFn)
+    this.eventListeners[eventName].Push(handlerFn)
     return 0
   }
 
@@ -78,7 +79,7 @@ class ShellMessageHook extends AKPlugin {
       case this.HSHELL_HIGHBIT:
       case this.HSHELL_FLASH:
       case this.HSHELL_RUDEAPPACTIVATED:
-        return this.outputDebugLine("skip " messageNames[msgId] " from hwnd=" hwnd)
+        return this.outputDebugLine("skip " this.messageNames[msgId] " from hwnd=" hwnd)
       Default:
         return this.outputDebugLine("skip unknown msgId=" msgId " from hwnd=" hwnd)
     }

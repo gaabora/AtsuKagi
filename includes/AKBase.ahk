@@ -28,7 +28,7 @@ class AKBase {
   }
   ShowInfo(text, title:="", timeout:=2000) {
     this.outputDebugLine("INFO: " text, 3)
-    infoTag := StrReplace(text,' ')
+    infoTag := A_TickCount
     Notify.Show(title,text,,,, 'dur=0 pos=ct tag=' . infoTag)
     SetTimer(infoNotificationOff, timeout)
     return

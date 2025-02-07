@@ -12,8 +12,8 @@ class TimerHandlers extends AKPlugin {
   }
 
   AddCronJob(CronString) {
-    jobDetails := this._parseCronString(CronString)
-    this.CronJobs[JobName] := jobDetails
+    ; jobDetails := this._parseCronString(CronString)
+    ; this.CronJobs[JobName] := jobDetails
   }
   
   _processScheduledTasks() {

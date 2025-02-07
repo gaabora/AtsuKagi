@@ -200,10 +200,6 @@ class RDPWindowHandler extends AKPlugin {
     ; WinActive("ahk_class Notepad") or WinActive("ahk_class" ClassName)
     return (WinActive("ahk_class TscShellContainerClass"))
   }
-
-  IsRDPClientWindowActive() { ;;;
-    return WinActive("ahk_class TscShellContainerClass")
-  }
   
   _checkAhkHook() {
     if (WinActive("ahk_class TscShellContainerClass")) {

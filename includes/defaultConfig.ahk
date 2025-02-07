@@ -19,6 +19,7 @@ ProcessGereralConfigSection(configSection) {
   SetPropIfNotExist(configSection, "DarkTheme"                    , 1)
   SetPropIfNotExist(configSection, "SwapMouseXButtons"            , 0)
   SetPropIfNotExist(configSection, "ModifierHotkeysHint"          , "Alt=!, Ctrl=^, Shift=+, LWin=#, AltGr=<^>!")
+  SetPropIfNotExist(configSection, "DisabledPlugins"              , "ShellMessageHook,RDPWindowHandler")
 }
 
 ProcessThemeConfigSection(configSection) {
