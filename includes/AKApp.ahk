@@ -375,7 +375,7 @@ class AKApp extends AKBase {
   }
 
   _initConfig(ConfigFile) {
-    FileDelete(ConfigFile) ; FIXME: for debug, REMOVE BEFORE RELEASE!
+    ; FileDelete(ConfigFile) ; FIXME: for debug, REMOVE BEFORE RELEASE!
 
     if !FileExist(ConfigFile) {
       DefaultSettings := ''

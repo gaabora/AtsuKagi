@@ -22,6 +22,16 @@
       "skipFiles": [
         "${workspaceFolder}/tests/**/*.ahk"
       ]
+    },
+    {
+      "runtime": "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
+      "type": "autohotkey",
+      "request": "launch",
+      "name": "AHK v2 Debug IniFileTests",
+      "program": "${workspaceFolder}/tests/IniFileTests.ahk",
+      "stopOnEntry": true,
+      "skipFiles": [
+      ]
     }
   ]
 }
