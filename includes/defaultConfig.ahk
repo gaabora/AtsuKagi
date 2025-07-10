@@ -49,8 +49,8 @@ ProcessThemeConfigSection(configSection) {
 GetDefaultHotkeysConfig() {
   config := Map()
   config["#Esc"]         := 'Run("scrnsave.scr /s")'
-  config["RButton"]      := "EnterGestureMode(2, 4)"
-  config["XButton2"]     := "EnterGestureMode(4)"
+  config["RButton"]      := "EnterGestureMode(1, 4)"
+  config["XButton2"]     := "EnterGestureMode(4, 4, ToggleTaskView)"
 
   config["#!i"]          := "ShowHoveredWindowInfo"
   config["#!l"]          := "ShowWindowList"
@@ -122,6 +122,10 @@ GetDefaultHotkeysConfig() {
   config["NumpadDel"]    := "RemapTo(.)"
 
   config["XButton1"]     := "RemapTo(Backspace)"
+
+  config[">+Backspace"]  := "RemapTo(Delete)"
+  ; config["^>+Backspace"] := "RemapTo({Ctrl down}{Delete}{Ctrl up})"
+  ; config["<+>+Backspace"]:= "RemapTo({Shift down}{Delete}{Shift up})"
 
   config["!CapsLock"]    := "SwitchSelectedTextCase()"
   config["CapsLock"]     := "SwitchKeyboardLayout()"

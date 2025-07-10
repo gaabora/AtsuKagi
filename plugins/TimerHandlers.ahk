@@ -4,14 +4,14 @@ class TimerHandlers extends AKPlugin {
   ; this._setTimer("_processScheduledTasks", 1000)
   __ActionsHelp() {
     texts := Map()
-    texts["IfThenElse"] := "IfThenElse(IfActionString, ThenActionString, ElseActionString)"
-    texts["RemapTo"]    := "RemapTo(Hotkey)"
-    texts["DoNothing"]  := "DoNothing()"
-    texts["ShowInfo"]   := "ShowInfo(text, title:='', timeout:=2000)"
+    ; texts["IfThenElse"] := "IfThenElse(IfActionString, ThenActionString, ElseActionString)"
+    ; texts["RemapTo"]    := "RemapTo(Hotkey)"
+    ; texts["DoNothing"]  := "DoNothing()"
+    ; texts["ShowInfo"]   := "ShowInfo(text, title:='', timeout:=2000)"
     return texts
   }
 
-  AddCronJob(CronString) {
+  AddCronJob(CronString) { ;;;
     ; jobDetails := this._parseCronString(CronString)
     ; this.CronJobs[JobName] := jobDetails
   }

@@ -142,7 +142,9 @@ IsValidHexColor(hexColor) {
   return RegExMatch(hexColor, "0x[0-9A-Fa-f]{6}") ? true : false
 }
 
-
+IsButtonPressed(buttonName) {
+  return GetKeyState(buttonName, 'P') == 1
+}
 
 GetCurrentScreenBorders(&CurrentScreenLeft, &CurrentScreenRight, &CurrentScreenTop, &CurrentScreenBottom) {
   MouseGetPos(&xMouse, &yMouse)
@@ -159,24 +161,42 @@ GetCurrentScreenBorders(&CurrentScreenLeft, &CurrentScreenRight, &CurrentScreenT
   }
 }
 
+ReverseBuffer(buf) {
+    newBuf := Buffer(buf.Size)
+    Loop buf.Size {
+      NumPut("UChar", NumGet(buf.Ptr + (buf.Size - A_Index), "UChar"), newBuf.Ptr + (A_Index - 1))
+    }
+    return newBuf
+}
 
-FormatBuffer(buf, groupBytes:=1) {
-  static CRYPT_STRING_HEX := 0x40000000
-  static CRYPT_STRING_NOCR := 0x00000004
-  Local flags := CRYPT_STRING_HEX | CRYPT_STRING_NOCR
-  Local binarySize := VarSetStrCapacity(&buf) ; V1toV2: if 'buf' is NOT a UTF-16 string, use 'buf := Buffer()'
-  Local hexBufferSize := (binarySize * (flags ? 3 : 2)) * (1 ? 2 : 1)
-  Local buffer := hexString := Buffer(hexBufferSize, 0) ; V1toV2: if 'hexString' is a UTF-16 string, use 'VarSetStrCapacity(&hexString, hexBufferSize)'
-  
-  DllCall("Crypt32.dll\CryptBinaryToString", "Ptr", buf, "Int", binarySize, "Int", flags ? flags : 12, "Str", hexString, "UIntP", &hexBufferSize)
+FormatBuffer(buf, groupBytes := 1) {
+    static CRYPT_STRING_HEX := 0x40000000
+    static CRYPT_STRING_NOCR := 0x00000004
+    local flags := CRYPT_STRING_HEX | CRYPT_STRING_NOCR
 
-  if (groupBytes = 1)
-    return hexString
+    reBuf := ReverseBuffer(buf)
+    local binarySize := reBuf.Size
+    local hexBufferSize := (binarySize * 3 + 1) * 2 ; generous estimate for UTF-16 string
+    local hexBuffer := Buffer(hexBufferSize, 0)
+    
+    ; Windows APIs use little-endian byte order, where the least significant byte comes first in memory
+    ; so to have sane formatted output we reverse buffer
+    DllCall("Crypt32.dll\CryptBinaryToStringW",
+      "Ptr", reBuf,
+      "UInt", binarySize,
+      "UInt", flags,
+      "Ptr", hexBuffer.Ptr,
+      "UIntP", &hexBufferSize,
+    )
+    
+    local hexString := StrGet(hexBuffer, hexBufferSize, "UTF-16")
 
-  local pattern := "(.{" . 2 * groupBytes . "})"
-  Local formattedHexString := RegExReplace(hexString, "\s")
-  formattedHexString := RegExReplace(formattedHexString, pattern, "$1 ")
-  return formattedHexString
+    if (groupBytes = 1)
+      return hexString
+
+    local pattern := "(.{" . 2 * groupBytes . "})"
+    hexString := RegExReplace(hexString, "\s") ; remove any spaces (shouldn't be there though)
+    return RegExReplace(hexString, pattern, "$1 ")
 }
 
 FormatCamelCaseToSentence(text) {

@@ -10,7 +10,7 @@
       "request": "launch",
       "name": "AHK v2 Debug APP",
       "program": "${workspaceFolder}/AtsuiKagi.ahk",
-      "stopOnEntry": true
+      "stopOnEntry": false
     },
     {
       "runtime": "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
@@ -18,7 +18,7 @@
       "request": "launch",
       "name": "AHK v2 Debug current file",
       "program": "${file}",
-      "stopOnEntry": true,
+      "stopOnEntry": false,
       "skipFiles": [
         "${workspaceFolder}/tests/**/*.ahk"
       ]
@@ -29,7 +29,7 @@
       "request": "launch",
       "name": "AHK v2 Debug IniFileTests",
       "program": "${workspaceFolder}/tests/IniFileTests.ahk",
-      "stopOnEntry": true,
+      "stopOnEntry": false,
       "skipFiles": [
       ]
     }

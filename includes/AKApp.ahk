@@ -10,8 +10,8 @@ class AKApp extends AKBase {
   DynamicPluginsAutogenFilePath := "dynamicPlugins.ahk"
   ; private (let's agree on _camelCase)
   _addedLibs := Map()
-  _configFile := A_ScriptDir "/config.ini"
-  _configFileDefault := A_ScriptDir "/config.ini"
+  _configFile := A_ScriptDir "\config.ini"
+  _configFileDefault := A_ScriptDir "\config.ini"
   _assignedHotkeys := Map()
   _toolTipIdsArr := Map()
 
@@ -27,7 +27,8 @@ class AKApp extends AKBase {
     this._initConfig(this._configFile)
     
     this._initPlugins()
-    this._initMenu()
+    this._initTrayMenu()
+    ; this._initLaunchMenu()
 
     actionName := 'ReloadApp'
     this._registerAction(this, actionName, '', actionName)
@@ -323,27 +324,27 @@ class AKApp extends AKBase {
   }
 
 
-  _initMenu() {
-    Tray:= A_TrayMenu
-    Tray.Delete()
-    fn := this._menuHandler.bind(this)
+  _initTrayMenu() {
+    trayMenu:= A_TrayMenu
+    trayMenu.Delete()
+    fn := this._trayMenuHandler.bind(this)
     if (this.debugLevel = 0)
-      Tray.Delete() ; V1toV2: not 100% replacement of NoStandard, Only if NoStandard is used at the beginning
+      trayMenu.Delete() ; V1toV2: not 100% replacement of NoStandard, Only if NoStandard is used at the beginning
     TraySetIcon(this.TrayIconDefault, "1")
     ; this.runMenuHooks() ; TODO
-    Tray.Add("KeyHistory", fn)
-    Tray.Add("Help", fn)
-    Tray.Add("Test", fn)
-    Tray.Add()
-    Tray.Add("Settings", fn)
-    Tray.Add()
-    Tray.Add("Reload", fn)
-    Tray.Add("Disable", fn)
-    Tray.Add()
-    Tray.Add("Exit", fn)
+    trayMenu.Add("KeyHistory", fn)
+    trayMenu.Add("Help", fn)
+    trayMenu.Add("Test", fn)
+    trayMenu.Add()
+    trayMenu.Add("Settings", fn)
+    trayMenu.Add()
+    trayMenu.Add("Reload", fn)
+    trayMenu.Add("Disable", fn)
+    trayMenu.Add()
+    trayMenu.Add("Exit", fn)
   }
 
-  _menuHandler(ItemName, ItemPos, MyMenu) {
+  _trayMenuHandler(ItemName, ItemPos, TheMenu) {
     switch (ItemName) {
       case "Test":
         this.TestActions()
@@ -368,6 +369,67 @@ class AKApp extends AKBase {
       case "Exit":
         ExitApp
         return
+      Default:
+        this.ShowInfo("no action for " ItemName)
+        return
+    }
+  }
+
+  _initLaunchMenu() {
+    static WM_TRAYMESSAGE := 0x404
+
+    static WM_MOUSEMOVE   := 0x200
+    static WM_LBUTTONDOWN := 0x201
+    static WM_LBUTTONUP   := 0x202
+    static WM_RBUTTONDOWN := 0x204
+    static WM_RBUTTONUP   := 0x205
+    static WM_MBUTTONDOWN := 0x207
+    static WM_MBUTTONUP   := 0x208
+
+    this.MyMenu := Menu()
+    this.DropGui := Gui("+AlwaysOnTop -Caption +ToolWindow", "DropTarget")
+    fn := this._launchMenuHandler.bind(this)
+
+    this.MyMenu.Add("Item 1", fn)
+    this.MyMenu.Add("Item 2", fn)
+    this.MyMenu.Add()
+
+    Submenu1 := Menu()
+    Submenu1.Add("Item A", fn)
+    Submenu1.Add("Item B", fn)
+
+    this.MyMenu.Add("My Submenu", Submenu1)
+
+    this.MyMenu.Add()
+    this.MyMenu.Add("Item 3", fn)
+
+    ; Create invisible drag target GUI
+    this.DropGui.OnEvent("DropFiles", this._handleDrop.bind(this))
+    this.DropGui.Show("w100 h100 x99 y99") ; Invisible, off-screen
+
+    OnMessage(WM_TRAYMESSAGE, _trayIconMouseEventHandler)
+    _trayIconMouseEventHandler(wParam, lParam, nMsg, hwnd) {
+      switch (lParam) {
+        case WM_LBUTTONUP:
+          this.MyMenu.Show()
+          return 1
+      }
+    }
+  }
+
+  _handleDrop(GuiObj, Ctrl, FileArray, X, Y) {
+    for file in FileArray {
+      this.MyMenu.Add(file, this._launchMenuHandler.bind(this))
+    }
+    this.MyMenu.Show()
+  }
+
+  _launchMenuHandler(ItemName, ItemPos, TheMenu) {
+    switch (ItemName) {
+      case "Test":
+        this.TestActions()
+        return
+
       Default:
         this.ShowInfo("no action for " ItemName)
         return

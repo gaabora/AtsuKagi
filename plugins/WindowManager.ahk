@@ -57,6 +57,7 @@ class WindowManager extends AKPlugin {
     texts["DecreaseHoveredWindowTransparency"] := "DecreaseHoveredWindowTransparency(ByValue:=32)"
     texts["SetWindowBorderColor"]              := "SetWindowBorderColor(color:=-1, hwnd:=0)"
 
+    texts["ToggleTaskView"]                    := "ToggleTaskView()"
     texts["IsMouseOverTaskbar"]                := "IsMouseOverTaskbar()"
     texts["IsMouseOverWindowTitlebar"]         := "IsMouseOverWindowTitlebar()"
     texts["IsMouseOverWindowAnyBorder"]        := "IsMouseOverWindowAnyBorder()"
@@ -398,6 +399,10 @@ class WindowManager extends AKPlugin {
   ;   }
   ; }
 
+  ToggleTaskView() { ;;;
+    Run('shell:::{3080F90E-D7AD-11D9-BD98-0000947B0257}')
+  }
+
   IsMouseOverTaskbar() { ;;;
     MouseGetPos(, , &hwnd)
     hoverTaskbar := WinExist("ahk_class Shell_TrayWnd ahk_id " hwnd)
@@ -406,15 +411,15 @@ class WindowManager extends AKPlugin {
   }
 
   IsMouseOverWindowTitlebar() { ;;;
-    areaCode := this._getHoveredWindowAreaCode()
-    if (areaCode = 1) {
-      CoordMode("Mouse", "Client")
-      MouseGetPos(, &y)
-      ; treat top area as titlebar for windows without standard CAPTION
-      if (y < this.Config.WindowTitlebarAreaHeight)
-        return true
+    ; treat top area as titlebar for windows without standard CAPTION
+    CoordMode("Mouse", "Client")
+    MouseGetPos(, &y)
+    if (y < this.Config.WindowTitlebarAreaHeight) {
+      return !this.IsMouseOverTaskbar()
     }
-    return (areaCode = 2 || areaCode = 3 || areaCode = 8 || areaCode = 9 || areaCode = 20 || areaCode = 21) && !this.IsMouseOverTaskbar()
+    return false
+    ; areaCode := this._getHoveredWindowAreaCode()
+    ; return (areaCode = 2 || areaCode = 3 || areaCode = 8 || areaCode = 9 || areaCode = 20 || areaCode = 21) && !this.IsMouseOverTaskbar()
   }
 
   IsMouseOverWindowAnyBorder() { ;;;

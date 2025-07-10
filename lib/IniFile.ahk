@@ -99,8 +99,8 @@ class IniFileProto {
   }
   _initSettings(settingsObject:=-1) {
     static _defaultSettings := Map(
-      'SAVE_AUTOMATICALLY', false,
-      'WRITE_DEBOUNCE_TIMEOUT_MS', 3000,
+      'SAVE_AUTOMATICALLY', true,
+      'WRITE_DEBOUNCE_TIMEOUT_MS', 200,
     )
     this.__pIniFile_Settings := _defaultSettings.Clone()
     if (settingsObject = -1)
@@ -159,6 +159,7 @@ class IniFileProto {
     }
     if (FileExist(this.__pIniFile_Path))
       FileDelete(this.__pIniFile_Path)
+    outputDebug("_writeIni: WRITING TO FILE " this.__pIniFile_Path "`n" )
     FileAppend(newContent, this.__pIniFile_Path)
   }
   _debounceFactory(TimeoutMs := 800) {
@@ -175,7 +176,7 @@ class IniFileProto {
       lastCallback := Callback
       OutputDebug("--------- SET DEBOUNCE " . TimeoutMs . " ---------`n" )
       SetTimer(Callback, -1 * TimeoutMs)
-      SetTimer(resetTimerFn, -1 * (TimeoutMs + 1))
+      ; SetTimer(resetTimerFn, -1 * (TimeoutMs + 1))
     }
     return debounceFn
   }

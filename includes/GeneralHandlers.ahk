@@ -10,10 +10,11 @@ class GeneralHandlers extends AKPlugin {
   }
   
   RemapTo(Hotkey) { ;;;
-      if (Hotkey = "")
-        return
+    if (Hotkey = "")
+      return
 
-      SendInput(RegExMatch(Hotkey, '^\s*\{') ? Hotkey : "{" Hotkey "}")
+    InputString := RegExMatch(Hotkey, '^\s*\{') ? Hotkey : "{" Hotkey "}"
+    SendInput(InputString)
   }
 
   DoNothing() { ;;;
