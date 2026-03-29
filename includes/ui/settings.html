@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Settings</title>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --PrimaryColor: #0078D7;
+      --PrimaryColorLight: #60CDFF;
+    }
+    body { font-family: "Segoe UI"; margin: 0; padding: 0; }
+    [data-theme="dark"] ::selection { background-color: #2E517E; }
+  </style>
+  <link rel="stylesheet" href="winui-icons.min.css" />
+  <link rel="stylesheet" type="text/css" href="windows-ui.min.css" />
+  <style>
+    /* ── Title bar ──────────────────────────────────────────────── */
+    .settings-titlebar {
+      display: flex;
+      align-items: center;
+      padding: 6px 8px;
+      background: var(--color-navbar-bg-default, #F3F3F3);
+      border-bottom: 1px solid var(--color-ui-border-default, #E3E3E3);
+      user-select: none;
+    }
+    .settings-titlebar .title-text {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 400;
+      padding-left: 6px;
+      cursor: default;
+    }
+    .settings-titlebar .title-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 46px;
+      height: 30px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--color-text-default, #000);
+      font-family: "Segoe MDL2 Assets", "Segoe UI Symbol", sans-serif;
+      font-size: 10px;
+    }
+    .settings-titlebar .title-btn:hover {
+      background: var(--color-ui-hover-strong, #E8E8E8);
+    }
+    .settings-titlebar .title-btn-close:hover {
+      background: #C42B1C;
+      color: #fff;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .settings-container {
+      display: flex;
+      height: calc(100vh - 43px);
+    }
+
+    /* ── Left navigation ────────────────────────────────────────── */
+    .settings-nav {
+      width: 200px;
+      min-width: 200px;
+      padding: 8px 0;
+      background: var(--color-navbar-bg-default, #F3F3F3);
+      border-right: 1px solid var(--color-ui-border-default, #E3E3E3);
+      overflow-y: auto;
+    }
+    .settings-nav .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 15px;
+      margin: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--color-text-default, #000);
+      text-decoration: none;
+      font-size: 14px;
+      border: none;
+      background: none;
+      width: calc(100% - 12px);
+      text-align: left;
+      position: relative;
+    }
+    .settings-nav .nav-item:hover {
+      background: var(--color-ui-hover-strong, #E8E8E8);
+    }
+    .settings-nav .nav-item.active {
+      background: var(--color-ui-hover-strong, #E8E8E8);
+      font-weight: 600;
+    }
+    .settings-nav .nav-item.active::after {
+      content: "";
+      width: 3px;
+      height: 16px;
+      border-radius: 4px;
+      background: var(--color-primary-adaptive, #0078D7);
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .settings-nav .nav-item i::before {
+      font-size: 18px;
+    }
+
+    /* ── Content area ───────────────────────────────────────────── */
+    .settings-content {
+      flex: 1;
+      padding: 24px 30px;
+      overflow-y: auto;
+    }
+    .settings-section {
+      display: none;
+    }
+    .settings-section.active {
+      display: block;
+    }
+
+    /* ── Settings form ──────────────────────────────────────────── */
+    .setting-group {
+      margin-bottom: 28px;
+    }
+    .setting-group h2 {
+      margin: 0 0 18px 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .setting-group p.subtitle {
+      margin: -12px 0 16px 0;
+      opacity: 0.7;
+      font-size: 14px;
+    }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 14px;
+      gap: 16px;
+    }
+    .setting-row label.field-label {
+      min-width: 170px;
+      font-size: 14px;
+    }
+    .setting-row .app-input-container {
+      flex: 1;
+      max-width: 300px;
+    }
+    .setting-row .app-input-container .app-input-text {
+      width: 100%;
+    }
+    .setting-row .app-select-menu {
+      width: 300px;
+    }
+    .setting-row .app-select-menu select {
+      width: 100%;
+    }
+    .setting-row .app-range-slider {
+      flex: 1;
+      max-width: 300px;
+    }
+
+    /* ── Plugin list ────────────────────────────────────────────── */
+    .plugin-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--color-ui-border-default, #E3E3E3);
+    }
+    .plugin-item:last-child {
+      border-bottom: none;
+    }
+
+    /* ── Hotkeys table ──────────────────────────────────────────── */
+    .hotkeys-wrap {
+      max-height: 420px;
+      overflow-y: auto;
+    }
+    .hotkeys-wrap .app-table-view {
+      width: 100%;
+    }
+
+    /* ── Button bar ─────────────────────────────────────────────── */
+    .button-bar {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding: 16px 0 4px 0;
+      border-top: 1px solid var(--color-ui-border-default, #E3E3E3);
+      margin-top: 24px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ── Neutron title bar ────────────────────────────────────── -->
+  <div class="settings-titlebar" onmousedown="neutron.DragTitleBar()">
+    <span class="title-text" id="titleText">Settings</span>
+    <button class="title-btn" onclick="neutron.Minimize()">&#xE921;</button>
+    <button class="title-btn title-btn-close" onclick="neutron.Close()">&#xE8BB;</button>
+  </div>
+
+  <div class="settings-container">
+    <!-- ── Left nav ─────────────────────────────────────────────── -->
+    <div class="settings-nav">
+      <button class="nav-item active" onclick="showSection('general', this)">
+        <i class="icons10-settings"></i>
+        <span>General</span>
+      </button>
+      <button class="nav-item" onclick="showSection('plugins', this)">
+        <i class="icons10-puzzle"></i>
+        <span>Plugins</span>
+      </button>
+      <button class="nav-item" onclick="showSection('hotkeys', this)">
+        <i class="icons10-keyboard"></i>
+        <span>Hotkeys</span>
+      </button>
+    </div>
+
+    <!-- ── Content ──────────────────────────────────────────────── -->
+    <div class="settings-content">
+
+      <!-- ═══ GENERAL ═══════════════════════════════════════════ -->
+      <div id="section-general" class="settings-section active">
+
+        <div class="setting-group">
+          <h2>General</h2>
+
+          <div class="setting-row">
+            <label class="field-label" for="WelcomeMessage">Welcome Message</label>
+            <div class="app-input-container">
+              <input class="app-input-text" type="text" id="WelcomeMessage" placeholder="Enter message" />
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="field-label" for="DarkTheme">Theme</label>
+            <div class="app-select-menu">
+              <select id="DarkTheme">
+                <option value="-1">Auto (follow system)</option>
+                <option value="0">Light</option>
+                <option value="1">Dark</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="field-label" for="ToolTipTimeoutMs">Tooltip Timeout (ms)</label>
+            <div class="app-input-container">
+              <input class="app-input-text" type="number" id="ToolTipTimeoutMs" min="100" max="30000" />
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="field-label">Window Transparency</label>
+            <div class="app-range-slider">
+              <input type="range" min="0" max="255" step="1" value="128" id="WindowTransparencyValue" />
+              <span id="WindowTransparencyLabel">128</span>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="field-label" for="WindowOnTopBorderColor">On-Top Border Color</label>
+            <div class="app-input-container">
+              <input class="app-input-text" type="text" id="WindowOnTopBorderColor" placeholder="0xAACCFF" />
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <h2>Sounds</h2>
+
+          <div class="setting-row">
+            <label class="field-label" for="StartupSound">Startup Sound</label>
+            <div class="app-input-container">
+              <input class="app-input-text" type="text" id="StartupSound" />
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="field-label" for="NotificationSound">Notification Sound</label>
+            <div class="app-input-container">
+              <input class="app-input-text" type="text" id="NotificationSound" />
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <h2>App Hotkeys</h2>
+
+          <div class="setting-row">
+            <label class="field-label" for="ReloadAppHotkey">Reload App</label>
+            <div class="app-input-container">
+              <input class="app-input-text" type="text" id="ReloadAppHotkey" />
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="field-label" for="SuspendAppHotkey">Suspend App</label>
+            <div class="app-input-container">
+              <input class="app-input-text" type="text" id="SuspendAppHotkey" />
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <h2>Misc</h2>
+
+          <div class="setting-row">
+            <label class="field-label">Swap Mouse XButtons</label>
+            <label class="app-switch">
+              <input type="checkbox" id="SwapMouseXButtons" />
+              <div class="app-switch-view"></div>
+              <span class="app-switch-label" data-on="On" data-off="Off"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="button-bar">
+          <button class="app-btn app-btn-primary" onclick="ahk.SettingsSave()">
+            <span>Save &amp; Reload</span>
+          </button>
+          <button class="app-btn" onclick="ahk.SettingsCancel()">
+            <span>Cancel</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ═══ PLUGINS ═══════════════════════════════════════════ -->
+      <div id="section-plugins" class="settings-section">
+        <div class="setting-group">
+          <h2>Plugins</h2>
+          <p class="subtitle">Enable or disable plugins. Changes require app reload.</p>
+          <div id="plugins-list">
+            <!-- dynamically populated from AHK -->
+          </div>
+        </div>
+
+        <div class="button-bar">
+          <button class="app-btn app-btn-primary" onclick="ahk.SettingsSave()">
+            <span>Save &amp; Reload</span>
+          </button>
+          <button class="app-btn" onclick="ahk.SettingsCancel()">
+            <span>Cancel</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ═══ HOTKEYS ═══════════════════════════════════════════ -->
+      <div id="section-hotkeys" class="settings-section">
+        <div class="setting-group">
+          <h2>Hotkey Assignments</h2>
+          <p class="subtitle">Current hotkey bindings. Edit config.ini for advanced changes.</p>
+          <div class="hotkeys-wrap">
+            <div class="app-table-view-container">
+              <table class="app-table-view">
+                <thead>
+                  <tr>
+                    <th align="left" style="width:160px">Hotkey</th>
+                    <th align="left">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="hotkeys-tbody">
+                  <!-- dynamically populated from AHK -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  
+  <script>
+    /* ── Section navigation ─────────────────────────────────────── */
+    function showSection(name, navEl) {
+      var sections = document.querySelectorAll('.settings-section');
+      for (var i = 0; i < sections.length; i++) {
+        sections[i].classList.remove('active');
+      }
+      var navItems = document.querySelectorAll('.nav-item');
+      for (var i = 0; i < navItems.length; i++) {
+        navItems[i].classList.remove('active');
+      }
+      var target = document.getElementById('section-' + name);
+      if (target) target.classList.add('active');
+      if (navEl) navEl.classList.add('active');
+    }
+
+    /* ── Transparency slider live update ────────────────────────── */
+    var slider = document.getElementById('WindowTransparencyValue');
+    var sliderLabel = document.getElementById('WindowTransparencyLabel');
+    function updateSlider() {
+      if (!slider || !sliderLabel) return;
+      sliderLabel.textContent = slider.value;
+      var pct = (slider.value / 255) * 100;
+      slider.style.background =
+        'linear-gradient(90deg, var(--color-primary-adaptive, #0078D7) ' + pct +
+        '%, #999 ' + (pct + 0.1) + '%)';
+    }
+    if (slider) {
+      slider.oninput = updateSlider;
+      slider.onchange = updateSlider;
+    }
+  </script>
+</body>
+</html>

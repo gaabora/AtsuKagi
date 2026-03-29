@@ -8,6 +8,25 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   
+
+
+<style>
+:root {
+  --PrimaryColor: #0078D7; /* Change of your choice */
+  --PrimaryColorLight: #60CDFF; /* Lighter version of --PrimaryColor for DarkMode */
+}
+body {
+  font-family: "Segoe UI";
+}
+
+[data-theme="dark"] ::selection {
+  background-color: #2E517E;
+}
+</style>
+
+
+
+
   <link rel="stylesheet" href="winui-icons.min.css" />
   <link rel="stylesheet" type="text/css" href="windows-ui.min.css" />
 </head>
@@ -34,7 +53,6 @@
           </label>
           <li class="app-navbar-list-item">
             <a href="#" class="">
-              <img src="1.jpg">
               <span>Home</span>
             </a>
           </li>
@@ -124,7 +142,660 @@
       <br />
       <br />
       <br />
+
+
+
+
+      <h1>CommandBar</h1>
+      <p>
+        <span class="app-color-primary">CommandBar</span> is a surface that houses commands that operate on the content of the window.
+        <br>
+      </p>
+      <div class="app-cmd-bar">
+        <button class="app-cmdbar-button">
+          <i class="icons10-plus app-color-primary"></i>
+          <span>New</span>
+        </button>
+        <!-- Adding <hr/> tag to make a split UI -->
+        <hr>
+        <div class="app-cmdbar-menu">
+          <div class="app-cmdbar-menu-trigger" data-win-toggle="dropdown" data-win-target="#MyMenu">
+            <button class="app-cmdbar-button">
+              <i class="icons10-angle-down"></i>
+            </button>
+          </div>
+          <ul class="app-cmdbar-menu-list left-justify" id="MyMenu">
+            <li class="cmdbar-menu-list-item">
+              <a href="#">
+                <i class="icons10-file"></i>File
+              </a>
+            </li>
+            <li class="cmdbar-menu-list-item">
+              <a href="#">Folder</a>
+            </li>
+            <li class="cmdbar-menu-list-item">
+              <a href="#">Document</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      
+      <h2>CommandBar as <p class="app-code">Nested Menu</p> :</h2>
+      <div class="app-cmdbar-menu">
+        <div class="app-cmdbar-menu-trigger" data-win-toggle="dropdown" data-win-target="#MyMenu2">
+          <button class="app-cmdbar-button">
+            <i class="icons10-angle-down app-color-primary"></i>
+            <span>Share</span>
+          </button>
+        </div>
+        <ul class="app-cmdbar-menu-list" id="MyMenu2">
+          <li class="cmdbar-menu-list-item">
+            <a href="javascript:;" data-win-toggle="dropdown" data-win-target="#MyMenu4">Whatsapp</a>
+            <ul class="app-cmdbar-menu-list cmdbar-submenu" id="MyMenu4">
+              <li class="cmdbar-menu-list-item">
+                <a href="#">HyperLink</a>
+              </li>
+            </ul>
+          </li>
+          <li class="cmdbar-menu-list-item">
+            <a href="#">Facebook</a>
+          </li>
+        </ul>
+      </div>
+      
+      <br>
+      <br>
+    
+      <h1>Dialogs</h1>
+      <p>
+        <span class="app-color-primary">Dialog</span> is a type of modal window that appears in front of app content to provide critical information or ask for a decision.
+      </p>
+      <button class="app-btn" type="button" data-win-toggle="modal" data-win-target="#MyDialog">
+        <span>Open Dialog using a Button</span>
+      </button>
+      <div class="app-dialog" id="MyDialog" data-win-toggle="modal" data-win-target="#MyDialog" tabindex="-1">
+        <div class="app-dialog-modal" aria-modal="true" role="dialog">
+          <div class="app-dialog-header">
+            <h3>Header</h3>
+          </div>
+          <div class="app-dialog-body">
+            <li class="app-list-item">
+              <a href="#/v4.2.1/dialogs">
+                <img alt="image" style="display: none;">
+                <div class="app-list-item-container">
+                  <span class="app-list-title">Magenta Riddim</span>
+                  <p class="app-list-subtitle">5.6 MB</p>
+                </div>
+              </a>
+              <div style="flex: 0.2 1 0%;"></div>
+            </li>
+            <li class="app-list-item">
+              <a href="#/v4.2.1/dialogs">
+                <img alt="image" style="display: none;">
+                <div class="app-list-item-container">
+                  <span class="app-list-title">Different World</span>
+                  <p class="app-list-subtitle">12.0 MB</p>
+                </div>
+              </a>
+              <div style="flex: 0.2 1 0%;"></div>
+            </li>
+            <li class="app-list-item">
+              <a href="#/v4.2.1/dialogs">
+                <img alt="image" style="display: none;">
+                <div class="app-list-item-container">
+                  <span class="app-list-title">La Familia</span>
+                  <p class="app-list-subtitle">24 MB</p>
+                </div>
+              </a>
+              <div style="flex: 0.2 1 0%;"></div>
+            </li>
+            <li class="app-list-item">
+              <a href="#/v4.2.1/dialogs">
+                <img alt="image" style="display: none;">
+                <div class="app-list-item-container">
+                  <span class="app-list-title">La Familia</span>
+                  <p class="app-list-subtitle">24 MB</p>
+                </div>
+              </a>
+              <div style="flex: 0.2 1 0%;"></div>
+            </li>
+          </div>
+          <div class="app-dialog-footer">
+            <button class="app-btn" type="button" data-win-toggle="modal" data-win-target="#MyDialog">
+              <span>Close</span>
+            </button>
+          </div>
+        </div>
+      </div>
+     
+      
+
+      <h1>InputTexts</h1>
+      <p class="font-size-18px">The <span class="app-color-primary">Input</span> element is used to create interactive controls for forms in order to accept data from the user.</p>
+      <div class="app-input-container">
+        <input class="app-input-text" type="text" placeholder="Enter a text" value="">
+      </div>
+      <br>
+      
+      <h2>InputText with <p class="app-code">Clear Button</p>:</h2>
+      <div class="app-input-container">
+        <input class="app-input-text" type="text" placeholder="Enter a text" value="" id="MyInputDemo">
+        <div class="app-input-end-content">
+          <button data-win-clear="text" data-win-target="#MyInputDemo"></button>
+        </div>
+      </div>
+      <br>
+      
+      <h2>Input with status:</h2>
+      <div class="app-input-container input-success">
+        <input class="app-input-text" type="text" placeholder="Enter a text success">
+      </div>
+      <br>
+      
+      <div class="app-input-container input-success">
+        <input class="app-input-text" type="text" placeholder="Enter a text success">
+        <div class="app-input-end-content">
+          <i class="icons10-status"></i>
+        </div>
+      </div>
+      <br>
+      
+      <div class="app-input-container input-danger">
+        <input class="app-input-text" type="text" placeholder="Enter a text danger">
+        <div class="app-input-end-content">
+          <i class="icons10-status"></i>
+        </div>
+      </div>
+      <br>
+      
+      <h2>Input with loading:</h2>
+      <div class="app-input-container input-loading">
+        <input class="app-input-text" type="text" placeholder="Enter a text loading">
+        <div class="app-input-end-content">
+          <div class="app-loader-busy loader-sm animate"><svg viewBox="0 0 16 16"><circle class="app-ldr-busy" cx="8px" cy="8px" r="7px"></circle></svg></div>
+        </div>
+      </div>
+      <br>
+      
+      <h2>Input <p class="app-code">Password</p>:</h2>
+      <div class="app-input-container">
+        <input class="app-input-text" type="password" placeholder="Enter a password" id="MyInputPass">
+        <div class="app-input-end-content">
+          <button data-win-toggle="password" data-win-target="#MyInputPass"></button>
+        </div>
+      </div>
+      <br>
+      
+      <h2>Input <p class="app-code">with Label</p>:</h2>
+      <div class="app-input-container">
+        <span class="app-input-label">label</span>
+        <input class="app-input-text" type="text" placeholder="Enter a text" value="">
+      </div>
+      
+      <h2>TextArea</h2>
+      <textarea class="app-textarea" placeholder="Input Text Area"></textarea>
+      
+      <h2>InputSearchBar</h2>
+      <div class="app-input-search-bar">
+        <input class="app-input-text" type="search" placeholder="Search here">
+        <div class="app-input-end-content">
+          <button type="submit"></button>
+        </div>
+      </div>
+      
+      <h2>InputSearchBox</h2>
+      <div class="app-input-search-box">
+        <input class="app-input-text" type="search" placeholder="Enter to Search">
+      </div>
+      
+
+      
+   
+      <h1>Loaders</h1>
+      <p>The <span class="app-color-primary">Loaders</span> are progress view that alerts a user to wait for an activity to complete.</p>
+      <p>Toggle <span class="app-code">animate</span> class to show/hide loaders.</p>
+      <div class="app-loader-bar animate"><div class="app-ldr-bar ball-1"></div><div class="app-ldr-bar ball-2"></div><div class="app-ldr-bar ball-3"></div><div class="app-ldr-bar ball-4"></div></div>
+      <br>
+      
+      <h2>LoaderBusy</h2>&nbsp;&nbsp;&nbsp;
+      <div class="app-loader-busy loader-lg animate"><svg viewBox="0 0 16 16"><circle class="app-ldr-busy" cx="8px" cy="8px" r="7px"></circle></svg></div>
+      <br>
+      <br>
+      
+      <br>&nbsp;&nbsp;&nbsp;
+      <div class="app-loader-busy animate"><svg viewBox="0 0 16 16"><circle class="app-ldr-busy" cx="8px" cy="8px" r="7px"></circle></svg></div>
+      
+      <br>&nbsp;&nbsp;&nbsp;
+      <div class="app-loader-busy loader-sm animate"><svg viewBox="0 0 16 16"><circle class="app-ldr-busy" cx="8px" cy="8px" r="7px"></circle></svg></div>
+      
+      <br>
+      <br>
+    
+    
+      <h1>ProgressBar</h1>
+      <p>A <span class="app-color-primary">ProgressBar</span> can be used to show a user how far along he/she is in a process</p>
+      <h1 class="app-m-0" id="app-progress-demo-1_text" style="font-size: 56px;">46%</h1>
+      <div class="app-progress-container">
+        <div class="app-progress-content">
+          <div class="app-progress-bar">
+            <span role="progressbar" id="app-progress-demo-1" style="width: 46%;"></span>
+          </div>
+        </div>
+      </div>
+      <br>
+      <br>
+      <button class="app-btn animate" type="button" onclick="setProgressDemo1(2);">
+        <span>set 2%</span>
+      </button>
+      <button class="app-btn animate" type="button" onclick="setProgressDemo1(50);">
+        <span>set 50%</span>
+      </button>
+      <button class="app-btn animate" type="button" onclick="setProgressDemo1(99);">
+        <span>set 99%</span>
+      </button>
+      <br>
+      
+ 
+      <div class="app-progress-container">
+        <div class="app-progress-bar">
+          <span role="progressbar" style="width: 46%;"></span>
+        </div>
+      </div>
+      
+      <h2>ProgressBar with <span class="app-code">title</span> :</h2>
+      <div class="app-progress-container">
+        <span class="app-progress-title">Title</span>
+        <div class="app-progress-bar">
+          <span role="progressbar" style="width: 80%;"></span>
+        </div>
+      </div>
+      <br>
+      
+      <h2>ProgressBar with title &amp; subtitle :</h2>
+      <div class="app-progress-container">
+        <span class="app-progress-title">Title</span>
+        <div class="app-progress-bar">
+          <span role="progressbar" style="width: 26%;"></span>
+        </div>
+        <span class="app-progress-subtitle">Subtitle</span>
+      </div>
+      <br>
+      
+      <h1>ProgressBar Indeterminate</h1>
+      <div class="app-progress-container">
+        <div class="app-progress-bar">
+          <span role="progressbar" class="indeterminate"></span>
+        </div>
+      </div>
+      
+      <br>
+      <br>
+    
+      
+    
+
+
+
+      <h2>MenuBar with search</h2>
+      <div class="app-dropdown-menu">
+        <span class="app-dropdown-title" data-win-toggle="dropdown" data-win-target="#MyMenuBar2">Select a fruit</span>
+        <ul class="app-dropdown-list" id="MyMenuBar2">
+          <div class="app-input-search-box">
+            <input class="app-input-text app-input-search" type="search" placeholder="search here..">
+          </div>
+          <li class="app-dropdown-list-item" style="">
+            <a href="#">
+              <i class="icons10-camera"></i>apple
+            </a>
+          </li>
+          <li class="app-dropdown-list-item" style="">
+            <a href="#">orange</a>
+          </li>
+          <li class="app-dropdown-list-item" style="">
+            <a href="#">banana</a>
+          </li>
+          <li class="app-dropdown-list-item" style="">
+            <a href="#">peach</a>
+          </li>
+        </ul>
+      </div>
+
+      
+      <h1>Select</h1>
+      <p>A
+        <span class="app-color-primary">Select</span> component is used to create a drop-down list to choose one value from multiple..
+      </p>
+ 
+      
+      <div class="app-select-menu">
+        <span class="app-dropdown-title" data-win-toggle="dropdown" data-win-target="#MySelectMenu">blue</span>
+        <ul class="app-dropdown-list" id="MySelectMenu">
+          <li class="app-dropdown-list-item selected">
+            <span>blue</span>
+          </li>
+          <li class="app-dropdown-list-item">
+            <span>red</span>
+          </li>
+          <li class="app-dropdown-list-item">
+            <span>orange</span>
+          </li>
+          <li class="app-dropdown-list-item">
+            <span>pink</span>
+          </li>
+          <li class="app-dropdown-list-item">
+            <span>green</span>
+          </li>
+        </ul>
+      </div>
+      <h2>Select Menu as Native</h2>
+      <div class="app-select-menu">
+        <select name="Some Name">
+          <option value="red">red</option>
+          <option value="blue">blue</option>
+          <option value="green">green</option>
+          <option value="pink">pink</option>
+        </select>
+      </div>
+ 
+      
+      <h2>Select Menu as Text</h2>
+      <div class="app-select-text">
+        <span class="app-dropdown-title" data-win-toggle="dropdown" data-win-target="#MySelectMenu1">pink</span>
+        <ul class="app-dropdown-list" id="MySelectMenu1">
+          <li class="app-dropdown-list-item">
+            <span>blue</span>
+          </li>
+          <li class="app-dropdown-list-item">
+            <span>red</span>
+          </li>
+          <li class="app-dropdown-list-item">
+            <span>orange</span>
+          </li>
+          <li class="app-dropdown-list-item selected">
+            <span>pink</span>
+          </li>
+          <li class="app-dropdown-list-item">
+            <span>green</span>
+          </li>
+        </ul>
+      </div>
+      
+      <br>
+      <br>
+    
+
+      <h1>TableView</h1>
+      <div class="app-table-view-container">
+        <table class="app-table-view">
+          <thead>
+            <tr>
+              <th align="left">Fruits</th>
+              <th align="left">Energy (KCal)</th>
+              <th align="left">Color</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Papaya</td>
+              <td>11845</td>
+              <td>Orange</td>
+            </tr>
+            <tr>
+              <td>Grapes</td>
+              <td>12867</td>
+              <td>Green</td>
+            </tr>
+            <tr>
+              <td>Apple</td>
+              <td>10867</td>
+              <td>Red</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <h2>Usage</h2>
+      
+      <br>
+      <br>
+    
+
+      <h1>SliderBar</h1>
+      <h1 class="app-m-0 app-color-primary" style="font-size:46px;" for="RangeSlider1">334</h1>
+      <div class="app-range-slider">
+        <input type="range" min="0" max="500" step="1" value="256" id="RangeSlider1" style="background: linear-gradient(90deg, var(--color-primary-adaptive) 66.8%, #999999 66.89999999999999%);">
+        <span class="app-range-slider-popup" for="RangeSlider1" style="visibility: hidden; opacity: 0; left: 48.096%;">334</span>
+      </div>
+      
+      <h2>SliderBar <p class="app-code">Round</p> varient :</h2>
+      <p>Add <span class="app-code">round</span> class to sliderbar.</p>
+      <div class="app-range-slider slider-round">
+        <input type="range" min="0" max="500" step="1" value="200" id="RangeSlider2" style="background: linear-gradient(90deg, var(--color-primary-adaptive) 40%, #999999 40.1%);">
+        <span for="RangeSlider2">200</span>
+      </div>
+      
+      <h2>SliderBar <p class="app-code">Round Border</p> varient :</h2>
+      <p>Add <span class="app-code">round-border</span> class to sliderbar.</p>
+      <div class="app-range-slider slider-round-border">
+        <input type="range" min="0" max="500" step="1" value="86" id="RangeSlider3" style="background: linear-gradient(90deg, var(--color-primary-adaptive) 17.2%, #999999 17.3%);">
+        <span for="RangeSlider3">86</span>
+      </div>
+      
+      <br>
+      <br>
+    
+
+
+      <h1>Switch</h1>
+      <p>A <span class="app-color-primary">Switch</span> is a simple component used for activating one of two predefined options. Commonly used as an on/off button.</p>
+      <label class="app-switch">
+        <input type="checkbox" checked="">
+        <div class="app-switch-view"></div>
+        <span class="app-switch-label" data-on="On" data-off="Off"></span>
+      </label> &nbsp;&nbsp;&nbsp;&nbsp;
+      <label class="app-switch">
+        <input type="checkbox" checked="" disabled="">
+        <div class="app-switch-view"></div>
+        <span class="app-switch-label" data-on="On" data-off="Off"></span>
+      </label>
+      <br>
+      
+      <h2>Switch with label position "start"</h2>
+      <label class="app-switch">
+        <input type="checkbox" checked="">
+        <span class="app-switch-label" data-on="On" data-off="Off" style="width: 28px;"></span>
+        <div class="app-switch-view"></div>
+      </label>
+      
+      <h2>Switch no label</h2>
+      <p>Just remove the <span class="app-code">span</span> from the switch.</p>
+      <label class="app-switch">
+        <input type="checkbox" checked="">
+        <div class="app-switch-view"></div>
+      </label>
+      
+      <br>
+      <br>
+    
+      <h1>RadioButtons</h1>
+      <input type="radio" class="app-radio-button" id="RadioButtonDefault" name="2" checked="">
+      <label for="RadioButtonDefault">Hellow</label> &nbsp;&nbsp;
+      <input type="radio" class="app-radio-button" id="RadioButtonDefault2" name="2">
+      <label for="RadioButtonDefault2">World</label>
+      <br>
+
+
+
+
+      <h1>Buttons</h1>
+      <button class="app-btn">
+        <span>Default Button</span>
+      </button>
+      <button class="app-btn app-btn-primary">
+        <span>Primary Button</span>
+      </button>
+      <button class="app-btn app-btn-subtle">
+        <span>Secondary Button</span>
+      </button>
+      <h2>Button Default</h2>
+      <button class="app-btn">
+        <span>Default Button</span>
+      </button>
+      <button class="app-btn">
+        <i class="icons10-plus"></i>
+        <span>Button with icon</span>
+      </button>
+      <button class="app-btn" disabled="">
+        <span>Button Disabled</span>
+      </button>
+      
+      <h2>Button state loading</h2>
+      <button class="app-btn animate btn-is-loading">
+        <div class="app-loader-busy loader-sm animate"><svg viewBox="0 0 16 16"><circle class="app-ldr-busy" cx="8px" cy="8px" r="7px"></circle></svg></div>
+        <span>Loading Button</span>
+      </button>
+     
+      <h2>Button Primary</h2>
+      <button class="app-btn app-btn-primary">
+        <span>Button Regular</span>
+      </button>
+      <button class="app-btn app-btn-primary">
+        <i class="icons10-fantasy"></i>
+        <span>Primary Button</span>
+      </button>
+      
+      <h2>Button Primary Outline</h2>
+      <button class="app-btn app-btn-outline-primary" title="Button tooltip title">
+        <span>Button Outline</span>
+      </button>
+      <button class="app-btn app-btn-outline-primary">
+        <i class="icons10-fantasy"></i>
+        <span>Primary Button</span>
+      </button>
+     
+      <h2>Button Success</h2>
+      <button class="app-btn app-btn-success">
+        <span>Success Button</span>
+      </button>
+      <button class="app-btn app-btn-outline-success">
+        <i class="icons10-checkmark"></i>
+        <span>Success Button</span>
+      </button>
+     
+      <h2>Button Danger</h2>
+      <button class="app-btn app-btn-danger">
+        <span>Danger Button</span>
+      </button>
+      <button class="app-btn app-btn-outline-danger">
+        <i class="icons10-cross"></i>
+        <span>Danger Button</span>
+      </button>
+      
+      <h1>Button as Icon:</h1>
+      <button class="app-btn app-btn-subtle">
+        <i class="icons10-home"></i>
+      </button>
+      <button class="app-btn app-btn-subtle">
+        <i class="icons10-share"></i>
+      </button>
+     
+      <br>
+      <br>
+    
+
+
+
+
+      <h1>Alerts</h1>
+      <p>
+        <span class="app-color-primary">Alert</span> component is used to interrupt the user with a mandatory confirmation or action.
+      </p>
+      <button class="app-btn" data-win-toggle="modal" data-win-target="#MyModal">
+        <span>Open Alert Dialog</span>
+      </button>
+      <div class="app-alert" id="MyModal" data-win-toggle="modal" data-win-target="#MyModal" aria-labelledby="exampleModalLabel" tabindex="-1">
+        <div class="app-alert-modal" aria-modal="true" role="dialog">
+          <div class="app-alert-header">
+            <h1>Alert</h1>
+            <div class="app-alert-message">This is alert Box.</div>
+          </div>
+          <div class="app-alert-footer">
+            <button class="app-btn app-btn-primary" data-win-toggle="modal" data-win-target="#MyModal">
+              <span>OK to Close</span>
+            </button>
+          </div>
+        </div>
+      </div>
+   
+      
+      <h2>Open Alert using a Button</h2>
+      
+      <h1>AlertBars</h1>
+      <div class="app-alert-bar alert-bar-secondary" role="alert" style="max-width: 500px">
+        <i class="icons10-exclamation-mark app-color-primary"></i>
+        <strong class="app-color-primary">Title</strong>
+        <span>This is a text</span>
+        <div class="app-alert-bar-end-content">
+          <button class="app-btn app-btn-primary">Button Regular</button>
+          <button data-win-dismiss="alert" aria-label="Close"></button>
+        </div>
+      </div>
+      
+      <br>
+      <div class="app-alert-bar alert-bar-success" role="alert" style="max-width: 500px">
+        <i class="icons10-checkmark app-color-success"></i>
+        <strong class="app-color-success">Title Success</strong>
+        <span>This is a text</span>
+        <div class="app-alert-bar-end-content">
+          <button data-win-dismiss="alert" aria-label="Close"></button>
+        </div>
+      </div>
+      
+      <br>
+      
+      <h1>Accordion</h1>
+      <p>
+        <span class="app-color-primary">Accordion</span> component used to show (and hide) content, it collapsed on hide and expand on show state.
+      </p>
+      <div class="app-accordion" style="width: 280px;">
+        <div class="app-accordion-header" data-win-toggle="collapse" data-win-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+          <div class="app-accordion-title">
+            <span>Accordion Item</span>
+          </div>
+        </div>
+        <div class="app-accordion-panel" id="collapseOne" style="">
+          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+          </p>
+        </div>
+      </div>
+   
+      
+    
+
+      <h1>Checkbox</h1>
+      <input class="app-checkbox" type="checkbox" value="" id="CheckBoxDefault" checked="">
+      <label for="CheckBoxDefault">Checkbox</label>&nbsp;&nbsp;&nbsp;&nbsp;
+      <input class="app-checkbox" type="checkbox" value="" id="CheckBoxDefault2" checked="" disabled="">
+      <label for="CheckBoxDefault2">Checkbox Disabled</label>
+      <br>
+  
+      
+      <h2>Checkbox Inline</h2>
+      <p>• Just remove the <span class="app-code">span</span> from the checkbox.</p>
+      <p>Lorem ipsum dolor sit amet
+        <input class="app-checkbox" type="checkbox" value="" checked=""> sed do eiusmod tempor incididunt ut labore.
+      </p>
+      <input class="app-checkbox" type="checkbox" value="" checked="">
+      
+      <br>
+      <br>
+    
+
+
     </main>
+
+
+
   </div>
 </body>
 <script src="windows-ui.min.js"></script>
