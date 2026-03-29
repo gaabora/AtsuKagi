@@ -16,7 +16,7 @@ ProcessGereralConfigSection(configSection) {
   SetPropIfNotExist(configSection, "NotificationSound"            , "Assets/mixkit-light-button-2580.wav")
   SetPropIfNotExist(configSection, "ReloadAppHotkey"              , "^#!Backspace")
   SetPropIfNotExist(configSection, "SuspendAppHotkey"             , "^#!Esc")
-  SetPropIfNotExist(configSection, "DarkTheme"                    , 1)
+  SetPropIfNotExist(configSection, "DarkTheme"                    , -1)
   SetPropIfNotExist(configSection, "SwapMouseXButtons"            , 0)
   SetPropIfNotExist(configSection, "ModifierHotkeysHint"          , "Alt=!, Ctrl=^, Shift=+, LWin=#, AltGr=<^>!")
   SetPropIfNotExist(configSection, "DisabledPlugins"              , "ShellMessageHook,RDPWindowHandler")
@@ -92,6 +92,8 @@ GetDefaultHotkeysConfig() {
   config["+#F7"]         := "MoveWindowToDesktop(7)"
   config["+#F8"]         := "MoveWindowToDesktop(8)"
 
+  config[">^F8"]         := "RemapTo(Media_Play_Pause)"
+  config[">+Backspace"]  := "RemapTo(Delete)"
   config["+!^LWin"]      := "RemapTo({Blind} {vkE8})"
   config[">!M"]          := "RemapTo(0)"
   config[">!J"]          := "RemapTo(1)"

@@ -138,6 +138,10 @@ Join(arr, delimiter) {
   return result
 }
 
+DecToHex(decNumber) {
+  return Format("{:04X}", decNumber)
+}
+
 IsValidHexColor(hexColor) {
   return RegExMatch(hexColor, "0x[0-9A-Fa-f]{6}") ? true : false
 }

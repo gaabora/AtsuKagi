@@ -25,15 +25,16 @@ class TextLocaleManager extends AKPlugin {
     texts["SwitchSelectedTextCase"]       := "SwitchSelectedTextCase()"
     return texts
   }
-  ProcessBlacklistConfig() {
+  _processBlacklistConfig() {
     
   }
-  ProcessPluginConfig() {
+  _processPluginConfig() {
    if (!this.Config.Has("BlacklistCtrlCHotkeyWindowClasses"))
       this.Config.BlacklistCtrlCHotkeyWindowClasses := 'ConsoleWindowClass,PuTTY'
   }
 
-  __New() {
+  _init() {
+
     this.KEY_MAPPING_DICT['EN-RU'] := Map()
     
     ; Groups prioritize layout detection by certainty:

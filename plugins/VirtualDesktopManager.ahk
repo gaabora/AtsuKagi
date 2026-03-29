@@ -3,7 +3,7 @@ class VirtualDesktopManager extends AKPlugin {
   recentDesktopNumber := 1
   loopFirtAndLast := 0
   
-  __New(dllPath:=0, loopFirtAndLast:=0) {
+  _init(dllPath:=0, loopFirtAndLast:=0) {
     this.dllPath := (dllPath) ? dllPath : A_ScriptDir . this.dllPathDefault
 
     this.hVirtualDesktopAccessor             := DllCall("LoadLibrary", "Str", this.dllPath, "Ptr")

@@ -2,10 +2,10 @@ class KDEMoverSizer extends AKPlugin {
   _frameGui := {}
   _drawGridGUIOptions := "+Border"
   _drawGridColor := "White"
-  ProcessBlacklistConfig() {
+  _processBlacklistConfig() {
     
   }
-  ProcessPluginConfig() {
+  _processPluginConfig() {
    if (!this.Config.Has("LockAxisHotkey"))
       this.Config.LockAxisHotkey := 'Shift'
     if (!this.Config.Has("QuickPositionHotkey"))

@@ -66,10 +66,10 @@ class WindowManager extends AKPlugin {
     return texts
   }
 
-  ProcessBlacklistConfig() {
+  _processBlacklistConfig() {
   }
 
-  ProcessPluginConfig() {
+  _processPluginConfig() {
     if (!this.Config.Has("WindowTitlebarAreaHeight"))
       this.Config.WindowTitlebarAreaHeight := 32
   }

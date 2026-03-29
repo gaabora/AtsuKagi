@@ -10,19 +10,21 @@ SetControlDelay(-1)
 #Include lib/helpers.ahk
 #Include lib/Notify.ahk
 #Include lib/IniFile.ahk
+#Include lib/Neutron.ahk
+#Include lib/ShinsOverlayClass.ahk
 #Include includes/defaultConfig.ahk
 #Include includes/AKBase.ahk
+#Include includes/AKGui.ahk
 #Include includes/AKApp.ahk
 #Include includes/AKPlugin.ahk
 
-APP := AKApp()
-
-#Include includes/GeneralHandlers.ahk
-APP.AddLib('GeneralHandlers', 0)
-
 DebugLevel := A_IsCompiled ? 0 : 5
 
+APP := AKApp()
 APP.Debug(DebugLevel)
+
+#Include includes/GeneralHandlers.ahk
+APP.AddPlugin('GeneralHandlers', 0)
 
 #Include dynamicPlugins.ahk
 

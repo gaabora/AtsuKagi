@@ -2,7 +2,12 @@ class AKPlugin extends AKBase {
   Config := {} ; reference to App.Config section with plugin's name
   App := {} ; reference to app
   ; TODO: add callback for plugin config injection into the app
-  __New() {
+  __New(App) {
+    this.App := App
+    className := this.__Class
+    if (!App.Config.Has(className))
+      App.Config[className] := {}
+    this.Config := App.Config[className]
   }
   __ConfigHelp() {
     return [] ; TODO
@@ -16,9 +21,11 @@ class AKPlugin extends AKBase {
   __HooksHelp() {
     return [] ; MUST return array like ["FnName": "FnName(params) description", ...] for all hooks you want to register in the app
   }
-  ProcessBlacklistConfig() {
+  _processPluginConfig() {
   }
-  ProcessPluginConfig() {
+  _processBlacklistConfig() {
+  }
+  _init() {
   }
   RunAction(ActionString) {
     return this.App.RunAction(ActionString)
