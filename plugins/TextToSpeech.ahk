@@ -14,12 +14,8 @@ class TextToSpeech extends AKPlugin {
     ; texts["SwapTextLayout"]               := "SwapTextLayout(incorrectText, layoutA, layoutB)"
     return texts
   }
-  _processBlacklistConfig() {
-    
-  }
-  _processPluginConfig() {
-   if (!this.Config.Has("BlacklistCtrlCHotkeyWindowClasses"))
-      this.Config.BlacklistCtrlCHotkeyWindowClasses := 'ConsoleWindowClass,PuTTY'
+  __ConfigHelp() {
+    return []
   }
 
 

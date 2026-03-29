@@ -277,19 +277,66 @@ class AKApp extends AKBase {
   IsWindowBlacklisted(hwnd:=0, method:='') {
     windowClass := GetWindowClass(hwnd)
     
+    ; Check named blacklist if method maps to one
     if (RegExMatch(method, '(\w+)\.\w+\.(\S+)', &match)) {
       actionName := match[1]
-      ; TODO: per method blacklist check
-      ; [BlacklistGroups]
-      ; NoMoveResize=
-      ; NoDecoration=
-      ; NoCtrlCHotkey=
-    ; } else {
     }
+
+    ; Check the legacy global blacklist
     isBlacklisted := (InStr(this.Config.GENERAL.BlacklistGlobalWindowClasses, windowClass, false) != 0)
+
+    ; Also check the named "Global" blacklist
+    if (!isBlacklisted)
+      isBlacklisted := this.IsInBlacklist('Global', hwnd)
 
     this.outputDebugLine(((isBlacklisted) ? "BLACKLISTED " : "OK ") '' windowClass " hwnd=" hwnd)
     return isBlacklisted
+  }
+
+  ; Check if a window matches any pattern in a named blacklist.
+  ; Blacklists are defined in [BLACKLISTS] config section.
+  ; Pattern formats: "ClassName", "class:ClassName", "exe:Process.exe", "path:substring"
+  IsInBlacklist(blacklistName, hwnd:=0) {
+    if (hwnd = 0)
+      MouseGetPos(,, &hwnd)
+    if (!this.Config.Has('BLACKLISTS') || !this.Config.BLACKLISTS.Has(blacklistName))
+      return false
+    
+    blacklistValue := this.Config.BLACKLISTS.%blacklistName%
+    if (blacklistValue = '')
+      return false
+
+    entries := StrSplit(blacklistValue, ',', ' `t')
+    windowClass := ''
+    processName := ''
+    processPath := ''
+
+    for entry in entries {
+      if (entry = '')
+        continue
+
+      if (RegExMatch(entry, '^exe:(.+)', &m)) {
+        ; Match by process executable name
+        if (processName = '')
+          processName := GetWindowProcessName(hwnd)
+        if (processName != '' && (processName = m[1]))
+          return true
+      } else if (RegExMatch(entry, '^path:(.+)', &m)) {
+        ; Match by process path substring
+        if (processPath = '')
+          processPath := GetWindowProcessPath(hwnd)
+        if (processPath != '' && InStr(processPath, m[1], false))
+          return true
+      } else {
+        ; Match by window class (with optional "class:" prefix)
+        matchValue := RegExMatch(entry, '^class:(.+)', &m) ? m[1] : entry
+        if (windowClass = '')
+          windowClass := GetWindowClass(hwnd)
+        if (windowClass = matchValue)
+          return true
+      }
+    }
+    return false
   }
 
 
@@ -357,9 +404,7 @@ class AKApp extends AKBase {
         this.ShowHelp()
         return
       case "Settings":
-        ConfigFile := this._configFile
-        RunWait(ConfigFile)
-        this.ReloadApp()
+        this.GUI.ShowSettings()
         return
       case "Reload":
         this.ReloadApp()
@@ -455,6 +500,10 @@ class AKApp extends AKBase {
       this.Config.THEME := {} 
     ProcessThemeConfigSection(this.Config.THEME)
     
+    if (!this.Config.Has("BLACKLISTS"))
+      this.Config.BLACKLISTS := {}
+    ProcessBlacklistsConfigSection(this.Config.BLACKLISTS)
+
     if (!this.Config.Has("HOTKEYS"))
       this.Config.HOTKEYS := GetDefaultHotkeysConfig()
   }
@@ -495,7 +544,7 @@ class AKApp extends AKBase {
     result := { fnName: '', params: [] }
     if (RegExMatch(actionString, "(\w+)\((.*)\)", &match)) {
       result.fnName := match[1]
-      result.params := StrSplit(match[2], ",", " ")
+      result.params := SplitRespectingParens(match[2])
     } else {
       result.fnName := actionString
     }

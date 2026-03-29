@@ -37,19 +37,23 @@ ProcessThemeConfigSection(configSection) {
   SetPropIfNotExist(configSection, "Margin"                    , 5)
 }
 
-; getDefaultAppBlackListsConfig() {
-;   config := Map()
-;   ; config[""] := "FocusStealers"
-;   config["NeverResize"]    := ""
-;   config["NeverMove"]  := ""
-;   config[""]    := "GoWithHoveredWindowToPrevDesktop"
-;   return config
-; }
+ProcessBlacklistsConfigSection(configSection) {
+  ; Named blacklists that can be referenced by plugins and actions.
+  ; Each entry is a comma-separated list of patterns.
+  ; Pattern format:
+  ;   ClassName          - match by window class (default)
+  ;   class:ClassName    - match by window class (explicit)
+  ;   exe:Process.exe    - match by process executable name
+  ;   path:substring     - match substring in process full path
+  SetPropIfNotExist(configSection, "NoMoveResize"      , "WorkerW, Progman, Shell_TrayWnd, Shell_SecondaryTrayWnd, TscShellContainerClass")
+  SetPropIfNotExist(configSection, "NoCtrlCHotkey"     , "class:ConsoleWindowClass, class:PuTTY")
+  SetPropIfNotExist(configSection, "NoRightClickGesture", "exe:REAPER.exe")
+}
 
 GetDefaultHotkeysConfig() {
   config := Map()
   config["#Esc"]         := 'Run("scrnsave.scr /s")'
-  config["RButton"]      := "EnterGestureMode(1, 4)"
+  config["RButton"]      := "SkipIfBlacklisted(NoRightClickGesture, EnterGestureMode(1, 4))"
   config["XButton2"]     := "EnterGestureMode(4, 4, ToggleTaskView)"
 
   config["#!i"]          := "ShowHoveredWindowInfo"

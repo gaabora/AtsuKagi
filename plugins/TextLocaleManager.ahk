@@ -25,12 +25,9 @@ class TextLocaleManager extends AKPlugin {
     texts["SwitchSelectedTextCase"]       := "SwitchSelectedTextCase()"
     return texts
   }
-  _processBlacklistConfig() {
-    
-  }
-  _processPluginConfig() {
-   if (!this.Config.Has("BlacklistCtrlCHotkeyWindowClasses"))
-      this.Config.BlacklistCtrlCHotkeyWindowClasses := 'ConsoleWindowClass,PuTTY'
+
+  __ConfigHelp() {
+    return []
   }
 
   _init() {
@@ -227,7 +224,12 @@ class TextLocaleManager extends AKPlugin {
   }
 
   _getSelectedText() {
-    ; TODO BlacklistCtrlCHotkeyWindowClasses
+    ; Check named blacklist for windows where Ctrl+C should not be sent
+    MouseGetPos(,, &hwnd)
+    if (this.IsInBlacklist('NoCtrlCHotkey', hwnd)) {
+      this.outputDebugLine('_getSelectedText: skipped Ctrl+C for blacklisted window')
+      return ''
+    }
 
     clipboardBackup := ClipboardAll()
     A_Clipboard := ''

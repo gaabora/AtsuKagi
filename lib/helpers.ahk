@@ -22,6 +22,50 @@ ArrayContains(Haystack, Needle) {
   return false
 }
 
+; Split a string by commas, but respect nested parentheses.
+; e.g. "A, B(1, 2), C" => ["A", "B(1, 2)", "C"]
+SplitRespectingParens(str) {
+  result := []
+  depth := 0
+  current := ""
+  Loop Parse, str {
+    ch := A_LoopField
+    if (ch = "(") {
+      depth += 1
+      current .= ch
+    } else if (ch = ")") {
+      depth -= 1
+      current .= ch
+    } else if (ch = "," && depth = 0) {
+      result.Push(Trim(current))
+      current := ""
+    } else {
+      current .= ch
+    }
+  }
+  if (Trim(current) != "")
+    result.Push(Trim(current))
+  return result
+}
+
+GetWindowProcessName(hwnd:=0) {
+  if (hwnd = 0)
+    hwnd := WinGetID("A")
+  try
+    return WinGetProcessName("ahk_id " hwnd)
+  catch
+    return ""
+}
+
+GetWindowProcessPath(hwnd:=0) {
+  if (hwnd = 0)
+    hwnd := WinGetID("A")
+  try
+    return WinGetProcessPath("ahk_id " hwnd)
+  catch
+    return ""
+}
+
 GetWindowClass(hwnd:=0) {
   if (hwnd=0)
     hwnd := WinGetID("A")

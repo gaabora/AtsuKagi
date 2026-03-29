@@ -36,6 +36,9 @@ class AKPlugin extends AKBase {
   IsWindowBlacklisted(params*) {
     return this.App.IsWindowBlacklisted(params*)
   }
+  IsInBlacklist(params*) {
+    return this.App.IsInBlacklist(params*)
+  }
   Speak(params*) {
     return this.App.Speak(params*)
   }

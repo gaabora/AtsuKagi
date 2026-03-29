@@ -3,6 +3,7 @@ class GeneralHandlers extends AKPlugin {
   __ActionsHelp() {
     texts := Map()
     texts["IfThenElse"] := "IfThenElse(IfActionString, ThenActionString, ElseActionString)"
+    texts["SkipIfBlacklisted"] := "SkipIfBlacklisted(BlacklistName, ActionString, FallbackAction:='') - skip action if window is in named blacklist, optionally run fallback instead of passthrough"
     texts["RemapTo"]    := "RemapTo(Hotkey)"
     texts["DoNothing"]  := "DoNothing()"
     texts["ShowInfo"]   := "ShowInfo(text, title:='', timeout:=2000)"
@@ -30,6 +31,29 @@ class GeneralHandlers extends AKPlugin {
       this.RunAction(ElseActionString)
     }
     return
+  }
+
+  ; Skip the action if the hovered window matches a named blacklist.
+  ; If blacklisted: runs fallbackAction if provided, otherwise passes through the original key.
+  ; Usage in config: SkipIfBlacklisted(NoRightClickGesture, EnterGestureMode(1, 4))
+  ;                  SkipIfBlacklisted(NoCtrlCHotkey, SwitchSelectedTextCase(), DoNothing())
+  SkipIfBlacklisted(blacklistName, actionString, fallbackAction:="") { ;;;
+    MouseGetPos(,, &hwnd)
+    if (this.App.IsInBlacklist(blacklistName, hwnd)) {
+      this.outputDebugLine('SkipIfBlacklisted(' blacklistName '): BLOCKED for hwnd=' hwnd)
+      if (fallbackAction != "") {
+        this.RunAction(fallbackAction)
+      } else {
+        ; Pass through the original key
+        try {
+          hotkeyInfo := ExtractHotkeyInfo(A_ThisHotkey)
+          SendInput("{Blind}{" hotkeyInfo.key "}")
+        }
+      }
+      return
+    }
+    this.outputDebugLine('SkipIfBlacklisted(' blacklistName '): ALLOWED, running ' actionString)
+    this.RunAction(actionString)
   }
 
   ShowInfo(text, title:="", timeout:=2000) {

@@ -11,7 +11,7 @@ SetControlDelay(-1)
 #Include lib/Notify.ahk
 #Include lib/IniFile.ahk
 #Include lib/Neutron.ahk
-#Include lib/ShinsOverlayClass.ahk
+; #Include lib/ShinsOverlayClass.ahk
 #Include includes/defaultConfig.ahk
 #Include includes/AKBase.ahk
 #Include includes/AKGui.ahk
