@@ -47,13 +47,11 @@ class TouchGesturesSimulator extends AKPlugin {
   _injected := false
   _pointerInfo := 0
   
-  __New(config:=0) {
+  __New(App) {
+    super.__New(App)
     CoordMode("Mouse", "Screen")
     CoordMode("Pixel", "Screen")
     CoordMode("ToolTip", "Screen")
- 
-    if (config != 0 && IsObject(config))
-      this.config := config
 
     this.CONFIG_GESTURES := {
       ThreeFingerSlideEnabled: TouchGesturesSimulator.CONFIG_SLIDE_ACTIONS,
@@ -123,10 +121,19 @@ class TouchGesturesSimulator extends AKPlugin {
   SetPrecisionTouchpadRegistryConfig(key, value) { ;;;
     regPath := TouchGesturesSimulator.REG_PATH
     
-    if (!(this.CONFIG_GESTURES.Has(key)))
-      return "Error: Invalid key: '" . key . "'. Possible keys are: " . Join(Object.Keys(this.CONFIG_GESTURES), ", ")
-    if (!this.CONFIG_GESTURES[key].Has(value))
-      return "Error: Invalid value '" . value . "' for '" . key . "'. Possible values are: " . Join(this.CONFIG_GESTURES[key], ", ")
+    if (!(this.CONFIG_GESTURES.HasOwnProp(key))) {
+      keys := []
+      for k in ObjOwnProps(this.CONFIG_GESTURES)
+        keys.Push(k)
+      return "Error: Invalid key: '" . key . "'. Possible keys are: " . Join(keys, ", ")
+    }
+    actionObj := this.CONFIG_GESTURES.%key%
+    if (!actionObj.HasOwnProp(value)) {
+      vals := []
+      for v in ObjOwnProps(actionObj)
+        vals.Push(v)
+      return "Error: Invalid value '" . value . "' for '" . key . "'. Possible values are: " . Join(vals, ", ")
+    }
     RegWrite(value, "REG_DWORD", regPath, key)
     return true
   }
@@ -159,7 +166,7 @@ class TouchGesturesSimulator extends AKPlugin {
   }
 
   runGesture(mouseButton, fingers:=1, xMouSrc:=-1, yMouSrc:=-1) {
-    feedbackType := (this.debugLevel > 0) ? TouchGesturesSimulator.TOUCH_FEEDBACK_DEFAULT : TouchGesturesSimulator.TOUCH_FEEDBACK_NONE
+    feedbackType := TouchGesturesSimulator.TOUCH_FEEDBACK_DEFAULT
 
     if (!this._injected) {
       loop {
@@ -252,7 +259,7 @@ class TouchGesturesSimulator extends AKPlugin {
     r := this.TouchPointRadius
     orientation := 90
     pressure := 250
-    m := (idx+1)*10
+    m := 10
     NumPut("UInt", pType,         buf, offset + this._pointerInfo.pointerTypeUInt)
     NumPut("UInt", idx,           buf, offset + this._pointerInfo.pointerIdUInt)
     NumPut("UInt", pFlags,        buf, offset + this._pointerInfo.pointerFlagsUInt)
