@@ -3,7 +3,6 @@
 <head>
   <title>Settings</title>
   <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -196,11 +195,11 @@
 </head>
 
 <body>
-  <!-- ── Neutron title bar ────────────────────────────────────── -->
-  <div class="settings-titlebar" onmousedown="neutron.DragTitleBar()">
+  <!-- ── Title bar (WebViewGui non-client region) ─────────── -->
+  <div class="settings-titlebar" style="-webkit-app-region: drag; app-region: drag;">
     <span class="title-text" id="titleText">Settings</span>
-    <button class="title-btn" onclick="neutron.Minimize()">&#xE921;</button>
-    <button class="title-btn title-btn-close" onclick="neutron.Close()">&#xE8BB;</button>
+    <button class="title-btn" style="-webkit-app-region: no-drag; app-region: no-drag;" onclick="ahk.gui.Minimize()">&#xE921;</button>
+    <button class="title-btn title-btn-close" style="-webkit-app-region: no-drag; app-region: no-drag;" onclick="ahk.SettingsCancel()">&#xE8BB;</button>
   </div>
 
   <div class="settings-container">
@@ -377,6 +376,9 @@
 
   
   <script>
+    /* ── WebViewGui host objects alias ─────────────────────────── */
+    const ahk = window.chrome.webview.hostObjects.sync;
+
     /* ── Section navigation ─────────────────────────────────────── */
     function showSection(name, navEl) {
       var sections = document.querySelectorAll('.settings-section');

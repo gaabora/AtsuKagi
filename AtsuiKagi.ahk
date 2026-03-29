@@ -10,7 +10,7 @@ SetControlDelay(-1)
 #Include lib/helpers.ahk
 #Include lib/Notify.ahk
 #Include lib/IniFile.ahk
-#Include lib/Neutron.ahk
+#Include lib/WebViewToo-main/Lib/WebViewToo.ahk
 ; #Include lib/ShinsOverlayClass.ahk
 #Include includes/defaultConfig.ahk
 #Include includes/AKBase.ahk

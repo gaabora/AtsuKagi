@@ -1,12 +1,3 @@
-; ── Global functions for Neutron JS → AHK callbacks ──────────────────────────
-SettingsSave(neutron) {
-  neutron._akGui._saveSettings()
-}
-
-SettingsCancel(neutron) {
-  neutron._akGui._closeSettings()
-}
-
 class AKGui {
   static PREFERRED_APP_MODE := { Default: 0, AllowDark: 1, ForceDark: 2, ForceLight: 3, Max: 4 }
 
@@ -40,7 +31,7 @@ class AKGui {
     DllCall(FlushMenuThemes)
   }
 
-  ; ── Settings Window (Neutron / HTML-based) ─────────────────────────────────
+  ; ── Settings Window (WebViewGui / HTML-based) ──────────────────────────────
   ShowSettings() {
     ; If already open, just focus it
     if (this._settingsGui != 0) {
@@ -52,44 +43,44 @@ class AKGui {
       }
     }
 
-    nw := NeutronWindow()
-    nw.Load("includes/ui/settings.html")
-
-    ; Store references so global callback functions can reach us
-    nw._app := this.App
-    nw._akGui := this
+    nw := WebViewGui("+Resize -Caption",,, {DefaultWidth: 820, DefaultHeight: 560})
+    nw.Title := this.App.ScriptName " — Settings"
     this._settingsGui := nw
 
-    ; Populate form from current config
-    this._populateSettingsPage(nw)
+    ; Register JS → AHK callbacks
+    nw.AddCallbackToScript("SettingsSave", (wv, *) => this._saveSettings())
+    nw.AddCallbackToScript("SettingsCancel", (wv, *) => this._closeSettings())
 
-    ; Set window title text inside the HTML title bar
-    try nw.doc.getElementById("titleText").innerText := this.App.ScriptName " — Settings"
+    ; Populate form after page finishes loading
+    nw.DOMContentLoaded((ICoreWebView2, Args) => this._populateSettingsPage(nw))
 
-    nw.OnEvent("Close", (neutron) => (this._settingsGui := 0))
-    nw.Show("w820 h560", this.App.ScriptName " — Settings")
+    nw.OnEvent("Close", (*) => (this._settingsGui := 0))
+    nw.Navigate("includes/ui/settings.html")
+    nw.Show("w820 h560")
   }
 
   _populateSettingsPage(nw) {
-    doc := nw.doc
     cfg := this.App.Config
 
+    ; Build a single JavaScript block to populate all form fields
+    js := ""
+
     ; ── General fields ────────────────────────────────────────────────────────
-    doc.getElementById("WelcomeMessage").value       := cfg.GENERAL.WelcomeMessage
-    doc.getElementById("DarkTheme").value            := "" cfg.GENERAL.DarkTheme
-    doc.getElementById("ToolTipTimeoutMs").value     := cfg.GENERAL.ToolTipTimeoutMs
-    doc.getElementById("WindowTransparencyValue").value := cfg.GENERAL.WindowTransparencyValue
-    doc.getElementById("WindowOnTopBorderColor").value  := cfg.GENERAL.WindowOnTopBorderColor
-    doc.getElementById("StartupSound").value         := cfg.GENERAL.StartupSound
-    doc.getElementById("NotificationSound").value    := cfg.GENERAL.NotificationSound
-    doc.getElementById("ReloadAppHotkey").value      := cfg.GENERAL.ReloadAppHotkey
-    doc.getElementById("SuspendAppHotkey").value     := cfg.GENERAL.SuspendAppHotkey
-    doc.getElementById("SwapMouseXButtons").checked  := (cfg.GENERAL.SwapMouseXButtons = 1)
+    js .= "document.getElementById('WelcomeMessage').value = '"       WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WelcomeMessage) "';`n"
+    js .= "document.getElementById('DarkTheme').value = '"            WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.DarkTheme) "';`n"
+    js .= "document.getElementById('ToolTipTimeoutMs').value = '"     WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ToolTipTimeoutMs) "';`n"
+    js .= "document.getElementById('WindowTransparencyValue').value = '" WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue) "';`n"
+    js .= "document.getElementById('WindowOnTopBorderColor').value = '"  WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowOnTopBorderColor) "';`n"
+    js .= "document.getElementById('StartupSound').value = '"         WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.StartupSound) "';`n"
+    js .= "document.getElementById('NotificationSound').value = '"    WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.NotificationSound) "';`n"
+    js .= "document.getElementById('ReloadAppHotkey').value = '"      WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ReloadAppHotkey) "';`n"
+    js .= "document.getElementById('SuspendAppHotkey').value = '"     WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.SuspendAppHotkey) "';`n"
+    js .= "document.getElementById('SwapMouseXButtons').checked = "   (cfg.GENERAL.SwapMouseXButtons = 1 ? "true" : "false") ";`n"
 
     ; Update transparency slider label & fill
-    doc.getElementById("WindowTransparencyLabel").innerText := cfg.GENERAL.WindowTransparencyValue
+    js .= "document.getElementById('WindowTransparencyLabel').innerText = '" WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue) "';`n"
     pct := Round((cfg.GENERAL.WindowTransparencyValue / 255) * 100)
-    doc.getElementById("WindowTransparencyValue").style.background := "linear-gradient(90deg, var(--color-primary-adaptive, #0078D7) " pct "%, #999 " (pct + 0.1) "%)"
+    js .= "document.getElementById('WindowTransparencyValue').style.background = 'linear-gradient(90deg, var(--color-primary-adaptive, #0078D7) " pct "%, #999 " (pct + 0.1) "%)';`n"
 
     ; ── Plugins ───────────────────────────────────────────────────────────────
     availablePlugins := this.App._getAvailablePlugins()
@@ -103,26 +94,34 @@ class AKGui {
       html .= '<label for="plugin_' pluginName '">' pluginName '</label>'
       html .= '</div>'
     }
-    doc.getElementById("plugins-list").innerHTML := html
+    js .= "document.getElementById('plugins-list').innerHTML = '" WebViewCtrl.EscapeJavaScript(html) "';`n"
 
     ; ── Hotkeys ───────────────────────────────────────────────────────────────
     if (cfg.Has("HOTKEYS")) {
       html := ""
       for k, v in cfg.HOTKEYS {
-        escapedK := NeutronWindow.EscapeHTML(k)
-        escapedV := NeutronWindow.EscapeHTML(v)
+        escapedK := WebViewCtrl.EscapeHtml(k)
+        escapedV := WebViewCtrl.EscapeHtml(v)
         html .= "<tr><td>" escapedK "</td><td>" escapedV "</td></tr>"
       }
-      doc.getElementById("hotkeys-tbody").innerHTML := html
+      js .= "document.getElementById('hotkeys-tbody').innerHTML = '" WebViewCtrl.EscapeJavaScript(html) "';`n"
     }
 
     ; ── Theme ─────────────────────────────────────────────────────────────────
     if (this.IsDarkTheme()) {
-      doc.documentElement.setAttribute("data-theme", "dark")
-      doc.body.classList.add("dark-theme")
+      js .= "document.documentElement.setAttribute('data-theme', 'dark');`n"
+      js .= "document.body.classList.add('dark-theme');`n"
     } else {
-      doc.documentElement.setAttribute("data-theme", "light")
+      js .= "document.documentElement.setAttribute('data-theme', 'light');`n"
     }
+
+    ; ── Title text ────────────────────────────────────────────────────────────
+    js .= "document.getElementById('titleText').innerText = '" WebViewCtrl.EscapeJavaScript(this.App.ScriptName " — Settings") "';`n"
+
+    ; Slider live-update (re-attach after populate)
+    js .= "if(typeof updateSlider==='function') updateSlider();`n"
+
+    nw.ExecuteScriptAsync(js)
   }
 
   _saveSettings() {
@@ -130,27 +129,26 @@ class AKGui {
     if (nw = 0)
       return
 
-    doc := nw.doc
     cfg := this.App.Config
 
-    ; ── Read General fields from DOM ──────────────────────────────────────────
-    cfg.GENERAL.WelcomeMessage       := doc.getElementById("WelcomeMessage").value
-    cfg.GENERAL.DarkTheme            := doc.getElementById("DarkTheme").value
-    cfg.GENERAL.ToolTipTimeoutMs     := doc.getElementById("ToolTipTimeoutMs").value
-    cfg.GENERAL.WindowTransparencyValue := doc.getElementById("WindowTransparencyValue").value
-    cfg.GENERAL.WindowOnTopBorderColor  := doc.getElementById("WindowOnTopBorderColor").value
-    cfg.GENERAL.StartupSound         := doc.getElementById("StartupSound").value
-    cfg.GENERAL.NotificationSound    := doc.getElementById("NotificationSound").value
-    cfg.GENERAL.ReloadAppHotkey      := doc.getElementById("ReloadAppHotkey").value
-    cfg.GENERAL.SuspendAppHotkey     := doc.getElementById("SuspendAppHotkey").value
-    cfg.GENERAL.SwapMouseXButtons    := doc.getElementById("SwapMouseXButtons").checked ? 1 : 0
+    ; ── Read General fields from DOM via synchronous JS execution ─────────────
+    cfg.GENERAL.WelcomeMessage       := nw.ExecuteScript("document.getElementById('WelcomeMessage').value")
+    cfg.GENERAL.DarkTheme            := nw.ExecuteScript("document.getElementById('DarkTheme').value")
+    cfg.GENERAL.ToolTipTimeoutMs     := nw.ExecuteScript("document.getElementById('ToolTipTimeoutMs').value")
+    cfg.GENERAL.WindowTransparencyValue := nw.ExecuteScript("document.getElementById('WindowTransparencyValue').value")
+    cfg.GENERAL.WindowOnTopBorderColor  := nw.ExecuteScript("document.getElementById('WindowOnTopBorderColor').value")
+    cfg.GENERAL.StartupSound         := nw.ExecuteScript("document.getElementById('StartupSound').value")
+    cfg.GENERAL.NotificationSound    := nw.ExecuteScript("document.getElementById('NotificationSound').value")
+    cfg.GENERAL.ReloadAppHotkey      := nw.ExecuteScript("document.getElementById('ReloadAppHotkey').value")
+    cfg.GENERAL.SuspendAppHotkey     := nw.ExecuteScript("document.getElementById('SuspendAppHotkey').value")
+    cfg.GENERAL.SwapMouseXButtons    := nw.ExecuteScript("document.getElementById('SwapMouseXButtons').checked") = "true" ? 1 : 0
 
     ; ── Collect disabled plugins ──────────────────────────────────────────────
     disabledList := []
     availablePlugins := this.App._getAvailablePlugins()
     for pluginName in availablePlugins {
-      chk := doc.getElementById("plugin_" pluginName)
-      if (chk && !chk.checked)
+      checked := nw.ExecuteScript("document.getElementById('plugin_" pluginName "').checked")
+      if (checked != "true")
         disabledList.Push(pluginName)
     }
     cfg.GENERAL.DisabledPlugins := Join(disabledList, ",")
