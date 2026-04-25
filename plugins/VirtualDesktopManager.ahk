@@ -2,28 +2,52 @@ class VirtualDesktopManager extends AKPlugin {
   dllPathDefault := "\VirtualDesktopAccessor.dll"
   recentDesktopNumber := 1
   loopFirtAndLast := 0
+  _isReady := false
+  _initError := ""
   
   _init(dllPath:=0, loopFirtAndLast:=0) {
     this.dllPath := (dllPath) ? dllPath : A_ScriptDir . this.dllPathDefault
 
-    this.hVirtualDesktopAccessor             := DllCall("LoadLibrary", "Str", this.dllPath, "Ptr")
-    this.GetDesktopCountProc                 := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")
-    this.GoToDesktopNumberProc               := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GoToDesktopNumber", "Ptr")
-    this.GetCurrentDesktopNumberProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetCurrentDesktopNumber", "Ptr")
-    this.IsWindowOnCurrentVirtualDesktopProc := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsWindowOnCurrentVirtualDesktop", "Ptr")
-    this.IsWindowOnDesktopNumberProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsWindowOnDesktopNumber", "Ptr")
-    this.MoveWindowToDesktopNumberProc       := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "MoveWindowToDesktopNumber", "Ptr")
-    this.IsPinnedWindowProc                  := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsPinnedWindow", "Ptr")
-    this.GetDesktopNameProc                  := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopName", "Ptr")
-    this.SetDesktopNameProc                  := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "SetDesktopName", "Ptr")
-    this.CreateDesktopProc                   := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "CreateDesktop", "Ptr")
-    this.RemoveDesktopProc                   := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "RemoveDesktop", "Ptr")
+    if (!FileExist(this.dllPath)) {
+      this._initError := "VirtualDesktopAccessor.dll not found at " this.dllPath
+      this.ShowWarning(this._initError)
+      return
+    } 
+    else  return ; FIXME: remove this, its just for debug for case when lib was not included
 
-    ; On change listeners
-    this.RegisterPostMessageHookProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "RegisterPostMessageHook", "Ptr")
-    this.UnregisterPostMessageHookProc       := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "UnregisterPostMessageHook", "Ptr")
+    
+
+    try {
+      this.hVirtualDesktopAccessor             := DllCall("LoadLibrary", "Str", this.dllPath, "Ptr")
+      this.GetDesktopCountProc                 := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")
+      this.GoToDesktopNumberProc               := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GoToDesktopNumber", "Ptr")
+      this.GetCurrentDesktopNumberProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetCurrentDesktopNumber", "Ptr")
+      this.IsWindowOnCurrentVirtualDesktopProc := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsWindowOnCurrentVirtualDesktop", "Ptr")
+      this.IsWindowOnDesktopNumberProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsWindowOnDesktopNumber", "Ptr")
+      this.MoveWindowToDesktopNumberProc       := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "MoveWindowToDesktopNumber", "Ptr")
+      this.IsPinnedWindowProc                  := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "IsPinnedWindow", "Ptr")
+      this.GetDesktopNameProc                  := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopName", "Ptr")
+      this.SetDesktopNameProc                  := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "SetDesktopName", "Ptr")
+      this.CreateDesktopProc                   := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "CreateDesktop", "Ptr")
+      this.RemoveDesktopProc                   := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "RemoveDesktop", "Ptr")
+
+      ; On change listeners
+      this.RegisterPostMessageHookProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "RegisterPostMessageHook", "Ptr")
+      this.UnregisterPostMessageHookProc       := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "UnregisterPostMessageHook", "Ptr")
+    } catch Error as err {
+      this._initError := "Failed to initialize VirtualDesktopManager: " err.Message
+      this.ShowWarning(this._initError)
+      return
+    }
+
+    if (!this.GetDesktopCountProc || !this.GoToDesktopNumberProc || !this.GetCurrentDesktopNumberProc || !this.MoveWindowToDesktopNumberProc || !this.GetDesktopNameProc || !this.SetDesktopNameProc || !this.CreateDesktopProc || !this.RemoveDesktopProc || !this.RegisterPostMessageHookProc) {
+      this._initError := "VirtualDesktopAccessor.dll is loaded but required procedures are missing"
+      this.ShowWarning(this._initError)
+      return
+    }
 
     this.loopFirtAndLast := loopFirtAndLast
+    this._isReady := true
     ; TODO hook
     this.addDesktopChangedHook()
   }
@@ -43,6 +67,8 @@ class VirtualDesktopManager extends AKPlugin {
   }
 
   __ActionsHelp() {
+    if (!this._isReady)
+      return Map()
     texts := Map()
     texts["GetDesktopName"] := "GetDesktopName(desktopNumber)"
     texts["SetDesktopName"] := "SetDesktopName(desktopNumber, name)"

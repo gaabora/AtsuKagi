@@ -48,7 +48,7 @@ class AKGui {
     this._settingsGui := nw
 
     ; Register JS → AHK callbacks
-    nw.AddCallbackToScript("SettingsSave", (wv, *) => this._saveSettings())
+    nw.AddCallbackToScript("SettingsSave", (wv, args*) => this._saveSettings(args*))
     nw.AddCallbackToScript("SettingsCancel", (wv, *) => this._closeSettings())
 
     ; Populate form after page finishes loading
@@ -107,6 +107,10 @@ class AKGui {
       js .= "document.getElementById('hotkeys-tbody').innerHTML = '" WebViewCtrl.EscapeJavaScript(html) "';`n"
     }
 
+    js .= "document.getElementById('logs-content').textContent = '" WebViewCtrl.EscapeJavaScript(AKBase.GetUiLogsText()) "';`n"
+    js .= "document.getElementById('problems-content').textContent = '" WebViewCtrl.EscapeJavaScript(AKBase.GetUiProblemsText()) "';`n"
+    js .= "if(window.SettingsUiBridge && typeof window.SettingsUiBridge.refreshFromConfig==='function') window.SettingsUiBridge.refreshFromConfig();`n"
+
     ; ── Theme ─────────────────────────────────────────────────────────────────
     if (this.IsDarkTheme()) {
       js .= "document.documentElement.setAttribute('data-theme', 'dark');`n"
@@ -118,45 +122,30 @@ class AKGui {
     ; ── Title text ────────────────────────────────────────────────────────────
     js .= "document.getElementById('titleText').innerText = '" WebViewCtrl.EscapeJavaScript(this.App.ScriptName " — Settings") "';`n"
 
-    ; Slider live-update (re-attach after populate)
-    js .= "if(typeof updateSlider==='function') updateSlider();`n"
-
     nw.ExecuteScriptAsync(js)
   }
 
-  _saveSettings() {
-    nw := this._settingsGui
-    if (nw = 0)
-      return
-
+  _saveSettings(args*) {
     cfg := this.App.Config
-
-    ; ── Read General fields from DOM via synchronous JS execution ─────────────
-    cfg.GENERAL.WelcomeMessage       := nw.ExecuteScript("document.getElementById('WelcomeMessage').value")
-    cfg.GENERAL.DarkTheme            := nw.ExecuteScript("document.getElementById('DarkTheme').value")
-    cfg.GENERAL.ToolTipTimeoutMs     := nw.ExecuteScript("document.getElementById('ToolTipTimeoutMs').value")
-    cfg.GENERAL.WindowTransparencyValue := nw.ExecuteScript("document.getElementById('WindowTransparencyValue').value")
-    cfg.GENERAL.WindowOnTopBorderColor  := nw.ExecuteScript("document.getElementById('WindowOnTopBorderColor').value")
-    cfg.GENERAL.StartupSound         := nw.ExecuteScript("document.getElementById('StartupSound').value")
-    cfg.GENERAL.NotificationSound    := nw.ExecuteScript("document.getElementById('NotificationSound').value")
-    cfg.GENERAL.ReloadAppHotkey      := nw.ExecuteScript("document.getElementById('ReloadAppHotkey').value")
-    cfg.GENERAL.SuspendAppHotkey     := nw.ExecuteScript("document.getElementById('SuspendAppHotkey').value")
-    cfg.GENERAL.SwapMouseXButtons    := nw.ExecuteScript("document.getElementById('SwapMouseXButtons').checked") = "true" ? 1 : 0
-
-    ; ── Collect disabled plugins ──────────────────────────────────────────────
-    disabledList := []
-    availablePlugins := this.App._getAvailablePlugins()
-    for pluginName in availablePlugins {
-      checked := nw.ExecuteScript("document.getElementById('plugin_" pluginName "').checked")
-      if (checked != "true")
-        disabledList.Push(pluginName)
-    }
-    cfg.GENERAL.DisabledPlugins := Join(disabledList, ",")
+    ; args order comes from settings.html ahk.SettingsSave(...)
+    cfg.GENERAL.WelcomeMessage          := args.Length >= 1  ? ("" args[1]) : cfg.GENERAL.WelcomeMessage
+    cfg.GENERAL.DarkTheme               := args.Length >= 2  ? ("" args[2]) : cfg.GENERAL.DarkTheme
+    cfg.GENERAL.ToolTipTimeoutMs        := args.Length >= 3  ? ("" args[3]) : cfg.GENERAL.ToolTipTimeoutMs
+    cfg.GENERAL.WindowTransparencyValue := args.Length >= 4  ? ("" args[4]) : cfg.GENERAL.WindowTransparencyValue
+    cfg.GENERAL.WindowOnTopBorderColor  := args.Length >= 5  ? ("" args[5]) : cfg.GENERAL.WindowOnTopBorderColor
+    cfg.GENERAL.StartupSound            := args.Length >= 6  ? ("" args[6]) : cfg.GENERAL.StartupSound
+    cfg.GENERAL.NotificationSound       := args.Length >= 7  ? ("" args[7]) : cfg.GENERAL.NotificationSound
+    cfg.GENERAL.ReloadAppHotkey         := args.Length >= 8  ? ("" args[8]) : cfg.GENERAL.ReloadAppHotkey
+    cfg.GENERAL.SuspendAppHotkey        := args.Length >= 9  ? ("" args[9]) : cfg.GENERAL.SuspendAppHotkey
+    if (args.Length >= 10)
+      cfg.GENERAL.SwapMouseXButtons := (("" args[10]) = "true" || args[10] = 1) ? 1 : 0
+    if (args.Length >= 11)
+      cfg.GENERAL.DisabledPlugins := ("" args[11])
 
     ; ── Persist & reload ──────────────────────────────────────────────────────
     cfg.Save()
     this._closeSettings()
-    this.App.ReloadApp()
+    SetTimer((*) => this.App.ReloadApp(), -50)
   }
 
   _closeSettings() {

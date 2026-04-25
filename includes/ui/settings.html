@@ -4,202 +4,24 @@
   <title>Settings</title>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root {
-      --PrimaryColor: #0078D7;
-      --PrimaryColorLight: #60CDFF;
-    }
-    body { font-family: "Segoe UI"; margin: 0; padding: 0; }
-    [data-theme="dark"] ::selection { background-color: #2E517E; }
-  </style>
+
+  <!-- https://github.com/luncheon/lch-color-wheel/ -->
+  <script src="lch-color-wheel.js"></script>
+
+  <!-- https://github.com/virtualvivek/windows-ui -->
   <link rel="stylesheet" href="winui-icons.min.css" />
   <link rel="stylesheet" type="text/css" href="windows-ui.min.css" />
-  <style>
-    /* ── Title bar ──────────────────────────────────────────────── */
-    .settings-titlebar {
-      display: flex;
-      align-items: center;
-      padding: 6px 8px;
-      background: var(--color-navbar-bg-default, #F3F3F3);
-      border-bottom: 1px solid var(--color-ui-border-default, #E3E3E3);
-      user-select: none;
-    }
-    .settings-titlebar .title-text {
-      flex: 1;
-      font-size: 12px;
-      font-weight: 400;
-      padding-left: 6px;
-      cursor: default;
-    }
-    .settings-titlebar .title-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 46px;
-      height: 30px;
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      color: var(--color-text-default, #000);
-      font-family: "Segoe MDL2 Assets", "Segoe UI Symbol", sans-serif;
-      font-size: 10px;
-    }
-    .settings-titlebar .title-btn:hover {
-      background: var(--color-ui-hover-strong, #E8E8E8);
-    }
-    .settings-titlebar .title-btn-close:hover {
-      background: #C42B1C;
-      color: #fff;
-    }
-
-    /* ── Layout ─────────────────────────────────────────────────── */
-    .settings-container {
-      display: flex;
-      height: calc(100vh - 43px);
-    }
-
-    /* ── Left navigation ────────────────────────────────────────── */
-    .settings-nav {
-      width: 200px;
-      min-width: 200px;
-      padding: 8px 0;
-      background: var(--color-navbar-bg-default, #F3F3F3);
-      border-right: 1px solid var(--color-ui-border-default, #E3E3E3);
-      overflow-y: auto;
-    }
-    .settings-nav .nav-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 9px 15px;
-      margin: 2px 6px;
-      border-radius: 4px;
-      cursor: pointer;
-      color: var(--color-text-default, #000);
-      text-decoration: none;
-      font-size: 14px;
-      border: none;
-      background: none;
-      width: calc(100% - 12px);
-      text-align: left;
-      position: relative;
-    }
-    .settings-nav .nav-item:hover {
-      background: var(--color-ui-hover-strong, #E8E8E8);
-    }
-    .settings-nav .nav-item.active {
-      background: var(--color-ui-hover-strong, #E8E8E8);
-      font-weight: 600;
-    }
-    .settings-nav .nav-item.active::after {
-      content: "";
-      width: 3px;
-      height: 16px;
-      border-radius: 4px;
-      background: var(--color-primary-adaptive, #0078D7);
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
-    }
-    .settings-nav .nav-item i::before {
-      font-size: 18px;
-    }
-
-    /* ── Content area ───────────────────────────────────────────── */
-    .settings-content {
-      flex: 1;
-      padding: 24px 30px;
-      overflow-y: auto;
-    }
-    .settings-section {
-      display: none;
-    }
-    .settings-section.active {
-      display: block;
-    }
-
-    /* ── Settings form ──────────────────────────────────────────── */
-    .setting-group {
-      margin-bottom: 28px;
-    }
-    .setting-group h2 {
-      margin: 0 0 18px 0;
-      font-size: 20px;
-      font-weight: 600;
-    }
-    .setting-group p.subtitle {
-      margin: -12px 0 16px 0;
-      opacity: 0.7;
-      font-size: 14px;
-    }
-    .setting-row {
-      display: flex;
-      align-items: center;
-      margin-bottom: 14px;
-      gap: 16px;
-    }
-    .setting-row label.field-label {
-      min-width: 170px;
-      font-size: 14px;
-    }
-    .setting-row .app-input-container {
-      flex: 1;
-      max-width: 300px;
-    }
-    .setting-row .app-input-container .app-input-text {
-      width: 100%;
-    }
-    .setting-row .app-select-menu {
-      width: 300px;
-    }
-    .setting-row .app-select-menu select {
-      width: 100%;
-    }
-    .setting-row .app-range-slider {
-      flex: 1;
-      max-width: 300px;
-    }
-
-    /* ── Plugin list ────────────────────────────────────────────── */
-    .plugin-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--color-ui-border-default, #E3E3E3);
-    }
-    .plugin-item:last-child {
-      border-bottom: none;
-    }
-
-    /* ── Hotkeys table ──────────────────────────────────────────── */
-    .hotkeys-wrap {
-      max-height: 420px;
-      overflow-y: auto;
-    }
-    .hotkeys-wrap .app-table-view {
-      width: 100%;
-    }
-
-    /* ── Button bar ─────────────────────────────────────────────── */
-    .button-bar {
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-      padding: 16px 0 4px 0;
-      border-top: 1px solid var(--color-ui-border-default, #E3E3E3);
-      margin-top: 24px;
-    }
-  </style>
+  <link rel="stylesheet" href="settings.css" />
 </head>
 
 <body>
   <!-- ── Title bar (WebViewGui non-client region) ─────────── -->
-  <div class="settings-titlebar" style="-webkit-app-region: drag; app-region: drag;">
+  <div class="settings-titlebar draggable">
     <span class="title-text" id="titleText">Settings</span>
-    <button class="title-btn" style="-webkit-app-region: no-drag; app-region: no-drag;" onclick="ahk.gui.Minimize()">&#xE921;</button>
-    <button class="title-btn title-btn-close" style="-webkit-app-region: no-drag; app-region: no-drag;" onclick="ahk.SettingsCancel()">&#xE8BB;</button>
+
+    <button class="app-btn app-btn-primary no-drag" onclick="ahk.SettingsSave()"><span>Save &amp; Reload</span></button>
+    <button class="title-btn no-drag" onclick="ahk.gui.Minimize()">&#xE921;</button>
+    <button class="title-btn title-btn-close no-drag" onclick="ahk.SettingsCancel()">&#xE8BB;</button>
   </div>
 
   <div class="settings-container">
@@ -216,6 +38,14 @@
       <button class="nav-item" onclick="showSection('hotkeys', this)">
         <i class="icons10-keyboard"></i>
         <span>Hotkeys</span>
+      </button>
+      <button class="nav-item" onclick="showSection('logs', this)">
+        <i class="icons10-list"></i>
+        <span>Logs</span>
+      </button>
+      <button class="nav-item" onclick="showSection('problems', this)">
+        <i class="icons10-warning"></i>
+        <span>Problems</span>
       </button>
     </div>
 
@@ -264,8 +94,15 @@
           <div class="setting-row">
             <label class="field-label" for="WindowOnTopBorderColor">On-Top Border Color</label> 
             <div class="app-input-container">
-              <!-- //TODO: replace with colorpicker that save in format 0xRRGGBB -->
-              <input class="app-input-text" type="text" id="WindowOnTopBorderColor" placeholder="0xAACCFF" />
+              <div class="field-with-actions">
+                <input class="app-input-text" type="text" id="WindowOnTopBorderColor" placeholder="0xAACCFF" />
+                <div class="field-actions">
+                  <button id="toggleBorderColorPicker" type="button" class="app-btn app-btn-subtle field-btn" data-win-toggle="modal" data-win-target="#ColorPickerDialog">    
+                    <span id="BorderColorSwatch" class="color-swatch-small" aria-hidden="true"></span>
+                    <span>Pick</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -276,15 +113,26 @@
           <div class="setting-row">
             <label class="field-label" for="StartupSound">Startup Sound</label>
             <div class="app-input-container">
-              <!-- //TODO: for all files - replace with filepicker, file copied to /assets/sounds and path converted to relative to main script/exe -->
-              <input class="app-input-text" type="text" id="StartupSound" />
+              <div class="field-with-actions">
+                <input class="app-input-text" type="text" id="StartupSound" />
+                <div class="field-actions">
+                  <button id="browseStartupSound" type="button" class="app-btn app-btn-subtle field-btn"><span>Browse</span></button>
+                </div>
+              </div>
+              <input type="file" id="StartupSoundFile" accept="audio/*,.wav,.mp3,.ogg,.flac" hidden />
             </div>
           </div>
 
           <div class="setting-row">
             <label class="field-label" for="NotificationSound">Notification Sound</label>
             <div class="app-input-container">
-              <input class="app-input-text" type="text" id="NotificationSound" />
+              <div class="field-with-actions">
+                <input class="app-input-text" type="text" id="NotificationSound" />
+                <div class="field-actions">
+                  <button id="browseNotificationSound" type="button" class="app-btn app-btn-subtle field-btn"><span>Browse</span></button>
+                </div>
+              </div>
+              <input type="file" id="NotificationSoundFile" accept="audio/*,.wav,.mp3,.ogg,.flac" hidden />
             </div>
           </div>
         </div>
@@ -295,21 +143,26 @@
           <div class="setting-row">
             <label class="field-label" for="ReloadAppHotkey">Reload App</label>
             <div class="app-input-container">
-              <!-- //TODO: for hotkeys create show button with full humanized hotkey title, opens in-html-popup that reads hot key to set with some checkboxes like:
-              - consider? right/left modifiers (so for example RShift + A can do something different, otherwise its just any Shift + A, ahk's < or > symbols)
-              - combine any thing to custom hotkey (ahk's & symbol)
-              - see other options for Hotkey Modifier Symbols like * ~ $ and UP at https://www.autohotkey.com/docs/v2/Hotkeys.htm
-              ok/cancel buttons 
-              //FIXME: need to make app use human-readable hotkeys/modifiers by default, maybe also need to introduce keyboard type to have correct scancode/vk mappings to letters/characters so user must see only readable hotkeys like '[wildcard] [passthru] Ctrl + Shift' instead of  '*~^Shift' or 'Shift + Alt + Ctrl + LWin' instead '+!^LWin' etc
-              -->
-              <input class="app-input-text" type="text" id="ReloadAppHotkey" />
+              <div class="field-with-actions">
+                <input type="hidden" id="ReloadAppHotkey" />
+                <input class="app-input-text hotkey-display-input" type="text" id="ReloadAppHotkeyDisplay" readonly placeholder="Press Record" />
+                <div class="field-actions">
+                  <button type="button" class="app-btn app-btn-subtle field-btn" data-hotkey-target="ReloadAppHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog"><span>Record</span></button>
+                </div>
+              </div>
             </div>
           </div>
 
           <div class="setting-row">
             <label class="field-label" for="SuspendAppHotkey">Suspend App</label>
             <div class="app-input-container">
-              <input class="app-input-text" type="text" id="SuspendAppHotkey" />
+              <div class="field-with-actions">
+                <input type="hidden" id="SuspendAppHotkey" />
+                <input class="app-input-text hotkey-display-input" type="text" id="SuspendAppHotkeyDisplay" readonly placeholder="Press Record" />
+                <div class="field-actions">
+                  <button type="button" class="app-btn app-btn-subtle field-btn" data-hotkey-target="SuspendAppHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog"><span>Record</span></button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -327,14 +180,7 @@
           </div>
         </div>
 
-        <div class="button-bar">
-          <button class="app-btn app-btn-primary" onclick="ahk.SettingsSave()">
-            <span>Save &amp; Reload</span>
-          </button>
-          <button class="app-btn" onclick="ahk.SettingsCancel()">
-            <span>Cancel</span>
-          </button>
-        </div>
+        
       </div>
 
       <!-- ═══ PLUGINS ═══════════════════════════════════════════ -->
@@ -347,14 +193,7 @@
           </div>
         </div>
 
-        <div class="button-bar">
-          <button class="app-btn app-btn-primary" onclick="ahk.SettingsSave()">
-            <span>Save &amp; Reload</span>
-          </button>
-          <button class="app-btn" onclick="ahk.SettingsCancel()">
-            <span>Cancel</span>
-          </button>
-        </div>
+       
       </div>
 
       <!-- ═══ HOTKEYS ═══════════════════════════════════════════ -->
@@ -367,7 +206,7 @@
               <table class="app-table-view">
                 <thead>
                   <tr>
-                    <th align="left" style="width:160px">Hotkey</th>
+                    <th align="left" class="hotkey-col">Hotkey</th>
                     <th align="left">Action</th>
                   </tr>
                 </thead>
@@ -380,44 +219,501 @@
         </div>
       </div>
 
+      <!-- ═══ LOGS ══════════════════════════════════════════════ -->
+      <div id="section-logs" class="settings-section section-console">
+        <div class="setting-group">
+          <h2>Logs</h2>
+          <p class="subtitle">Startup and runtime diagnostics.</p>
+          <div id="logs-content" class="console-box">No logs yet.</div> 
+        </div>
+      </div>
+
+      <!-- ═══ PROBLEMS ══════════════════════════════════════════ -->
+      <div id="section-problems" class="settings-section section-console">
+        <div class="setting-group">
+          <h2>Problems</h2>
+          <p class="subtitle">Configuration validation issues and binding errors.</p>
+          <div id="problems-content" class="console-box">No problems detected.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="app-dialog" id="ColorPickerDialog" data-win-toggle="modal" data-win-target="#ColorPickerDialog" tabindex="-1">
+    <div class="app-dialog-modal" aria-modal="true" role="dialog">
+      <div class="app-dialog-body">
+        <div class="color-picker-dialog-layout">
+          <div id="my-color-picker-container" class="color-picker-container"></div>
+          <div class="color-picker-side">
+            <div id="DialogColorPreview" class="color-swatch-large" aria-hidden="true"></div>
+            <div class="dialog-form-grid">
+              <label class="color-field">
+                <span>AHK Hex</span>
+                <input class="app-input-text" type="text" id="DialogColorHex" placeholder="0xRRGGBB" />
+              </label>
+              <label class="color-field">
+                <span>RGB</span>
+                <input class="app-input-text" type="text" id="DialogColorRgb" readonly />
+              </label>
+              <label class="color-field">
+                <span>LCH</span>
+                <input class="app-input-text" type="text" id="DialogColorLch" readonly />
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="app-dialog-footer">
+        <button class="app-btn" type="button" id="cancelColorPicker" data-win-toggle="modal" data-win-target="#ColorPickerDialog"><span>Cancel</span></button>
+        <button class="app-btn app-btn-primary" type="button" id="applyColorPicker"><span>Apply</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-dialog" id="HotkeyRecorderDialog" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog" tabindex="-1">
+    <div class="app-dialog-modal" aria-modal="true" role="dialog">
+      <div class="app-dialog-header">
+        <h3 id="hotkeyDialogTitle">Record Hotkey</h3>
+      </div>
+      <div class="app-dialog-body">
+        <div class="switch-row">
+          <label class="app-switch">
+            <input type="checkbox" id="hotkeyOptWildcard" />
+            <div class="app-switch-view"></div>
+            <span class="app-switch-label" data-on="On" data-off="Off"></span>
+          </label>
+          <span>Wildcard (*)</span>
+
+          <label class="app-switch">
+            <input type="checkbox" id="hotkeyOptPassthrough" />
+            <div class="app-switch-view"></div>
+            <span class="app-switch-label" data-on="On" data-off="Off"></span>
+          </label>
+          <span>Passthrough (~)</span>
+        </div>
+        <div class="hotkey-recorder-state">
+          <div><strong>Status:</strong><span id="hotkeyRecordStatus">Waiting to start recording...</span></div>
+          <div><strong>Hotkey:</strong><span id="hotkeyRecordReadable">(none)</span></div>
+        </div>
+      </div>
+      <div class="app-dialog-footer">
+        <button class="app-btn" type="button" id="cancelHotkeyRecord" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog"><span>Cancel</span></button>
+        <button class="app-btn app-btn-primary" type="button" id="applyHotkeyRecord"><span>Apply</span></button>
+      </div>
     </div>
   </div>
 
   
   <script>
-    /* ── WebViewGui host objects alias ─────────────────────────── */
-    const ahk = window.chrome.webview.hostObjects.sync;
+    function getAhkHost() {
+      try {
+        if (window.chrome && window.chrome.webview && window.chrome.webview.hostObjects)
+          return window.chrome.webview.hostObjects.sync;
+      } catch (_) {}
+      return null;
+    }
 
-    /* ── Section navigation ─────────────────────────────────────── */
+    const ahk = {
+      SettingsSave: function () {
+        var host = getAhkHost();
+        if (!host || typeof host.SettingsSave !== 'function') return;
+
+        function v(id) {
+          var el = document.getElementById(id);
+          return el ? (el.value || '') : '';
+        }
+
+        function checked(id) {
+          var el = document.getElementById(id);
+          return !!(el && el.checked);
+        }
+
+        var disabled = [];
+        var pluginCheckboxes = document.querySelectorAll('#plugins-list input[type="checkbox"][id^="plugin_"]');
+        for (var i = 0; i < pluginCheckboxes.length; i++) {
+          var cb = pluginCheckboxes[i];
+          if (!cb.checked)
+            disabled.push(cb.id.substring(7));
+        }
+
+        host.SettingsSave(
+          v('WelcomeMessage'),
+          v('DarkTheme'),
+          v('ToolTipTimeoutMs'),
+          v('WindowTransparencyValue'),
+          v('WindowOnTopBorderColor'),
+          v('StartupSound'),
+          v('NotificationSound'),
+          v('ReloadAppHotkey'),
+          v('SuspendAppHotkey'),
+          checked('SwapMouseXButtons') ? 'true' : 'false',
+          disabled.join(',')
+        );
+      },
+      SettingsCancel: function () {
+        var host = getAhkHost();
+        if (host && typeof host.SettingsCancel === 'function')
+          host.SettingsCancel();
+      },
+      gui: {
+        Minimize: function () {
+          var host = getAhkHost();
+          if (host && host.gui && typeof host.gui.Minimize === 'function')
+            host.gui.Minimize();
+        }
+      }
+    };
+
+    var settingsUiState = {
+      syncBorderColorPreview: function () {}
+    };
+
+    window.SettingsUiBridge = {
+      refreshFromConfig: function () {
+        updateSlider();
+        settingsUiState.syncBorderColorPreview();
+        updateHotkeyPreview('ReloadAppHotkey');
+        updateHotkeyPreview('SuspendAppHotkey');
+      }
+    };
+
     function showSection(name, navEl) {
       var sections = document.querySelectorAll('.settings-section');
-      for (var i = 0; i < sections.length; i++) {
+      for (var i = 0; i < sections.length; i++)
         sections[i].classList.remove('active');
-      }
+
       var navItems = document.querySelectorAll('.nav-item');
-      for (var i = 0; i < navItems.length; i++) {
-        navItems[i].classList.remove('active');
-      }
+      for (var j = 0; j < navItems.length; j++)
+        navItems[j].classList.remove('active');
+
       var target = document.getElementById('section-' + name);
       if (target) target.classList.add('active');
       if (navEl) navEl.classList.add('active');
     }
 
-    /* ── Transparency slider live update ────────────────────────── */
-    var slider = document.getElementById('WindowTransparencyValue');
-    var sliderLabel = document.getElementById('WindowTransparencyLabel');
     function updateSlider() {
+      var slider = document.getElementById('WindowTransparencyValue');
+      var sliderLabel = document.getElementById('WindowTransparencyLabel');
       if (!slider || !sliderLabel) return;
+
       sliderLabel.textContent = slider.value;
       var pct = (slider.value / 255) * 100;
-      slider.style.background =
-        'linear-gradient(90deg, var(--color-primary-adaptive, #0078D7) ' + pct +
-        '%, #999 ' + (pct + 0.1) + '%)';
+      slider.style.background = 'linear-gradient(90deg, var(--color-primary-adaptive, #0078D7) ' + pct + '%, #999 ' + (pct + 0.1) + '%)';
     }
-    if (slider) {
-      slider.oninput = updateSlider;
-      slider.onchange = updateSlider;
+
+    function wireFilePicker(textInputId, browseBtnId, fileInputId) {
+      var txt = document.getElementById(textInputId);
+      var btn = document.getElementById(browseBtnId);
+      var picker = document.getElementById(fileInputId);
+      if (!txt || !btn || !picker) return;
+
+      btn.addEventListener('click', function () {
+        picker.click();
+      });
+
+      picker.addEventListener('change', function () {
+        if (picker.files && picker.files.length > 0)
+          txt.value = picker.files[0].name;
+          txt.title = picker.files[0].name;
+      });
     }
+
+    function toAhkHex(r, g, b) {
+      function toHex(v) {
+        var h = Math.max(0, Math.min(255, v | 0)).toString(16).toUpperCase();
+        return h.length === 1 ? '0' + h : h;
+      }
+      return '0x' + toHex(r) + toHex(g) + toHex(b);
+    }
+
+    function normalizeHex6(value) {
+      var txt = (value || '').trim();
+      if (txt.length >= 2) {
+        var first = txt.charAt(0);
+        var last = txt.charAt(txt.length - 1);
+        if ((first === '"' && last === '"') || (first === "'" && last === "'"))
+          txt = txt.slice(1, -1).trim();
+      }
+      if (txt.charAt(0) === '#')
+        txt = txt.slice(1);
+      var m = /^(?:0[xX])?([0-9A-Fa-f]{6})$/.exec(txt);
+      return m ? m[1].toUpperCase() : '';
+    }
+
+    function parseAhkHexColor(value) {
+      var hex = normalizeHex6(value);
+      if (!hex) return null;
+      return [
+        parseInt(hex.slice(0, 2), 16),
+        parseInt(hex.slice(2, 4), 16),
+        parseInt(hex.slice(4, 6), 16)
+      ];
+    }
+
+    function toCssColor(value) {
+      var hex = normalizeHex6(value);
+      return hex ? ('#' + hex) : '#ffffff';
+    }
+
+    function toAhkHotkey(ev, wildcard, passthrough) {
+      var key = ev.key;
+      if (!key) return '';
+      if (key === 'Control' || key === 'Shift' || key === 'Alt' || key === 'Meta') return '';
+
+      var prefix = '';
+      if (wildcard) prefix += '*';
+      if (passthrough) prefix += '~';
+      if (ev.ctrlKey) prefix += '^';
+      if (ev.altKey) prefix += '!';
+      if (ev.shiftKey) prefix += '+';
+      if (ev.metaKey) prefix += '#';
+
+      var keyMap = {
+        ' ': 'Space',
+        'Escape': 'Esc',
+        'ArrowUp': 'Up',
+        'ArrowDown': 'Down',
+        'ArrowLeft': 'Left',
+        'ArrowRight': 'Right',
+        'Backspace': 'Backspace',
+        'Delete': 'Delete',
+        'Insert': 'Insert',
+        'Home': 'Home',
+        'End': 'End',
+        'PageUp': 'PgUp',
+        'PageDown': 'PgDn',
+        'Enter': 'Enter',
+        'Tab': 'Tab'
+      };
+
+      var keyName = keyMap[key] || key;
+      if (keyName.length === 1) keyName = keyName.toUpperCase();
+      return prefix + keyName;
+    }
+
+    function humanizeAhkHotkey(hk) {
+      if (!hk) return '';
+      var input = hk;
+      var labels = [];
+
+      if (input.indexOf('*') !== -1) {
+        labels.push('Wildcard');
+        input = input.replace(/\*/g, '');
+      }
+      if (input.indexOf('~') !== -1) {
+        labels.push('Passthrough');
+        input = input.replace(/~/g, '');
+      }
+      if (input.indexOf('^') !== -1) {
+        labels.push('Ctrl');
+        input = input.replace(/\^/g, '');
+      }
+      if (input.indexOf('!') !== -1) {
+        labels.push('Alt');
+        input = input.replace(/!/g, '');
+      }
+      if (input.indexOf('+') !== -1) {
+        labels.push('Shift');
+        input = input.replace(/\+/g, '');
+      }
+      if (input.indexOf('#') !== -1) {
+        labels.push('Win');
+        input = input.replace(/#/g, '');
+      }
+
+      var key = input.trim();
+      if (key) labels.push(key);
+      return labels.join(' + ');
+    }
+
+    function updateHotkeyPreview(inputId) {
+      var input = document.getElementById(inputId);
+      var display = document.getElementById(inputId + 'Display');
+      if (!input) return;
+
+      var txt = (input.value || '').trim();
+      var readable = txt ? humanizeAhkHotkey(txt) : '';
+      if (display) display.value = readable;
+    }
+
+    function initColorPickerDialog() {
+      var colorInput = document.getElementById('WindowOnTopBorderColor');
+      var toggleBtn = document.getElementById('toggleBorderColorPicker');
+      var dialogHex = document.getElementById('DialogColorHex');
+      var dialogRgb = document.getElementById('DialogColorRgb');
+      var dialogLch = document.getElementById('DialogColorLch');
+      var dialogPreview = document.getElementById('DialogColorPreview');
+      var smallSwatch = document.getElementById('BorderColorSwatch');
+      var applyBtn = document.getElementById('applyColorPicker');
+      var cancelBtn = document.getElementById('cancelColorPicker');
+      var container = document.getElementById('my-color-picker-container');
+      if (!colorInput || !toggleBtn || !dialogHex || !applyBtn || !cancelBtn || !container)
+        return;
+
+      function setMainSwatch(hexLike) {
+        if (smallSwatch)
+          smallSwatch.style.background = toCssColor(hexLike);
+      }
+
+      function syncMainSwatchFromInput() {
+        setMainSwatch(colorInput.value);
+      }
+
+      settingsUiState.syncBorderColorPreview = syncMainSwatchFromInput;
+
+      if (!window.LchColorWheel) {
+        toggleBtn.disabled = true;
+        syncMainSwatchFromInput();
+        return;
+      }
+
+      var colorWheel = new LchColorWheel({
+        appendTo: container,
+        wheelDiameter: 300,
+        wheelThickness: 30,
+        handleDiameter: 22,
+        drawsRgbValidityBoundary: false,
+        onChange: function () {
+          var hex = toAhkHex(colorWheel.rgb[0], colorWheel.rgb[1], colorWheel.rgb[2]);
+          dialogHex.value = hex;
+          dialogRgb.value = colorWheel.rgb.map(function (v) { return Math.round(v); }).join(', ');
+          dialogLch.value = colorWheel.lch.map(function (v) { return Math.round(v * 10) / 10; }).join(', ');
+          if (dialogPreview)
+            dialogPreview.style.background = toCssColor(hex);
+        }
+      });
+
+      function syncFromInput() {
+        var parsed = parseAhkHexColor(colorInput.value);
+        if (parsed) {
+          colorWheel.rgb = parsed;
+          colorWheel.redraw();
+          if (dialogPreview)
+            dialogPreview.style.background = toCssColor(colorInput.value);
+        } else if (dialogPreview) {
+          dialogPreview.style.background = '#ffffff';
+        }
+      }
+
+      toggleBtn.addEventListener('click', function () {
+        syncFromInput();
+      });
+
+      dialogHex.addEventListener('input', function () {
+        if (dialogPreview)
+          dialogPreview.style.background = toCssColor(dialogHex.value);
+      });
+
+      dialogHex.addEventListener('change', function () {
+        var parsed = parseAhkHexColor(dialogHex.value);
+        if (!parsed) return;
+        colorWheel.rgb = parsed;
+        colorWheel.redraw();
+      });
+
+      applyBtn.addEventListener('click', function () {
+        var hex6 = normalizeHex6(dialogHex.value);
+        if (hex6)
+          colorInput.value = '0x' + hex6;
+        setMainSwatch(colorInput.value);
+        cancelBtn.click();
+      });
+
+      colorInput.addEventListener('change', syncMainSwatchFromInput);
+      colorInput.addEventListener('input', syncMainSwatchFromInput);
+      syncMainSwatchFromInput();
+    }
+
+    function initHotkeyRecorderDialog() {
+      var state = {
+        targetId: '',
+        pendingRaw: '',
+        recording: false
+      };
+
+      var title = document.getElementById('hotkeyDialogTitle');
+      var optWildcard = document.getElementById('hotkeyOptWildcard');
+      var optPassthrough = document.getElementById('hotkeyOptPassthrough');
+      var statusEl = document.getElementById('hotkeyRecordStatus');
+      var valueEl = document.getElementById('hotkeyRecordReadable');
+      var applyBtn = document.getElementById('applyHotkeyRecord');
+      var cancelBtn = document.getElementById('cancelHotkeyRecord');
+      if (!title || !optWildcard || !optPassthrough || !statusEl || !valueEl || !applyBtn || !cancelBtn)
+        return;
+
+      function stopRecording() {
+        state.recording = false;
+        document.removeEventListener('keydown', onRecordKey, true);
+      }
+
+      function onRecordKey(ev) {
+        if (!state.recording) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        var raw = toAhkHotkey(ev, optWildcard.checked, optPassthrough.checked);
+        if (!raw) return;
+        state.pendingRaw = raw;
+        valueEl.textContent = humanizeAhkHotkey(raw);
+        statusEl.textContent = 'Captured. Press Apply to use it or keep pressing keys to change.';
+      }
+
+      var recordButtons = document.querySelectorAll('[data-hotkey-target]');
+      for (var i = 0; i < recordButtons.length; i++) {
+        (function (btn) {
+          btn.addEventListener('click', function () {
+            var targetId = btn.getAttribute('data-hotkey-target');
+            var input = document.getElementById(targetId);
+            if (!input) return;
+
+            state.targetId = targetId;
+            state.pendingRaw = input.value || '';
+            optWildcard.checked = state.pendingRaw.indexOf('*') !== -1;
+            optPassthrough.checked = state.pendingRaw.indexOf('~') !== -1;
+            title.textContent = 'Record Hotkey';
+            valueEl.textContent = state.pendingRaw ? humanizeAhkHotkey(state.pendingRaw) : '(listening...)';
+            statusEl.textContent = 'Recording... press a key combination.';
+            stopRecording();
+            state.recording = true;
+            document.addEventListener('keydown', onRecordKey, true);
+          });
+        })(recordButtons[i]);
+      }
+
+      applyBtn.addEventListener('click', function () {
+        if (!state.targetId || !state.pendingRaw) return;
+        var input = document.getElementById(state.targetId);
+        if (!input) return;
+
+        input.value = state.pendingRaw;
+        input.dispatchEvent(new Event('input'));
+        stopRecording();
+        cancelBtn.click();
+      });
+
+      cancelBtn.addEventListener('click', stopRecording);
+    }
+
+    (function initPage() {
+      var slider = document.getElementById('WindowTransparencyValue');
+      if (slider) {
+        slider.oninput = updateSlider;
+        slider.onchange = updateSlider;
+      }
+      updateSlider();
+
+      wireFilePicker('StartupSound', 'browseStartupSound', 'StartupSoundFile');
+      wireFilePicker('NotificationSound', 'browseNotificationSound', 'NotificationSoundFile');
+
+      initColorPickerDialog();
+      initHotkeyRecorderDialog();
+
+      window.SettingsUiBridge.refreshFromConfig();
+      setTimeout(function () {
+        window.SettingsUiBridge.refreshFromConfig();
+      }, 250);
+    })();
   </script>
+  <script src="windows-ui.min.js"></script>
 </body>
 </html>

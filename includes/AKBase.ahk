@@ -10,6 +10,8 @@ class AKBase {
   static DIALOG_CONTINUE := "CONTINUE"
 
   debugLevel := 0 ; 0: error, 1: warning, 2: notice, 3: info, 4: debug
+  static _uiLogs := []
+  static _uiProblems := []
   Debug(level:=0) {
     this.debugLevel := level
     ; this.initMenu()
@@ -66,6 +68,38 @@ class AKBase {
   outputDebugLine(line, level:=4) {
     if (level <= this.debugLevel)
       OutputDebug(line "`n")
+    AKBase._bufferLogMessage(line, level)
+  }
+  static _bufferLogMessage(line, level:=4) {
+    timestamp := FormatTime(, "yyyy-MM-dd HH:mm:ss")
+    levelStr := ""
+    switch (level) {
+      case 0: levelStr := "ERROR"
+      case 1: levelStr := "WARNING"
+      case 2: levelStr := "NOTICE"
+      case 3: levelStr := "INFO"
+      default: levelStr := "DEBUG"
+    }
+    
+    logEntry := "[" timestamp "] [" levelStr "] " line
+    AKBase._uiLogs.Push(logEntry)
+    if (AKBase._uiLogs.Length > 300)
+      AKBase._uiLogs.RemoveAt(1)
+    
+    if (level <= 1) {
+      AKBase._uiProblems.Push(logEntry)
+      if (AKBase._uiProblems.Length > 200)
+        AKBase._uiProblems.RemoveAt(1)
+    }
+  }
+  static GetUiLogsText() {
+    return AKBase._uiLogs.Length ? Join(AKBase._uiLogs, "`n") : "No logs yet."
+  }
+  static GetUiProblemsText() {
+    return AKBase._uiProblems.Length ? Join(AKBase._uiProblems, "`n") : "No problems detected."
+  }
+  static ClearProblems() {
+    AKBase._uiProblems := []
   }
 }
 

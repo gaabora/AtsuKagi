@@ -46,6 +46,8 @@ class TouchGesturesSimulator extends AKPlugin {
 
   _injected := false
   _pointerInfo := 0
+  _touchInjectionSupported := true
+  _touchInitError := ""
   
   __New(App) {
     super.__New(App)
@@ -86,6 +88,32 @@ class TouchGesturesSimulator extends AKPlugin {
     ; TODO
     return []
   }
+
+  _init() {
+    user32Ptr := DllCall("GetModuleHandle", "Str", "user32", "Ptr")
+    if (!user32Ptr) {
+      this._touchInjectionSupported := false
+      this._touchInitError := "user32 module is not available"
+      this.ShowWarning("TouchGesturesSimulator unavailable: " this._touchInitError)
+      return
+    }
+
+    initProc := DllCall("GetProcAddress", "Ptr", user32Ptr, "AStr", "InitializeTouchInjection", "Ptr")
+    injectProc := DllCall("GetProcAddress", "Ptr", user32Ptr, "AStr", "InjectTouchInput", "Ptr")
+    if (!initProc || !injectProc) {
+      this._touchInjectionSupported := false
+      this._touchInitError := "Touch injection API is not available on this system"
+      this.ShowWarning("TouchGesturesSimulator unavailable: " this._touchInitError)
+    }
+  }
+
+  _ensureTouchInjectionSupported() {
+    if (this._touchInjectionSupported)
+      return true
+    this.outputDebugLine("TouchGesturesSimulator unavailable: " this._touchInitError, 1)
+    return false
+  }
+
   __UsageHelp() {
     return "Simulates touchpad input with mouse, make touchpad gestures using mouse"
   }
@@ -166,6 +194,9 @@ class TouchGesturesSimulator extends AKPlugin {
   }
 
   runGesture(mouseButton, fingers:=1, xMouSrc:=-1, yMouSrc:=-1) {
+    if (!this._ensureTouchInjectionSupported())
+      return false
+
     feedbackType := TouchGesturesSimulator.TOUCH_FEEDBACK_DEFAULT
 
     if (!this._injected) {
@@ -243,6 +274,7 @@ class TouchGesturesSimulator extends AKPlugin {
     }
 
     this.isInGesture := false
+    return ok
   }
 
   getDistance(xMouSrc, yMouSrc, xMouDst, yMouDst) {

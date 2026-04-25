@@ -11,6 +11,7 @@
       "name": "AHK v2 Debug APP",
       "program": "${workspaceFolder}/AtsuiKagi.ahk",
       "port": 9005,
+      "captureStreams": true,
       "stopOnEntry": false,
     },
     {
@@ -20,6 +21,7 @@
       "name": "AHK v2 Debug current file",
       "program": "${file}",
       "port": 9005,
+      "captureStreams": true,
       "stopOnEntry": false,
       "skipFiles": [
         "${workspaceFolder}/tests/**/*.ahk"
@@ -32,6 +34,7 @@
       "name": "AHK v2 Debug IniFileTests",
       "program": "${workspaceFolder}/tests/IniFileTests.ahk",
       "port": 9005,
+      "captureStreams": true,
       "stopOnEntry": false,
     }
   ]

@@ -49,6 +49,44 @@ class AKApp extends AKBase {
     this._setTimer("_toolTipOff", 100)
   }
 
+  _validateHotkeysConfig() {
+    problems := []
+    seenHotkeys := Map()
+    if (!this.Config.Has("HOTKEYS"))
+      return problems
+
+    for hotkey, actionText in this.Config.HOTKEYS {
+      if (Trim(hotkey) = "") {
+        problems.Push("[HOTKEYS] empty hotkey key for action '" actionText "'")
+        continue
+      }
+
+      actionInfo := this._parseActionInfo(actionText)
+      if (actionInfo.fnName = "") {
+        problems.Push("[HOTKEYS] '" hotkey "' has empty action")
+        continue
+      }
+
+      if (this._getActionHandler(actionInfo.fnName) = -1)
+        problems.Push("[HOTKEYS] '" hotkey "' references unknown action '" actionInfo.fnName "'")
+
+      universalHotkey := convertToUniversalVkHotkey(hotkey)
+      if (seenHotkeys.Has(universalHotkey)) {
+        problems.Push("[HOTKEYS] duplicate hotkey mapping for '" hotkey "' and '" seenHotkeys[universalHotkey] "' (resolved to " universalHotkey ")")
+      } else {
+        seenHotkeys[universalHotkey] := hotkey
+      }
+    }
+    return problems
+  }
+
+  _updateStartupDiagnostics() {
+    pluginsCount := this._addedLibs.Count
+    actionsCount := this.AvailableActions.Count
+    hotkeysCount := this._assignedHotkeys.Count
+    this.outputDebugLine("Startup diagnostics: plugins=" pluginsCount ", actions=" actionsCount ", hotkeys=" hotkeysCount, 3)
+  }
+
   TestActions() {
     total := this.AvailableActions.Count
     current := 0
@@ -66,38 +104,35 @@ class AKApp extends AKBase {
       }
     }
   }
-  ShowHelp() {
-    helpText := "Enabled hotkeys:`n"
 
-    usedActions := Map()
-    for key, action in this.AvailableActions {
-      functionName := this._parseActionInfo(action['description']).fnName
-      usedActions[functionName] := Map(
-        'className', action['className'],
-        'description', action['description'],
-        'assignedHotkeys', [],
-      )
-    }
+  ; helpText := "Enabled hotkeys:`n"
 
-    for key, hkDef in this._assignedHotkeys {
-      functionName := functionName := this._parseActionInfo(hkDef['action']).fnName
-      if (usedActions.Has(functionName)) {
-        usedActions[functionName]['assignedHotkeys'].Push([hkDef['readable']])
-      } else {
-        this.outputDebugLine('WARN: ' hkDef['action'] ' was not found')
-      }
-      helpText .= hkDef['readable'] ' (' hkDef['original'] ') ' hkDef['action'] '`n'
-    }
+  ;   usedActions := Map()
+  ;   for key, action in this.AvailableActions {
+  ;     functionName := this._parseActionInfo(action['description']).fnName
+  ;     usedActions[functionName] := Map(
+  ;       'className', action['className'],
+  ;       'description', action['description'],
+  ;       'assignedHotkeys', [],
+  ;     )
+  ;   }
+
+  ;   for key, hkDef in this._assignedHotkeys {
+  ;     functionName := functionName := this._parseActionInfo(hkDef['action']).fnName
+  ;     if (usedActions.Has(functionName)) {
+  ;       usedActions[functionName]['assignedHotkeys'].Push([hkDef['readable']])
+  ;     } else {
+  ;       this.outputDebugLine('WARN: ' hkDef['action'] ' was not found')
+  ;     }
+  ;     helpText .= hkDef['readable'] ' (' hkDef['original'] ') ' hkDef['action'] '`n'
+  ;   }
     
-    helpText .= "`nNot used actions:`n"
-    for functionName, usedAction in usedActions {
-      if (usedAction['assignedHotkeys'].Length = 0) {
-        helpText .= usedAction['className'] '.' usedAction['description'] '`n'
-      }
-    }
-
-    MsgBox(helpText)
-  }
+  ;   helpText .= "`nNot used actions:`n"
+  ;   for functionName, usedAction in usedActions {
+  ;     if (usedAction['assignedHotkeys'].Length = 0) {
+  ;       helpText .= usedAction['className'] '.' usedAction['description'] '`n'
+  ;     }
+  ;   }
 
   _initPlugins() {
     availablePlugins := this._getAvailablePlugins()
@@ -166,6 +201,7 @@ class AKApp extends AKBase {
     for actionString, description in actions {
       this._registerAction(libObj, actionString, className, description)
     }
+    this.outputDebugLine("Plugin loaded: " className, 3)
 
     ; hooks := libObj.__HooksHelp()
     ; for hookString, description in hooks {
@@ -181,11 +217,19 @@ class AKApp extends AKBase {
   
   BindAllHotkeys() {
     runHotkeyActionFn := this._runHotkeyAction.bind(this)
+    AKBase.ClearProblems()
+
+    configProblems := this._validateHotkeysConfig()
+    for problem in configProblems {
+      this.outputDebugLine(problem, 1)
+    }
+
     if (this.Config.Has("HOTKEYS")) {
       For k, v In this.Config.HOTKEYS {
         this.BindHotkey(k, runHotkeyActionFn, v)
       }
     }
+    this._updateStartupDiagnostics()
   }
 
   ReloadApp(some*) {
@@ -249,7 +293,7 @@ class AKApp extends AKBase {
     if (hkDef['action'] != '' && hkDef['handler'] = -1) {
       hotkeyError := 'Action not found'
       errorText := 'ERROR: ' . debugText . ' FAILED: ' . hotkeyError
-      this.ShowWarning(errorText)
+      this.outputDebugLine(errorText, 0)
       return errorText
     } 
 
@@ -259,7 +303,7 @@ class AKApp extends AKBase {
       hotkeyError := Format("{1}: {2}.`n`nFile:`t{3}`nLine:`t{4}`nWhat:`t{5}`nStack:`n{6}"
         , type(err), err.Message, err.File, err.Line, err.What, err.Stack)
       errorText := "ERROR: " . debugText . " FAILED: " . hotkeyError
-      this.ShowWarning(errorText)
+      this.outputDebugLine(errorText, 0)
       return errorText
     }
 
@@ -381,7 +425,6 @@ class AKApp extends AKBase {
     TraySetIcon(this.TrayIconDefault, "1")
     ; this.runMenuHooks() ; TODO
     trayMenu.Add("KeyHistory", fn)
-    trayMenu.Add("Help", fn)
     trayMenu.Add("Test", fn)
     trayMenu.Add()
     trayMenu.Add("Settings", fn)
@@ -399,9 +442,6 @@ class AKApp extends AKBase {
         return
       case "KeyHistory":
         KeyHistory
-        return
-      case "Help":
-        this.ShowHelp()
         return
       case "Settings":
         this.GUI.ShowSettings()
@@ -561,6 +601,6 @@ class AKApp extends AKBase {
     }
 
     ; throw Error('Unable to get action handler for ' . actionName)
-    return (*) => this.ShowWarning('Unable to get action handler for ' . actionName)
+    return (*) => this.ShowNotice('Unable to get action handler for ' . actionName)
   }
 }
