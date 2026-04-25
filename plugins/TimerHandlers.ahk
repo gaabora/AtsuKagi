@@ -1,4 +1,4 @@
-class TimerHandlers extends AKPlugin {
+class TimerHandlers extends AKPlugin { ; TODO: not yet fully implemented, needs better naming for actions, like 'cron' is not a right part of name 
   ScheduledTasks := Map()
   
   ; this._setTimer("_processScheduledTasks", 1000)

@@ -1,4 +1,4 @@
-class ShellMessageHook extends AKPlugin {
+class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully tested
   static HSHELL_WINDOWCREATED       := 1
   static HSHELL_WINDOWDESTROYED     := 2
   static HSHELL_ACTIVATESHELLWINDOW := 3

@@ -1,4 +1,4 @@
-class TextToSpeech extends AKPlugin {
+class TextToSpeech extends AKPlugin { ; TODO: not yet implemented
   _textToSpeechObj := ComObject("SAPI.SpVoice")
   Speak(text) {
     this._textToSpeechObj.Speak(text)

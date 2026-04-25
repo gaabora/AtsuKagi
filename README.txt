@@ -1,5 +1,3 @@
-inspired by:
-
 
 AtsuiKagi ()
 
@@ -25,7 +23,35 @@ return
 
 
 TODO:
+
+need to plan:
+- plugin-specific pages on ui: 
+
+-
+
+- how is better to store/display help/usage info in ui (currently each plugin can have something like   __UsageHelp() {
+    return "Simulates touchpad input with mouse, make touchpad gestures using mouse"
+  }
+
+  __ActionsHelp() {
+    texts := Map()
+    texts["EnterGestureMode"] := "EnterGestureMode(fingers:=1)"
+    texts["SetPrecisionTouchpadRegistryConfig"] := "SetPrecisionTouchpadRegistryConfig(key, value) set current user's PrecisionTouchPad settings for ThreeFingerSlideEnabled, ThreeFingerTapEnabled, FourFingerSlideEnabled, FourFingerTapEnabled"
+    return texts
+  }
+  maybe it is already good enough or maybe need some inrovements
+
+
+
+low battery alert - some half transparent animation-osd that watches trend of battery discharge and alert at some percent or time remaining (consider also windows thresholds for sleep/hibernate, so it can say LOW BATTERY! sleep after 5 min) update interval 15
+s
+
+"bedtime routine" get somehow and show how long (h:mm:ss) until auto sleep
+
+
 write readme on wtf is this app
+
+
 
 StartFakeScreensaver(hotkeyToExit:=Escape,hotkeyToKeepAwake:=Shift,sendHotkeyIntervalSec=10) create black fullscreen windows on top unfocused and send shift 
 
@@ -40,6 +66,8 @@ OSD
 15|0800|1900=SpeakCurrentTime(hm)
 5. toglable timer action?
 6. exclusions list per action or maybe group? like RestrictWindowResize / move / minimize / maximize / frame / ... ?
+
+
 
 
 plugins ideas:

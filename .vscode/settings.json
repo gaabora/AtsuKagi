@@ -3,6 +3,22 @@
     "activityBar.background": "#ec190a",
     "titleBar.inactiveBackground": "#ec190a",
     "titleBar.activeBackground": "#ec190a",
-    "titleBar.activeForeground": "#F9FCF9"
+    "titleBar.activeForeground": "#F9FCF9",
+    "statusBar.background": "#600A04",
+    "statusBar.foreground": "#FFFCFB",
+    "statusBar.debuggingBackground": "#600A04",
+    "statusBar.debuggingForeground": "#FFFCFB",
+    "statusBar.noFolderBackground": "#600A04",
+    "statusBar.noFolderForeground": "#FFFCFB"
+  },
+  "files.associations": {
+    "*.yaml": "home-assistant"
+  },
+  "AHK++.v2.file": {
+    "compileBaseFile": "",
+    "helpPath": "C:/Program Files/AutoHotkey/v2/AutoHotkey.chm",
+    "interpreterPath": "c:\\apps\\DevTools\\bin\\AutoHotkey64.exe",
+    "maxScanDepth": 2,
+    "templateSnippetName": "AhkTemplateV2"
   }
 }

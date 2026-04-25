@@ -5,33 +5,34 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "runtime": "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
-      "type": "autohotkey",
+      "runtime": "c:\\apps\\DevTools\\bin\\AutoHotkey64.exe",
+      "type": "ahkdbg",
       "request": "launch",
       "name": "AHK v2 Debug APP",
       "program": "${workspaceFolder}/AtsuiKagi.ahk",
-      "stopOnEntry": false
+      "port": 9005,
+      "stopOnEntry": false,
     },
     {
-      "runtime": "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
-      "type": "autohotkey",
+      "runtime": "c:\\apps\\DevTools\\bin\\AutoHotkey64.exe",
+      "type": "ahkdbg",
       "request": "launch",
       "name": "AHK v2 Debug current file",
       "program": "${file}",
+      "port": 9005,
       "stopOnEntry": false,
       "skipFiles": [
         "${workspaceFolder}/tests/**/*.ahk"
       ]
     },
     {
-      "runtime": "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
-      "type": "autohotkey",
+      "runtime": "c:\\apps\\DevTools\\bin\\AutoHotkey64.exe",
+      "type": "ahkdbg",
       "request": "launch",
       "name": "AHK v2 Debug IniFileTests",
       "program": "${workspaceFolder}/tests/IniFileTests.ahk",
+      "port": 9005,
       "stopOnEntry": false,
-      "skipFiles": [
-      ]
     }
   ]
 }

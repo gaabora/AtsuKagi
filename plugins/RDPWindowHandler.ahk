@@ -1,3 +1,4 @@
+
 ; https://www.autohotkey.com/boards/viewtopic.php?f=82&t=124099&p=551999&hilit=rdp#p551999
 #UseHook
 #HotIf WinActive("ahk_class TscShellContainerClass")
@@ -51,7 +52,7 @@ if (WinActive("ahk_class TscShellContainerClass")) {
 
 
 
-class RDPWindowHandler extends AKPlugin {
+class RDPWindowHandler extends AKPlugin { ; FIXME: UNTESTED
   __New() {
     
   }

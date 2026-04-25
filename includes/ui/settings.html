@@ -262,8 +262,9 @@
           </div>
 
           <div class="setting-row">
-            <label class="field-label" for="WindowOnTopBorderColor">On-Top Border Color</label>
+            <label class="field-label" for="WindowOnTopBorderColor">On-Top Border Color</label> 
             <div class="app-input-container">
+              <!-- //TODO: replace with colorpicker that save in format 0xRRGGBB -->
               <input class="app-input-text" type="text" id="WindowOnTopBorderColor" placeholder="0xAACCFF" />
             </div>
           </div>
@@ -275,6 +276,7 @@
           <div class="setting-row">
             <label class="field-label" for="StartupSound">Startup Sound</label>
             <div class="app-input-container">
+              <!-- //TODO: for all files - replace with filepicker, file copied to /assets/sounds and path converted to relative to main script/exe -->
               <input class="app-input-text" type="text" id="StartupSound" />
             </div>
           </div>
@@ -293,6 +295,13 @@
           <div class="setting-row">
             <label class="field-label" for="ReloadAppHotkey">Reload App</label>
             <div class="app-input-container">
+              <!-- //TODO: for hotkeys create show button with full humanized hotkey title, opens in-html-popup that reads hot key to set with some checkboxes like:
+              - consider? right/left modifiers (so for example RShift + A can do something different, otherwise its just any Shift + A, ahk's < or > symbols)
+              - combine any thing to custom hotkey (ahk's & symbol)
+              - see other options for Hotkey Modifier Symbols like * ~ $ and UP at https://www.autohotkey.com/docs/v2/Hotkeys.htm
+              ok/cancel buttons 
+              //FIXME: need to make app use human-readable hotkeys/modifiers by default, maybe also need to introduce keyboard type to have correct scancode/vk mappings to letters/characters so user must see only readable hotkeys like '[wildcard] [passthru] Ctrl + Shift' instead of  '*~^Shift' or 'Shift + Alt + Ctrl + LWin' instead '+!^LWin' etc
+              -->
               <input class="app-input-text" type="text" id="ReloadAppHotkey" />
             </div>
           </div>
@@ -351,8 +360,8 @@
       <!-- ═══ HOTKEYS ═══════════════════════════════════════════ -->
       <div id="section-hotkeys" class="settings-section">
         <div class="setting-group">
-          <h2>Hotkey Assignments</h2>
-          <p class="subtitle">Current hotkey bindings. Edit config.ini for advanced changes.</p>
+          <!-- <h2>Hotkey Assignments</h2>
+          <p class="subtitle">Current hotkey bindings. Edit config.ini for advanced changes.</p> -->
           <div class="hotkeys-wrap">
             <div class="app-table-view-container">
               <table class="app-table-view">

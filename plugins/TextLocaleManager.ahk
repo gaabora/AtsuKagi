@@ -1,4 +1,4 @@
-class TextLocaleManager extends AKPlugin {
+class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixes
   KEY_MAPPING_DICT := Map()
   USER_KEYBOARD_LAYOUTS := []
 
