@@ -4,13 +4,13 @@ class GeneralHandlers extends AKPlugin {
     texts := Map()
     texts["IfThenElse"] := "IfThenElse(IfActionString, ThenActionString, ElseActionString)"
     texts["SkipIfBlacklisted"] := "SkipIfBlacklisted(BlacklistName, ActionString, FallbackAction:='') - skip action if window is in named blacklist, optionally run fallback instead of passthrough"
-    texts["RemapTo"]    := "RemapTo(Hotkey)"
+    texts["RemapKeyTo"] := "RemapKeyTo(Hotkey)"
     texts["DoNothing"]  := "DoNothing()"
     texts["ShowInfo"]   := "ShowInfo(text, title:='', timeout:=2000)"
     return texts
   }
   
-  RemapTo(Hotkey) { ;;;
+  RemapKeyTo(Hotkey) { ;;;
     if (Hotkey = "")
       return
 

@@ -28,11 +28,11 @@ This plan is based on current structure and code in `includes/` and `plugins/`.
 - [x] Add config validation pass before hotkey bind (invalid keys/actions should warn clearly). display it in ui (includes\ui\settings.html) on new 'problems' tab
 
 ### Phase 2: Action Naming and API Hygiene (must do)
-- [ ] Adopt one action naming convention: `VerbNoun` or `VerbNounQualifier`.
-- [ ] Keep action names user-oriented and command-like (for hotkey mapping clarity).
-- [ ] Avoid generic/ambiguous names; rename where needed (example: consider `RemapTo` -> `RemapKeyTo`).
-- [ ] Add collision check on action registration (same action name in multiple plugins should warn/fail fast).
-- [ ] Add a short deprecation map for renamed actions so old configs keep working for one release cycle.
+- [x] Adopt one action naming convention: `VerbNoun` or `VerbNounQualifier`.
+- [x] Keep action names user-oriented and command-like (for hotkey mapping clarity).
+- [x] Avoid generic/ambiguous names; rename where needed (example: consider `RemapTo` -> `RemapKeyTo`).
+- [x] Add collision check on action registration (same action name in multiple plugins should warn/fail fast).
+- [x] Add a short deprecation map for renamed actions so old configs keep working for one release cycle.
 
 ### Phase 3: Plugin and Action Documentation (must do)
 - [ ] Add a short header block to each plugin file containing:

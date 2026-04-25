@@ -16,11 +16,30 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
   static HSHELL_HIGHBIT             := 15
   static HSHELL_FLASH               := 16
   static HSHELL_RUDEAPPACTIVATED    := 17
-  static messageNames := { 1: "WINDOW_CREATED", 2: "WINDOW_DESTROYED", 3: "ACTIVATE_SHELL_WINDOW", 4: "WINDOW_ACTIVATED", 5: "GET_MIN_RECT", 6: "REDRAW", 7: "TASK_MAN", 8: "LANGUAGE", 9: "SYS_MENU", 10: "END_TASK", 11: "ACCESSIBILITY_STATE", 12: "APP_COMMAND", 13: "WINDOW_REPLACED", 14: "WINDOW_REPLACING", 15: "HIGH_BIT", 16: "FLASH", 17: "RUDE_APP_ACTIVATED" }
+  static messageNames := Map(
+    1, "WINDOW_CREATED",
+    2, "WINDOW_DESTROYED",
+    3, "ACTIVATE_SHELL_WINDOW",
+    4, "WINDOW_ACTIVATED",
+    5, "GET_MIN_RECT",
+    6, "REDRAW",
+    7, "TASK_MAN",
+    8, "LANGUAGE",
+    9, "SYS_MENU",
+    10, "END_TASK",
+    11, "ACCESSIBILITY_STATE",
+    12, "APP_COMMAND",
+    13, "WINDOW_REPLACED",
+    14, "WINDOW_REPLACING",
+    15, "HIGH_BIT",
+    16, "FLASH",
+    17, "RUDE_APP_ACTIVATED"
+  )
 
-  eventListeners := { WindowCreated: [], WindowActivated: [], WindowDestroyed: [] }
+  eventListeners := Map("WindowCreated", [], "WindowActivated", [], "WindowDestroyed", [])
 
-  __New(config:=0) {
+  __New(App) {
+    super.__New(App)
     DllCall('RegisterShellHookWindow', 'UInt', A_ScriptHwnd)
     MsgNum := DllCall("RegisterWindowMessage", "Str", "SHELLHOOK")
     onShellMessageFn := this.onShellMessage.bind(this)
@@ -46,40 +65,42 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
       return errorPrefix ": HandlerFn parameter must be of type BoundFunc, but got " . handlerFnType
 
     if (!this.eventListeners.Has(eventName))
-      return errorPrefix ": Unsupported event '" eventName "'. Supported: " Join(Object.Keys(this.eventListeners), ", ")
+      return errorPrefix ": Unsupported event '" eventName "'. Supported: " Join(["WindowCreated", "WindowActivated", "WindowDestroyed"], ", ")
 
     this.eventListeners[eventName].Push(handlerFn)
     return 0
   }
 
-  onShellMessage(msgId, hwnd) { ; actually it has 4 params: wParam, lParam, msg, hwnd, but let's rename/ignore them to avoid bs names confusion
-    this.outputDebugLine("msgId=" msgId " hwnd=" hwnd )
-    this.processMessage(msgId, hwnd)
+  onShellMessage(wParam, lParam, msg, hwnd) {
+    eventId := wParam
+    targetHwnd := lParam
+    this.outputDebugLine("msgId=" eventId " hwnd=" targetHwnd)
+    this.processMessage(eventId, targetHwnd)
   }
 
   processMessage(msgId, hwnd) {
     switch (msgId) {
-      case this.HSHELL_WINDOWCREATED:
+      case ShellMessageHook.HSHELL_WINDOWCREATED:
         return this.runMessageCallbacks("WindowCreated", hwnd)
-      case this.HSHELL_WINDOWDESTROYED:
+      case ShellMessageHook.HSHELL_WINDOWDESTROYED:
         return this.runMessageCallbacks("WindowActivated", hwnd)
-      case this.HSHELL_WINDOWACTIVATED:
+      case ShellMessageHook.HSHELL_WINDOWACTIVATED:
         return this.runMessageCallbacks("WindowDestroyed", hwnd)
-      case this.HSHELL_ACTIVATESHELLWINDOW:
-      case this.HSHELL_GETMINRECT:
-      case this.HSHELL_REDRAW:
-      case this.HSHELL_TASKMAN:
-      case this.HSHELL_LANGUAGE:
-      case this.HSHELL_SYSMENU:
-      case this.HSHELL_ENDTASK:
-      case this.HSHELL_ACCESSIBILITYSTATE:
-      case this.HSHELL_APPCOMMAND:
-      case this.HSHELL_WINDOWREPLACED:
-      case this.HSHELL_WINDOWREPLACING:
-      case this.HSHELL_HIGHBIT:
-      case this.HSHELL_FLASH:
-      case this.HSHELL_RUDEAPPACTIVATED:
-        return this.outputDebugLine("skip " this.messageNames[msgId] " from hwnd=" hwnd)
+      case ShellMessageHook.HSHELL_ACTIVATESHELLWINDOW:
+      case ShellMessageHook.HSHELL_GETMINRECT:
+      case ShellMessageHook.HSHELL_REDRAW:
+      case ShellMessageHook.HSHELL_TASKMAN:
+      case ShellMessageHook.HSHELL_LANGUAGE:
+      case ShellMessageHook.HSHELL_SYSMENU:
+      case ShellMessageHook.HSHELL_ENDTASK:
+      case ShellMessageHook.HSHELL_ACCESSIBILITYSTATE:
+      case ShellMessageHook.HSHELL_APPCOMMAND:
+      case ShellMessageHook.HSHELL_WINDOWREPLACED:
+      case ShellMessageHook.HSHELL_WINDOWREPLACING:
+      case ShellMessageHook.HSHELL_HIGHBIT:
+      case ShellMessageHook.HSHELL_FLASH:
+      case ShellMessageHook.HSHELL_RUDEAPPACTIVATED:
+        return this.outputDebugLine("skip " ShellMessageHook.messageNames[msgId] " from hwnd=" hwnd)
       Default:
         return this.outputDebugLine("skip unknown msgId=" msgId " from hwnd=" hwnd)
     }

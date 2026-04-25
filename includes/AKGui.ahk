@@ -50,6 +50,7 @@ class AKGui {
     ; Register JS → AHK callbacks
     nw.AddCallbackToScript("SettingsSave", (wv, args*) => this._saveSettings(args*))
     nw.AddCallbackToScript("SettingsCancel", (wv, *) => this._closeSettings())
+    nw.AddCallbackToScript("BrowseForFile", (wv, currentPath:="") => this._browseForFile(currentPath))
 
     ; Populate form after page finishes loading
     nw.DOMContentLoaded((ICoreWebView2, Args) => this._populateSettingsPage(nw))
@@ -66,19 +67,19 @@ class AKGui {
     js := ""
 
     ; ── General fields ────────────────────────────────────────────────────────
-    js .= "document.getElementById('WelcomeMessage').value = '"       WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WelcomeMessage) "';`n"
-    js .= "document.getElementById('DarkTheme').value = '"            WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.DarkTheme) "';`n"
-    js .= "document.getElementById('ToolTipTimeoutMs').value = '"     WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ToolTipTimeoutMs) "';`n"
-    js .= "document.getElementById('WindowTransparencyValue').value = '" WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue) "';`n"
-    js .= "document.getElementById('WindowOnTopBorderColor').value = '"  WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowOnTopBorderColor) "';`n"
-    js .= "document.getElementById('StartupSound').value = '"         WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.StartupSound) "';`n"
-    js .= "document.getElementById('NotificationSound').value = '"    WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.NotificationSound) "';`n"
-    js .= "document.getElementById('ReloadAppHotkey').value = '"      WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ReloadAppHotkey) "';`n"
-    js .= "document.getElementById('SuspendAppHotkey').value = '"     WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.SuspendAppHotkey) "';`n"
+    js .= "document.getElementById('WelcomeMessage').value = `""       WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WelcomeMessage) "`";`n"
+    js .= "document.getElementById('DarkTheme').value = `""            WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.DarkTheme) "`";`n"
+    js .= "document.getElementById('ToolTipTimeoutMs').value = `""     WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ToolTipTimeoutMs) "`";`n"
+    js .= "document.getElementById('WindowTransparencyValue').value = `"" WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue) "`";`n"
+    js .= "document.getElementById('WindowOnTopBorderColor').value = `""  WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowOnTopBorderColor) "`";`n"
+    js .= "document.getElementById('StartupSound').value = `""         WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.StartupSound) "`";`n"
+    js .= "document.getElementById('NotificationSound').value = `""    WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.NotificationSound) "`";`n"
+    js .= "document.getElementById('ReloadAppHotkey').value = `""      WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ReloadAppHotkey) "`";`n"
+    js .= "document.getElementById('SuspendAppHotkey').value = `""     WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.SuspendAppHotkey) "`";`n"
     js .= "document.getElementById('SwapMouseXButtons').checked = "   (cfg.GENERAL.SwapMouseXButtons = 1 ? "true" : "false") ";`n"
 
     ; Update transparency slider label & fill
-    js .= "document.getElementById('WindowTransparencyLabel').innerText = '" WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue) "';`n"
+    js .= "document.getElementById('WindowTransparencyLabel').innerText = `"" WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue) "`";`n"
     pct := Round((cfg.GENERAL.WindowTransparencyValue / 255) * 100)
     js .= "document.getElementById('WindowTransparencyValue').style.background = 'linear-gradient(90deg, var(--color-primary-adaptive, #0078D7) " pct "%, #999 " (pct + 0.1) "%)';`n"
 
@@ -94,7 +95,7 @@ class AKGui {
       html .= '<label for="plugin_' pluginName '">' pluginName '</label>'
       html .= '</div>'
     }
-    js .= "document.getElementById('plugins-list').innerHTML = '" WebViewCtrl.EscapeJavaScript(html) "';`n"
+    js .= "document.getElementById('plugins-list').innerHTML = `"" WebViewCtrl.EscapeJavaScript(html) "`";`n"
 
     ; ── Hotkeys ───────────────────────────────────────────────────────────────
     if (cfg.Has("HOTKEYS")) {
@@ -104,11 +105,11 @@ class AKGui {
         escapedV := WebViewCtrl.EscapeHtml(v)
         html .= "<tr><td>" escapedK "</td><td>" escapedV "</td></tr>"
       }
-      js .= "document.getElementById('hotkeys-tbody').innerHTML = '" WebViewCtrl.EscapeJavaScript(html) "';`n"
+      js .= "document.getElementById('hotkeys-tbody').innerHTML = `"" WebViewCtrl.EscapeJavaScript(html) "`";`n"
     }
 
-    js .= "document.getElementById('logs-content').textContent = '" WebViewCtrl.EscapeJavaScript(AKBase.GetUiLogsText()) "';`n"
-    js .= "document.getElementById('problems-content').textContent = '" WebViewCtrl.EscapeJavaScript(AKBase.GetUiProblemsText()) "';`n"
+    js .= "document.getElementById('logs-content').textContent = `"" WebViewCtrl.EscapeJavaScript(AKBase.GetUiLogsText()) "`";`n"
+    js .= "document.getElementById('problems-content').textContent = `"" WebViewCtrl.EscapeJavaScript(AKBase.GetUiProblemsText()) "`";`n"
     js .= "if(window.SettingsUiBridge && typeof window.SettingsUiBridge.refreshFromConfig==='function') window.SettingsUiBridge.refreshFromConfig();`n"
 
     ; ── Theme ─────────────────────────────────────────────────────────────────
@@ -120,7 +121,7 @@ class AKGui {
     }
 
     ; ── Title text ────────────────────────────────────────────────────────────
-    js .= "document.getElementById('titleText').innerText = '" WebViewCtrl.EscapeJavaScript(this.App.ScriptName " — Settings") "';`n"
+    js .= "document.getElementById('titleText').innerText = `"" WebViewCtrl.EscapeJavaScript(this.App.ScriptName " — Settings") "`";`n"
 
     nw.ExecuteScriptAsync(js)
   }
@@ -146,6 +147,34 @@ class AKGui {
     cfg.Save()
     this._closeSettings()
     SetTimer((*) => this.App.ReloadApp(), -50)
+  }
+
+  _browseForFile(currentPath:="") {
+    initialDir := A_ScriptDir
+    pathText := Trim("" currentPath)
+    if (pathText != "") {
+      candidate := pathText
+      if (!RegExMatch(candidate, "i)^[A-Z]:\\") && !RegExMatch(candidate, "^(\\\\|/)") )
+        candidate := A_ScriptDir "\\" candidate
+
+      if (FileExist(candidate)) {
+        if (InStr(FileExist(candidate), "D"))
+          initialDir := candidate
+        else
+          initialDir := RegExReplace(candidate, "\\[^\\]*$")
+      }
+    }
+
+    selectedPath := FileSelect("1", initialDir, "Select audio file", "Audio Files (*.wav; *.mp3; *.ogg; *.flac)")
+    if (selectedPath = "")
+      return ""
+
+    ; Keep config portable when selecting files under the app directory.
+    scriptRoot := RTrim(A_ScriptDir, "\\/")
+    if (InStr(StrLower(selectedPath), StrLower(scriptRoot "\\")) = 1)
+      return SubStr(selectedPath, StrLen(scriptRoot) + 2)
+
+    return selectedPath
   }
 
   _closeSettings() {

@@ -1,6 +1,7 @@
 *.exe
 *.dll
 *.ini
-tools/
 *.log
+tools/
 tmp/
+dynamicPlugins.ahk

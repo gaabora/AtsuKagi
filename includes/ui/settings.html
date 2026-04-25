@@ -356,6 +356,12 @@
         if (host && typeof host.SettingsCancel === 'function')
           host.SettingsCancel();
       },
+      BrowseForFile: function (currentPath) {
+        var host = getAhkHost();
+        if (!host || typeof host.BrowseForFile !== 'function')
+          return '';
+        return host.BrowseForFile(currentPath || '');
+      },
       gui: {
         Minimize: function () {
           var host = getAhkHost();
@@ -409,7 +415,11 @@
       if (!txt || !btn || !picker) return;
 
       btn.addEventListener('click', function () {
-        picker.click();
+        var selected = ahk.BrowseForFile(txt.value || '');
+        if (selected) {
+          txt.value = selected;
+          txt.title = selected;
+        }
       });
 
       picker.addEventListener('change', function () {

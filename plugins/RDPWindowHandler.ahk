@@ -53,9 +53,6 @@ if (WinActive("ahk_class TscShellContainerClass")) {
 
 
 class RDPWindowHandler extends AKPlugin { ; FIXME: UNTESTED
-  __New() {
-    
-  }
   __UsageHelp() {
     return "based on RDP-Key v1.0 by Ken Wang https://github.com/gildorwang/RDP-Key/tree/master"
   }

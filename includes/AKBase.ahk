@@ -67,7 +67,7 @@ class AKBase {
   }
   outputDebugLine(line, level:=4) {
     if (level <= this.debugLevel)
-      OutputDebug(line "`n")
+      OutputDebug(line) ;  "`n"
     AKBase._bufferLogMessage(line, level)
   }
   static _bufferLogMessage(line, level:=4) {

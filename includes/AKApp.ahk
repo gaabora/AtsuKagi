@@ -2,6 +2,7 @@ class AKApp extends AKBase {
   ; public (let's agree on PascalCase)
   AvailableActions := Map()
   AvailableHooks := Map()
+  ActionDeprecationMap := Map()  
 
   TrayIconDefault := A_ScriptDir "/assets/app.ico"
   TrayIconDisabled := A_ScriptDir "/assets/disabled.ico"
@@ -14,8 +15,12 @@ class AKApp extends AKBase {
   _configFileDefault := A_ScriptDir "\config.ini"
   _assignedHotkeys := Map()
   _toolTipIdsArr := Map()
+  _warnedDeprecatedActions := Map()
+  _warnedActionCollisions := Map()
+  _warnedActionNaming := Map()
 
   __New(ConfigFile:=0) {
+    this.ActionDeprecationMap["RemapTo"] := "RemapKeyTo"
 
     Loop 20 {
       this._toolTipIdsArr[A_Index] := 0
@@ -290,7 +295,7 @@ class AKApp extends AKBase {
     universalHotkey := (KeyCombination = hkDef['universal']) ? '' : ' (' hkDef['universal'] ')'
     debugText := 'BindHotkey ' KeyCombination . universalHotkey ' [ ' hkDef['readable'] ' ] ' hkDef['action']
 
-    if (hkDef['action'] != '' && hkDef['handler'] = -1) {
+    if (hkDef['action'] != '' && !this._actionExists(actionInfo.fnName)) {
       hotkeyError := 'Action not found'
       errorText := 'ERROR: ' . debugText . ' FAILED: ' . hotkeyError
       this.outputDebugLine(errorText, 0)
@@ -549,13 +554,22 @@ class AKApp extends AKBase {
   }
 
   _registerAction(libObj, actionString, className, description) {
+    this._warnIfActionNameIsNonConventional(actionString, className)
+
     if (this.AvailableActions.Has(actionString)) {
-      this.showWarning("Action '" actionString "' from Plugin '"  this.AvailableActions[actionString]["className"] "' overriden by Plugin '" className "'")
+      existingOwner := this.AvailableActions[actionString]["className"]
+      collisionKey := actionString "::" existingOwner "::" className
+      if (!this._warnedActionCollisions.Has(collisionKey)) {
+        this._warnedActionCollisions[collisionKey] := true
+        this.outputDebugLine("Action collision: '" actionString "' from plugin '" className "' conflicts with plugin '" existingOwner "'. Keeping existing registration.", 1)
+      }
+      return false
     }
     this.AvailableActions[actionString] := Map()
     this.AvailableActions[actionString]["handlerFn"] := ObjBindMethod(libObj, actionString) ; SAME AS libObj.%actionString%.bind(libObj)
     this.AvailableActions[actionString]["className"] := className
     this.AvailableActions[actionString]["description"] := description
+    return true
   }
 
   _runHotkeyAction(some*) {
@@ -583,12 +597,46 @@ class AKApp extends AKBase {
   _parseActionInfo(actionString) {
     result := { fnName: '', params: [] }
     if (RegExMatch(actionString, "(\w+)\((.*)\)", &match)) {
-      result.fnName := match[1]
+      result.fnName := this._resolveDeprecatedActionName(match[1])
       result.params := SplitRespectingParens(match[2])
     } else {
-      result.fnName := actionString
+      result.fnName := this._resolveDeprecatedActionName(actionString)
     }
     return result
+  }
+
+  _resolveDeprecatedActionName(actionName) {
+    if (this.ActionDeprecationMap.Has(actionName)) {
+      newName := this.ActionDeprecationMap[actionName]
+      if (!this._warnedDeprecatedActions.Has(actionName)) {
+        this._warnedDeprecatedActions[actionName] := true
+        this.outputDebugLine("Deprecated action alias used: '" actionName "' -> '" newName "'. Update config to the new action name.", 1)
+      }
+      return newName
+    }
+    return actionName
+  }
+
+  _warnIfActionNameIsNonConventional(actionName, className) {
+    if (RegExMatch(actionName, "^[A-Z][A-Za-z0-9]*$"))
+      return
+
+    warningKey := className "::" actionName
+    if (this._warnedActionNaming.Has(warningKey))
+      return
+
+    this._warnedActionNaming[warningKey] := true
+    this.outputDebugLine("Non-conventional action name '" actionName "' in plugin '" className "'. Use VerbNoun / VerbNounQualifier (PascalCase).", 1)
+  }
+
+  _actionExists(actionName) {
+    if (this.AvailableActions.Has(actionName))
+      return true
+    try {
+      return !!(%actionName%)
+    } catch {
+      return false
+    }
   }
 
   _getActionHandler(actionName) {
