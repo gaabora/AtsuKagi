@@ -107,9 +107,6 @@ https://www.reddit.com/r/AutoHotkey/comments/1ag8wd8/autohotkey_v2_need_script_t
 
 
 
-# 🚀 AtsuKagi
-
- Windows 
 
 ## 🎥  Demo
 
@@ -127,6 +124,7 @@ See AtsuKagi in action:
 - 📁 Bulk file and folder operations
 - 💬 Desktop WhatsApp integration
 - ⌨️ Customizable hotkeys for quick actions
+
 
 replacement for https://github.com/Codeusa/Borderless-Gaming
 ## 🛠️ Development
@@ -146,12 +144,7 @@ replacement for https://github.com/Codeusa/Borderless-Gaming
 
 ## 🗝️ Key Functions
 
-### 🤖 AI Writing Assistant (ChatGPT Integration)
-Transform your writing with AI-powered features:
-- ✍️ Automated grammar and spelling correction
-- 💎 Text enhancement and style improvement
-- 📚 Summarization and explanation of complex topics
-- 🎭 Tone adjustment and content expansion
+
 
 ### 📝 Text Manipulation
 - 🔠 **Format Text**: Convert case (Alt+L/U/T) and clean formatting (Alt+S)

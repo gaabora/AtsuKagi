@@ -58,12 +58,11 @@ class VirtualDesktopManager extends AKPlugin {
   }
 
   __ConfigHelp() {
-    ; TODO
-    return []
+    return "Requires: VirtualDesktopAccessor.dll in script directory. Download from https://github.com/Ciantic/VirtualDesktopAccessor/releases. No config keys required."
   }
 
   __UsageHelp() {
-    return "based on VirtualDesktopAccessor by Jari Otto Oskari Pennanen`nget dll from https://github.com/Ciantic/VirtualDesktopAccessor/releases"
+    return "Switch between virtual desktops, move windows to desktops, create/remove desktops, rename desktops. Uses native Windows 10+ Virtual Desktop API via DLL. Disable if DLL not available."
   }
 
   __ActionsHelp() {

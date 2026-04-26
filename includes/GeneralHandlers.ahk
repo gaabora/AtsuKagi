@@ -1,5 +1,13 @@
 class GeneralHandlers extends AKPlugin {
 
+  __ConfigHelp() {
+    return "No config keys. Built-in general-purpose actions available in all plugins."
+  }
+
+  __UsageHelp() {
+    return "Core action utilities: conditional execution, blacklist checking, key remapping, info popups. Used as building blocks for other plugin actions."
+  }
+
   __ActionsHelp() {
     texts := Map()
     texts["IfThenElse"] := "IfThenElse(IfActionString, ThenActionString, ElseActionString)"

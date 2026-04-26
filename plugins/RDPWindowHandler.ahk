@@ -53,8 +53,12 @@ if (WinActive("ahk_class TscShellContainerClass")) {
 
 
 class RDPWindowHandler extends AKPlugin { ; FIXME: UNTESTED
+  __ConfigHelp() {
+    return "No config keys. Handles RDP client window focus and keyboard hook conflicts. Status: untested, use with caution."
+  }
+
   __UsageHelp() {
-    return "based on RDP-Key v1.0 by Ken Wang https://github.com/gildorwang/RDP-Key/tree/master"
+    return "RDP-specific actions: minimize/restore RDP sessions, loop through RDP windows, switch to next RDP connection. Based on RDP-Key v1.0. Status: untested."
   }
 
   __ActionsHelp() {

@@ -10,8 +10,12 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
   HOTKEY_CTRL_SHIFT_LEFT := '^+{Left}'
   HOTKEY_CTRL_SHIFT_RIGHT := '^+{Right}'
 
+  __ConfigHelp() {
+    return "No config keys. Detects and manages user-installed keyboard layouts. Supports hotkey-based layout switching and text layout conversion (e.g., EN <-> RU)."
+  }
+
   __UsageHelp() {
-    return ''
+    return "Detect current keyboard layout, switch layouts, convert mistyped text between them. Useful for multi-language users who type in wrong layout."
   }
 
   __ActionsHelp() {
@@ -24,10 +28,6 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
     texts["SwitchSelectedTextLayout"]     := "SwitchSelectedTextLayout(layoutA, layoutB)"
     texts["SwitchSelectedTextCase"]       := "SwitchSelectedTextCase()"
     return texts
-  }
-
-  __ConfigHelp() {
-    return []
   }
 
   _init() {

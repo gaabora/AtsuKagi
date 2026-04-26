@@ -18,8 +18,12 @@ class KDEMoverSizer extends AKPlugin {
       this.Config.BringToFront := false
   }
 
+  __ConfigHelp() {
+    return "LockAxisHotkey (default: 'Shift'): hold to lock horizontal/vertical movement. QuickPositionHotkey (default: 'LWin'): hold to snap windows. EnableSnapping (default: true). ShowWindowContent (default: true): show window preview during move. BringToFront (default: false)."
+  }
+
   __UsageHelp() {
-    return "based on KDE Mover-Sizer v2.9 2014-09-10 http://corz.org/windows/software/accessories/KDE-resizing-moving-for-Windows.php"
+    return "Enhanced window moving/resizing with drag from any place on window instead of titlebar/borders. Visual frame guide overlay. Supports axis-locking and snap-to-grid. Based on KDE Mover-Sizer v2.9."
   }
 
   __ActionsHelp() {

@@ -35,27 +35,36 @@ This plan is based on current structure and code in `includes/` and `plugins/`.
 - [x] Add a short deprecation map for renamed actions so old configs keep working for one release cycle.
 
 ### Phase 3: Plugin and Action Documentation (must do)
-- [ ] Add a short header block to each plugin file containing:
-  - Purpose
-  - Main usage pattern
-  - Config keys used
-  - Action list summary
-  - Side effects / dependencies
-- [ ] Introduce `ACTION_CATALOG.md` generated from `__ActionsHelp()` metadata by CI/CD.
-- [ ] Document blacklist semantics once, then reference it from each plugin doc.
-- [ ] Add one minimal plugin authoring guide (`PLUGIN_API.md`) with a copy-paste template.
+- [x] Implement plugin metadata methods (`AKPlugin` base class already provides templates) docs must be in simple language for even beginner users and pretty compact and descriptive. if method is descriptive:
+  - `__ConfigHelp()`: return string describing config keys used (section, key names, purpose)
+  - `__UsageHelp()`: return string with typical usage pattern and main feature description
+  - `__ActionsHelp()`: return Map of `actionName => "actionName(params) description"` for user-callable actions
+  - `__HooksHelp()`: return array of `["HookName(params): description", ...]` for internal hooks registered via `RegisterHook()`
+  - These methods are used to populate plugin docs in settings UI and generate `ACTION_CATALOG.md`
+- [x] Implement all helper methods in each plugin (`VirtualDesktopManager`, `WindowManager`, `TimerHandlers`, `TextToSpeech`, `ShellMessageHook`, `TouchGesturesSimulator`, `SwapButtonsHandler`, `RDPWindowHandler`, `KDEMoverSizer`)
+- [x] Introduce `ACTION_CATALOG.md` auto-generated from all `__ActionsHelp()` methods (some .bat or .py file that can also be CI/CD task or manual build step)
+- [x] Document **blacklist** concept in one place (`ARCHITECTURE.md` or `PLUGIN_API.md`):
+  - **Blacklist**: config-driven list of window classes/titles that a plugin ignores (skips its actions)
+  - Examples: `NoMoveResize` blacklist means "don't move/resize windows with these titles"
+  - Mention where it's used: `SkipIfBlacklisted` action checks a window's class/title and returns early if blacklisted
+  - Keep language simple: "excludes certain windows from being affected by this plugin"
+- [x] Add plugin authoring guide (`PLUGIN_API.md`) with copy-paste template including:
+  - class stub with `__ConfigHelp()`, `__UsageHelp()`, `__ActionsHelp()`, `__HooksHelp()`
+  - one simple action example
+  - one hook registration example
+  - note on testing with `app.LoadPlugin()`
 
 ### Phase 4: README Overhaul (must do)
-- [ ] Replace `README.txt` with a clean `README.md` focused on users.
-- [ ] Keep README short and practical:
+- [x] Replace `README.txt` with a clean `README.md` focused on users.
+- [x] Keep README short and practical:
   - What AtsuiKagi is
   - Why it is useful
   - Top features
   - Quick start
   - How to configure hotkeys/plugins
   - Troubleshooting basics
-- [ ] Add a compact plugin status table (Stable / Experimental / Disabled by default).
-- [ ] Add 6-10 real hotkey examples from default config.
+- [x] Add a compact plugin status table (Stable / Experimental / Disabled by default).
+- [x] Add 6-10 real hotkey examples from default config.
 
 ### Phase 5: Test and Ship Readiness (should do)
 - [ ] Expand tests beyond `IniFileTests`:

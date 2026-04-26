@@ -23,12 +23,11 @@ class WindowManager extends AKPlugin {
   static WS_CHILD            := 0x40000000 ; 	Creates a child window. A window with this style cannot have a menu bar. This style cannot be used with the WS_POPUP style.
   
   __ConfigHelp() {
-    ; TODO
-    return []
+    return "WindowTitlebarAreaHeight (default: 32): height in pixels of titlebar area for detecting clicks"
   }
 
   __UsageHelp() {
-    return ""
+    return "Manage windows: move, resize, minimize, toggle transparency (alpha), maximize, fullscreen. Detect mouse position over titlebar/borders for quick drag operations. Use KDEMoverSizer plugin for enhanced moving/resizing with visual frame guides."
   }
 
   __ActionsHelp() {

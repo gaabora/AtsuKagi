@@ -46,8 +46,12 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
     OnMessage(MsgNum, onShellMessageFn)
   }
 
+  __ConfigHelp() {
+    return "No config keys. Use RegisterHook() or AddEventListener() from other plugins to listen to window events."
+  }
+
   __UsageHelp() {
-    return ""
+    return "Internal hook system for window creation/destruction/activation events. Plugins can register listeners via AddEventListener(). Status: experimental, use with caution."
   }
 
   __HooksHelp() {

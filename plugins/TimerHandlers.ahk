@@ -2,12 +2,16 @@ class TimerHandlers extends AKPlugin { ; TODO: not yet fully implemented, needs 
   ScheduledTasks := Map()
   
   ; this._setTimer("_processScheduledTasks", 1000)
+  __ConfigHelp() {
+    return "Currently unused. Planned for future use: cron-like scheduled tasks and system monitoring (battery level, sleep/idle triggers)."
+  }
+
+  __UsageHelp() {
+    return "Placeholder for timer-based actions and system event handling. Not yet fully implemented. Status: experimental."
+  }
+
   __ActionsHelp() {
     texts := Map()
-    ; texts["IfThenElse"] := "IfThenElse(IfActionString, ThenActionString, ElseActionString)"
-    ; texts["RemapTo"]    := "RemapTo(Hotkey)"
-    ; texts["DoNothing"]  := "DoNothing()"
-    ; texts["ShowInfo"]   := "ShowInfo(text, title:='', timeout:=2000)"
     return texts
   }
 

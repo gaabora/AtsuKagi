@@ -5,17 +5,17 @@ class TextToSpeech extends AKPlugin { ; TODO: not yet implemented
   }
 
 
+  __ConfigHelp() {
+    return "No config keys. Uses Windows SAPI (Speech API) TTS service if available. Status: experimental, disabled by default."
+  }
+
   __UsageHelp() {
-    return ''
+    return "Text-to-speech placeholder. Currently stub implementation using Windows SAPI. Not implemented for hotkey actions. Status: experimental/disabled."
   }
 
   __ActionsHelp() {
     texts := Map()
-    ; texts["SwapTextLayout"]               := "SwapTextLayout(incorrectText, layoutA, layoutB)"
     return texts
-  }
-  __ConfigHelp() {
-    return []
   }
 
 

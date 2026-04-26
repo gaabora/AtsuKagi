@@ -85,8 +85,7 @@ class TouchGesturesSimulator extends AKPlugin {
   }
 
   __ConfigHelp() {
-    ; TODO
-    return []
+    return "TouchRadiusInPixels (default: 5): radius of each simulated touch point. MaxTouchPoints (default: 10): max simultaneous touch points. Not configurable via UI, edit config manually if needed."
   }
 
   _init() {
