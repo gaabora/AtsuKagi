@@ -45,7 +45,7 @@ ProcessBlacklistsConfigSection(configSection) {
   ;   class:ClassName    - match by window class (explicit)
   ;   exe:Process.exe    - match by process executable name
   ;   path:substring     - match substring in process full path
-  SetPropIfNotExist(configSection, "NoMoveResize"      , "WorkerW, Progman, Shell_TrayWnd, Shell_SecondaryTrayWnd, TscShellContainerClass")
+  SetPropIfNotExist(configSection, "NoMoveResize"      , "WorkerW, Progman, Shell_TrayWnd, Shell_SecondaryTrayWnd, TscShellContainerClass") ; TODO need to add some prefix symbol for builtin named blacklists and make them readonly for users, so they can be updated with software update, when user trying to edit builtin list, it should create users named blacklist with similar name but without that symbol, and users list should implicitly auto inherit records from builtin blacklist so no duplicated records can be added.
   SetPropIfNotExist(configSection, "NoCtrlCHotkey"     , "class:ConsoleWindowClass, class:PuTTY")
   SetPropIfNotExist(configSection, "NoRightClickGesture", "exe:REAPER.exe")
 }
