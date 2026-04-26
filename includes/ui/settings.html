@@ -19,31 +19,31 @@
   <div class="settings-titlebar draggable">
     <span class="title-text" id="titleText">Settings</span>
 
-    <button class="app-btn app-btn-primary no-drag" onclick="ahk.SettingsSave()"><span>Save &amp; Reload</span></button>
-    <button class="title-btn no-drag" onclick="ahk.gui.Minimize()">&#xE921;</button>
-    <button class="title-btn title-btn-close no-drag" onclick="ahk.SettingsCancel()">&#xE8BB;</button>
+    <button class="app-btn app-btn-primary no-drag" data-action="save-settings"><span>Save &amp; Reload</span></button>
+    <button class="title-btn no-drag" data-action="minimize-window">&#xE921;</button>
+    <button class="title-btn title-btn-close no-drag" data-action="cancel-settings">&#xE8BB;</button>
   </div>
 
   <div class="settings-container">
     <!-- ── Left nav ─────────────────────────────────────────────── -->
     <div class="settings-nav">
-      <button class="nav-item active" onclick="showSection('general', this)">
+      <button class="nav-item active" data-section="general">
         <i class="icons10-settings"></i>
         <span>General</span>
       </button>
-      <button class="nav-item" onclick="showSection('plugins', this)">
+      <button class="nav-item" data-section="plugins">
         <i class="icons10-puzzle"></i>
         <span>Plugins</span>
       </button>
-      <button class="nav-item" onclick="showSection('hotkeys', this)">
+      <button class="nav-item" data-section="hotkeys">
         <i class="icons10-keyboard"></i>
         <span>Hotkeys</span>
       </button>
-      <button class="nav-item" onclick="showSection('logs', this)">
+      <button class="nav-item" data-section="logs">
         <i class="icons10-list"></i>
         <span>Logs</span>
       </button>
-      <button class="nav-item" onclick="showSection('problems', this)">
+      <button class="nav-item" data-section="problems">
         <i class="icons10-warning"></i>
         <span>Problems</span>
       </button>
@@ -73,6 +73,27 @@
                 <option value="0">Light</option>
                 <option value="1">Dark</option>
               </select>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="field-label" for="DebugLevel">Debug Level</label>
+            <div class="app-input-container">
+              <div class="field-with-actions">
+                <div class="app-select-menu">
+                  <select id="DebugLevel">
+                    <option value="0">0 - Error</option>
+                    <option value="1">1 - Warning</option>
+                    <option value="2">2 - Notice</option>
+                    <option value="3">3 - Info</option>
+                    <option value="4">4 - Debug</option>
+                    <option value="5">5 - Verbose</option>
+                  </select>
+                </div>
+                <div class="field-actions">
+                  <button type="button" id="openDevTools" class="app-btn app-btn-subtle field-btn"><span>Open DevTools</span></button>
+                </div>
+              </div>
             </div>
           </div>
 

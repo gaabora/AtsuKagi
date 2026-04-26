@@ -18,10 +18,8 @@ SetControlDelay(-1)
 #Include includes/AKApp.ahk
 #Include includes/AKPlugin.ahk
 
-DebugLevel := A_IsCompiled ? 0 : 5
-
 APP := AKApp()
-APP.Debug(DebugLevel)
+APP.Debug(APP.Config.GENERAL.DebugLevel)
 
 #Include includes/GeneralHandlers.ahk
 APP.AddPlugin('GeneralHandlers', 0)

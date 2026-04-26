@@ -1,6 +1,6 @@
 class AKGui {
   static PREFERRED_APP_MODE := { Default: 0, AllowDark: 1, ForceDark: 2, ForceLight: 3, Max: 4 }
-
+  static QUOTE_CHAR := Chr(34)
   _settingsGui := 0
 
   __New(App) {
@@ -51,6 +51,7 @@ class AKGui {
     nw.AddCallbackToScript("SettingsSave", (wv, args*) => this._saveSettings(args*))
     nw.AddCallbackToScript("SettingsCancel", (wv, *) => this._closeSettings())
     nw.AddCallbackToScript("BrowseForFile", (wv, currentPath:="") => this._browseForFile(currentPath))
+    nw.AddCallbackToScript("OpenDevTools", (wv, *) => this._openDevTools())
 
     ; Populate form after page finishes loading
     nw.DOMContentLoaded((ICoreWebView2, Args) => this._populateSettingsPage(nw))
@@ -63,90 +64,127 @@ class AKGui {
   _populateSettingsPage(nw) {
     cfg := this.App.Config
 
-    ; Build a single JavaScript block to populate all form fields
-    js := ""
-
-    ; ── General fields ────────────────────────────────────────────────────────
-    js .= "document.getElementById('WelcomeMessage').value = `""       WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WelcomeMessage) "`";`n"
-    js .= "document.getElementById('DarkTheme').value = `""            WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.DarkTheme) "`";`n"
-    js .= "document.getElementById('ToolTipTimeoutMs').value = `""     WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ToolTipTimeoutMs) "`";`n"
-    js .= "document.getElementById('WindowTransparencyValue').value = `"" WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue) "`";`n"
-    js .= "document.getElementById('WindowOnTopBorderColor').value = `""  WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowOnTopBorderColor) "`";`n"
-    js .= "document.getElementById('StartupSound').value = `""         WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.StartupSound) "`";`n"
-    js .= "document.getElementById('NotificationSound').value = `""    WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.NotificationSound) "`";`n"
-    js .= "document.getElementById('ReloadAppHotkey').value = `""      WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ReloadAppHotkey) "`";`n"
-    js .= "document.getElementById('SuspendAppHotkey').value = `""     WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.SuspendAppHotkey) "`";`n"
-    js .= "document.getElementById('SwapMouseXButtons').checked = "   (cfg.GENERAL.SwapMouseXButtons = 1 ? "true" : "false") ";`n"
-
-    ; Update transparency slider label & fill
-    js .= "document.getElementById('WindowTransparencyLabel').innerText = `"" WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue) "`";`n"
-    pct := Round((cfg.GENERAL.WindowTransparencyValue / 255) * 100)
-    js .= "document.getElementById('WindowTransparencyValue').style.background = 'linear-gradient(90deg, var(--color-primary-adaptive, #0078D7) " pct "%, #999 " (pct + 0.1) "%)';`n"
-
-    ; ── Plugins ───────────────────────────────────────────────────────────────
+    ; Build a state object to pass to the page
     availablePlugins := this.App._getAvailablePlugins()
     disabledPlugins  := this.App._getDisabledPlugins()
-    html := ""
+
+    pluginList := []
     for pluginName in availablePlugins {
-      isEnabled := !ArrayContains(disabledPlugins, pluginName)
-      checked := isEnabled ? " checked" : ""
-      html .= '<div class="plugin-item">'
-      html .= '<input class="app-checkbox" type="checkbox" id="plugin_' pluginName '"' checked ' />'
-      html .= '<label for="plugin_' pluginName '">' pluginName '</label>'
-      html .= '</div>'
-    }
-    js .= "document.getElementById('plugins-list').innerHTML = `"" WebViewCtrl.EscapeJavaScript(html) "`";`n"
-
-    ; ── Hotkeys ───────────────────────────────────────────────────────────────
-    if (cfg.Has("HOTKEYS")) {
-      html := ""
-      for k, v in cfg.HOTKEYS {
-        escapedK := WebViewCtrl.EscapeHtml(k)
-        escapedV := WebViewCtrl.EscapeHtml(v)
-        html .= "<tr><td>" escapedK "</td><td>" escapedV "</td></tr>"
-      }
-      js .= "document.getElementById('hotkeys-tbody').innerHTML = `"" WebViewCtrl.EscapeJavaScript(html) "`";`n"
+      pluginList.Push(pluginName)
     }
 
-    js .= "document.getElementById('logs-content').textContent = `"" WebViewCtrl.EscapeJavaScript(AKBase.GetUiLogsText()) "`";`n"
-    js .= "document.getElementById('problems-content').textContent = `"" WebViewCtrl.EscapeJavaScript(AKBase.GetUiProblemsText()) "`";`n"
-    js .= "if(window.SettingsUiBridge && typeof window.SettingsUiBridge.refreshFromConfig==='function') window.SettingsUiBridge.refreshFromConfig();`n"
+    ; Escape values for JavaScript
+    welcomeMsg := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WelcomeMessage)
+    darkTheme := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.DarkTheme)
+    debugLevel := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.DebugLevel)
+    tooltipMs := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ToolTipTimeoutMs)
+    transparency := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue)
+    borderColor := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowOnTopBorderColor)
+    startupSound := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.StartupSound)
+    notificationSound := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.NotificationSound)
+    reloadHotkey := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ReloadAppHotkey)
+    suspendHotkey := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.SuspendAppHotkey)
+    swapXButtons := cfg.GENERAL.SwapMouseXButtons = 1 ? "true" : "false"
 
-    ; ── Theme ─────────────────────────────────────────────────────────────────
-    if (this.IsDarkTheme()) {
-      js .= "document.documentElement.setAttribute('data-theme', 'dark');`n"
-      js .= "document.body.classList.add('dark-theme');`n"
-    } else {
-      js .= "document.documentElement.setAttribute('data-theme', 'light');`n"
-    }
+    logsText := WebViewCtrl.EscapeJavaScript(AKBase.GetUiLogsText())
+    problemsText := WebViewCtrl.EscapeJavaScript(AKBase.GetUiProblemsText())
+    title := WebViewCtrl.EscapeJavaScript(this.App.ScriptName " — Settings")
 
-    ; ── Title text ────────────────────────────────────────────────────────────
-    js .= "document.getElementById('titleText').innerText = `"" WebViewCtrl.EscapeJavaScript(this.App.ScriptName " — Settings") "`";`n"
+    theme := this.IsDarkTheme() ? "dark" : "light"
+
+    ; Build JavaScript to populate page state
+    js := "(() => {`n"
+    js .= "  const state = {`n"
+    js .= "    general: {`n"
+    js .= "      WelcomeMessage: " AKGui.QUOTE_CHAR welcomeMsg AKGui.QUOTE_CHAR ",`n"
+    js .= "      DarkTheme: " AKGui.QUOTE_CHAR darkTheme AKGui.QUOTE_CHAR ",`n"
+    js .= "      DebugLevel: " AKGui.QUOTE_CHAR debugLevel AKGui.QUOTE_CHAR ",`n"
+    js .= "      ToolTipTimeoutMs: " AKGui.QUOTE_CHAR tooltipMs AKGui.QUOTE_CHAR ",`n"
+    js .= "      WindowTransparencyValue: " AKGui.QUOTE_CHAR transparency AKGui.QUOTE_CHAR ",`n"
+    js .= "      WindowOnTopBorderColor: " AKGui.QUOTE_CHAR borderColor AKGui.QUOTE_CHAR ",`n"
+    js .= "      StartupSound: " AKGui.QUOTE_CHAR startupSound AKGui.QUOTE_CHAR ",`n"
+    js .= "      NotificationSound: " AKGui.QUOTE_CHAR notificationSound AKGui.QUOTE_CHAR ",`n"
+    js .= "      ReloadAppHotkey: " AKGui.QUOTE_CHAR reloadHotkey AKGui.QUOTE_CHAR ",`n"
+    js .= "      SuspendAppHotkey: " AKGui.QUOTE_CHAR suspendHotkey AKGui.QUOTE_CHAR ",`n"
+    js .= "      SwapMouseXButtons: " swapXButtons "`n"
+    js .= "    },`n"
+    js .= "    plugins: {`n"
+    js .= "      available: " this._AhkArrayToJs(pluginList) ",`n"
+    js .= "      disabled: " this._AhkArrayToJs(disabledPlugins) "`n"
+    js .= "    },`n"
+    js .= "    hotkeys: " this._AhkHotkeysToJs(cfg.HOTKEYS) ",`n"
+    js .= "    logsText: " AKGui.QUOTE_CHAR logsText AKGui.QUOTE_CHAR ",`n"
+    js .= "    problemsText: " AKGui.QUOTE_CHAR problemsText AKGui.QUOTE_CHAR ",`n"
+    js .= "    theme: " AKGui.QUOTE_CHAR theme AKGui.QUOTE_CHAR ",`n"
+    js .= "    title: " AKGui.QUOTE_CHAR title AKGui.QUOTE_CHAR ",`n"
+    js .= "  };`n"
+    js .= "  if (window.SettingsPageBridge && typeof window.SettingsPageBridge.applyState === 'function') {`n"
+    js .= "    window.SettingsPageBridge.applyState(state);`n"
+    js .= "  }`n"
+    js .= "})();`n"
 
     nw.ExecuteScriptAsync(js)
   }
 
+  _AhkArrayToJs(arr) {
+    result := "["
+    first := true
+    for item in arr {
+      if (!first) result .= ","
+      result .= AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript("" item) AKGui.QUOTE_CHAR
+      first := false
+    }
+    result .= "]"
+    return result
+  }
+
+  _AhkHotkeysToJs(hotkeys) {
+    result := "["
+    first := true
+    if (hotkeys) {
+      for k, v in hotkeys {
+        if (!first) result .= ","
+        hotKey := WebViewCtrl.EscapeJavaScript(k)
+        action := WebViewCtrl.EscapeJavaScript(v)
+        result .= "{ hotKey: " AKGui.QUOTE_CHAR hotKey AKGui.QUOTE_CHAR ", action: " AKGui.QUOTE_CHAR action AKGui.QUOTE_CHAR " }"
+        first := false
+      }
+    }
+    result .= "]"
+    return result
+  }
+
   _saveSettings(args*) {
     cfg := this.App.Config
-    ; args order comes from settings.html ahk.SettingsSave(...)
+    ; args order comes from SettingsSave(...) bridge call
     cfg.GENERAL.WelcomeMessage          := args.Length >= 1  ? ("" args[1]) : cfg.GENERAL.WelcomeMessage
     cfg.GENERAL.DarkTheme               := args.Length >= 2  ? ("" args[2]) : cfg.GENERAL.DarkTheme
-    cfg.GENERAL.ToolTipTimeoutMs        := args.Length >= 3  ? ("" args[3]) : cfg.GENERAL.ToolTipTimeoutMs
-    cfg.GENERAL.WindowTransparencyValue := args.Length >= 4  ? ("" args[4]) : cfg.GENERAL.WindowTransparencyValue
-    cfg.GENERAL.WindowOnTopBorderColor  := args.Length >= 5  ? ("" args[5]) : cfg.GENERAL.WindowOnTopBorderColor
-    cfg.GENERAL.StartupSound            := args.Length >= 6  ? ("" args[6]) : cfg.GENERAL.StartupSound
-    cfg.GENERAL.NotificationSound       := args.Length >= 7  ? ("" args[7]) : cfg.GENERAL.NotificationSound
-    cfg.GENERAL.ReloadAppHotkey         := args.Length >= 8  ? ("" args[8]) : cfg.GENERAL.ReloadAppHotkey
-    cfg.GENERAL.SuspendAppHotkey        := args.Length >= 9  ? ("" args[9]) : cfg.GENERAL.SuspendAppHotkey
-    if (args.Length >= 10)
-      cfg.GENERAL.SwapMouseXButtons := (("" args[10]) = "true" || args[10] = 1) ? 1 : 0
+    cfg.GENERAL.DebugLevel              := args.Length >= 3  ? ("" args[3]) : cfg.GENERAL.DebugLevel
+    cfg.GENERAL.ToolTipTimeoutMs        := args.Length >= 4  ? ("" args[4]) : cfg.GENERAL.ToolTipTimeoutMs
+    cfg.GENERAL.WindowTransparencyValue := args.Length >= 5  ? ("" args[5]) : cfg.GENERAL.WindowTransparencyValue
+    cfg.GENERAL.WindowOnTopBorderColor  := args.Length >= 6  ? ("" args[6]) : cfg.GENERAL.WindowOnTopBorderColor
+    cfg.GENERAL.StartupSound            := args.Length >= 7  ? ("" args[7]) : cfg.GENERAL.StartupSound
+    cfg.GENERAL.NotificationSound       := args.Length >= 8  ? ("" args[8]) : cfg.GENERAL.NotificationSound
+    cfg.GENERAL.ReloadAppHotkey         := args.Length >= 9  ? ("" args[9]) : cfg.GENERAL.ReloadAppHotkey
+    cfg.GENERAL.SuspendAppHotkey        := args.Length >= 10 ? ("" args[10]) : cfg.GENERAL.SuspendAppHotkey
     if (args.Length >= 11)
-      cfg.GENERAL.DisabledPlugins := ("" args[11])
+      cfg.GENERAL.SwapMouseXButtons := (("" args[11]) = "true" || args[11] = 1) ? 1 : 0
+    if (args.Length >= 12)
+      cfg.GENERAL.DisabledPlugins := ("" args[12])
 
     ; ── Persist & reload ──────────────────────────────────────────────────────
     cfg.Save()
     this._closeSettings()
     SetTimer((*) => this.App.ReloadApp(), -50)
+  }
+
+  _openDevTools() {
+    if (this._settingsGui = 0)
+      return false
+
+    this._settingsGui.AreDevToolsEnabled := true
+    this._settingsGui.OpenDevToolsWindow()
+    return true
   }
 
   _browseForFile(currentPath:="") {

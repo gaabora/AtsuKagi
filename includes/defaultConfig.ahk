@@ -12,6 +12,7 @@ ProcessGereralConfigSection(configSection) {
   SetPropIfNotExist(configSection, "WindowTransparencyValue"      , 128)
   SetPropIfNotExist(configSection, "WelcomeMessage"               , "Haribol!")
   SetPropIfNotExist(configSection, "ToolTipTimeoutMs"             , 1000)
+  SetPropIfNotExist(configSection, "DebugLevel"                   , A_IsCompiled ? 0 : 5)
   SetPropIfNotExist(configSection, "StartupSound"                 , "Assets/mixkit-light-button-2580.wav")
   SetPropIfNotExist(configSection, "NotificationSound"            , "Assets/mixkit-light-button-2580.wav")
   SetPropIfNotExist(configSection, "ReloadAppHotkey"              , "^#!Backspace")
