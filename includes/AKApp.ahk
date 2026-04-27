@@ -36,17 +36,7 @@ class AKApp extends AKBase {
     this._initTrayMenu()
     ; this._initLaunchMenu()
 
-    actionName := 'ReloadApp'
-    this._registerAction(this, actionName, '', actionName)
-    if (this.Config.GENERAL.ReloadAppHotkey) {
-      this.BindHotkey(this.Config.GENERAL.ReloadAppHotkey, this.%actionName%.bind(this), actionName)
-    }
-    
-    actionName := 'ToggleAppSuspend'
-    this._registerAction(this, actionName, '', actionName)
-    if (this.Config.GENERAL.SuspendAppHotkey) {
-      this.BindHotkey(this.Config.GENERAL.SuspendAppHotkey, this.%actionName%.bind(this), actionName, 'On S')
-    }
+    this._bindControlHotkeys()
 
     ; #HotkeyInterval this.Config.GENERAL.HotkeyInterval
     ; #MaxHotkeysPerInterval this.Config.GENERAL.MaxHotkeysPerInterval
@@ -237,6 +227,48 @@ class AKApp extends AKBase {
     this._updateStartupDiagnostics()
   }
 
+  UnbindAllHotkeys() {
+    for hotkey, hkDef in this._assignedHotkeys {
+      try Hotkey(hotkey, "Off")
+    }
+    this._assignedHotkeys := Map()
+  }
+
+  RebindAllHotkeys() {
+    this.UnbindAllHotkeys()
+    this._bindControlHotkeys()
+    this.BindAllHotkeys()
+  }
+
+  ApplySettings(oldDisabledPlugins := "") {
+    debugLevel := Integer(this.Config.GENERAL.DebugLevel)
+    this.Debug(debugLevel)
+
+    for className, libObj in this._addedLibs {
+      libObj.Debug(debugLevel)
+    }
+
+    this.RebindAllHotkeys()
+    this._initTrayMenu()
+    this.GUI.ApplyThemeMode()
+
+    if (oldDisabledPlugins != this.Config.GENERAL.DisabledPlugins) {
+      availablePlugins := this._getAvailablePlugins()
+      disabledPlugins := this._getDisabledPlugins()
+      requiredPlugins := []
+      for plugin in availablePlugins {
+        if (!ArrayContains(disabledPlugins, plugin)) {
+          requiredPlugins.Push(plugin)
+        }
+      }
+      this._generateDynamicPlugins(requiredPlugins)
+      this.ShowNotice("Plugin enable or disable changes were saved and will apply on next reload.", "Settings")
+      return
+    }
+
+    this.ShowInfo("Settings applied.", "Settings")
+  }
+
   ReloadApp(some*) {
     this.ShowInfo("Reloading " this.ScriptName " ...")
     sleep 1000
@@ -419,6 +451,22 @@ class AKApp extends AKBase {
 
   _initGUI() {
     this.GUI :=  AKGui(this)
+  }
+
+  _bindControlHotkeys() {
+    actionName := 'ReloadApp'
+    if (!this.AvailableActions.Has(actionName))
+      this._registerAction(this, actionName, '', actionName)
+    if (this.Config.GENERAL.ReloadAppHotkey) {
+      this.BindHotkey(this.Config.GENERAL.ReloadAppHotkey, this.%actionName%.bind(this), actionName)
+    }
+
+    actionName := 'ToggleAppSuspend'
+    if (!this.AvailableActions.Has(actionName))
+      this._registerAction(this, actionName, '', actionName)
+    if (this.Config.GENERAL.SuspendAppHotkey) {
+      this.BindHotkey(this.Config.GENERAL.SuspendAppHotkey, this.%actionName%.bind(this), actionName, 'On S') ; FIXME: On S - what is 'S'?
+    }
   }
 
   _initTrayMenu() {

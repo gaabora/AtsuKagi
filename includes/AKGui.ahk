@@ -31,6 +31,13 @@ class AKGui {
     DllCall(FlushMenuThemes)
   }
 
+  ApplyThemeMode() {
+    this.SetDarkThemeMode(this.IsDarkTheme() ? AKGui.PREFERRED_APP_MODE.ForceDark : AKGui.PREFERRED_APP_MODE.ForceLight)
+    if (this._settingsGui != 0) {
+      this._populateSettingsPage(this._settingsGui)
+    }
+  }
+
   ; ── Settings Window (WebViewGui / HTML-based) ──────────────────────────────
   ShowSettings() {
     ; If already open, just focus it
@@ -156,6 +163,7 @@ class AKGui {
 
   _saveSettings(args*) {
     cfg := this.App.Config
+    oldDisabledPlugins := cfg.GENERAL.DisabledPlugins
     ; args order comes from SettingsSave(...) bridge call
     cfg.GENERAL.WelcomeMessage          := args.Length >= 1  ? ("" args[1]) : cfg.GENERAL.WelcomeMessage
     cfg.GENERAL.DarkTheme               := args.Length >= 2  ? ("" args[2]) : cfg.GENERAL.DarkTheme
@@ -174,8 +182,10 @@ class AKGui {
 
     ; ── Persist & reload ──────────────────────────────────────────────────────
     cfg.Save()
-    this._closeSettings()
-    SetTimer((*) => this.App.ReloadApp(), -50)
+    this.App.ApplySettings(oldDisabledPlugins)
+    if (this._settingsGui != 0) {
+      this._populateSettingsPage(this._settingsGui)
+    }
   }
 
   _openDevTools() {
