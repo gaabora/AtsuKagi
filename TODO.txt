@@ -70,6 +70,42 @@ OSD
 
 
 
+
+need to plan how any plugin config page ui should be generated and look on ui, for example KDEMoverSizer currently has some config like
+LockAxisHotkey, QuickPositionHotkey, EnableSnapping, ShowWindowContent, BringToFront - but they are yet only processed in _processPluginConfig, 
+
+and we have some other logic-defining AKPlugin methods like __ActionsHelp (which need to be rewriten/extended/imroved) based on which plugins available actions and some help/description is generated in runtime, etc.
+
+ need to plan changes for centralized actions/config functions of plugins, so we can (draft example of expecting result for kdemoversizer):
+on ui in settings sidebar after Plugins link should be dynamically added new link to plugin settings inner page (based on outut of some plugin function, like _settingsPageConfig() {
+  title = "KDE Mover-Sizer"
+  description = "Enhanced window moving/resizing with drag from any place on window instead of title
+  icon = "icons10-keyboard" // for now some glyph/mdi icon or whatever kinda name"
+  ... maybe something else
+}
+and inside this page should be generated config form based on plugin config params, for example for KDEMoverSizer we have LockAxisHotkey, QuickPositionHotkey, EnableSnapping, ShowWindowContent, BringToFront - so we need to have some way to define in plugin code what type of input should be used for each param 
+- for hotkeys we can have some special hotkey input
+- for boolean params we can have toggle/switch input
+- for color - colorpicker (like we have in On-Top Border Color), etc.
+- for int values - some slider kinda thing with min/max
+ and also description/help text for each param
+all values can be reseted to default with some reset button/link next to each input, and also there should be some "Reset All" button to reset all config values of plugin to default.
+value can be related to some action(s) or entire plugin, in KDEMoverSizer config values are plugin related, but for example in WindowManager some config values can be related to specific actions, like "WindowOnTopBorderColor" can be related only to both ToggleHoveredWindowOnTop and ToggleWindowOnTop actions at the same time, maybe there will be some actions that can have their own specific config values, idk, so we need to plan how this relation between config values and actions should be defined in code and represented on ui, etc.
+
+
+; kdemoversizer is well working functional plugin, windrag is untested machine port from ahk v1 to v2. they do similar stuff, but windrag has new featers need plan new WinDrag plugin based on them in md file, considering also changes on how plugin should operate: idea is to have something like
+; EnterWindowDragMovingMode
+; EnterWindowDragResizingMode
+; actions from the new plugin, and probably have some new plugin config params.
+
+
+
+
+
+
+
+
+
 plugins ideas:
 universal monitor brightness control https://github.com/xanderfrangos/twinkle-tray
 universal battery charging limits control https://github.com/XYUU/BatteryUtils/blob/master/BatteryUtils/FormMain.cs

@@ -144,7 +144,8 @@ class AKGui {
     js .= "    },`n"
     js .= "    plugins: {`n"
     js .= "      available: " this._AhkArrayToJs(pluginList) ",`n"
-    js .= "      disabled: " this._AhkArrayToJs(disabledPlugins) "`n"
+    js .= "      disabled: " this._AhkArrayToJs(disabledPlugins) ",`n"
+    js .= "      pages: " this._AhkPluginPagesToJs(this.App.GetPluginSettingsPages()) "`n"
     js .= "    },`n"
     js .= "    hotkeys: " this._AhkHotkeysToJs(cfg.HOTKEYS) ",`n"
     js .= "    logsText: " AKGui.QUOTE_CHAR logsText AKGui.QUOTE_CHAR ",`n"
@@ -188,6 +189,112 @@ class AKGui {
     return result
   }
 
+  ; Phase 1+: Convert plugin pages to JavaScript
+  _AhkPluginPagesToJs(pages) {
+    result := "["
+    first := true
+    
+    for page in pages {
+      if (!first) result .= ","
+      first := false
+      
+      result .= "{"
+      
+      ; ID
+      result .= "id: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "") AKGui.QUOTE_CHAR ","
+      
+      ; Title
+      result .= "title: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "") AKGui.QUOTE_CHAR ","
+      
+      ; Description
+      result .= "description: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "") AKGui.QUOTE_CHAR ","
+      
+      ; Icon
+      result .= "icon: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "") AKGui.QUOTE_CHAR ","
+      
+      ; Enabled
+      result .= "enabled: " (page.Has("enabled") && page["enabled"] ? "true" : "false") ","
+      
+      ; Sections (with fields)
+      result .= "sections: " this._AhkPluginSectionsToJs(page.Has("sections") ? page["sections"] : []) ","
+      
+      ; Actions
+      result .= "actions: " this._AhkPluginActionsToJs(page.Has("actions") ? page["actions"] : [])
+      
+      result .= "}"
+    }
+    
+    result .= "]"
+    return result
+  }
+
+  ; Convert plugin sections to JavaScript
+  _AhkPluginSectionsToJs(sections) {
+    result := "["
+    first := true
+    
+    for section in sections {
+      if (!first) result .= ","
+      first := false
+      
+      result .= "{"
+      result .= "id: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(section.Has("id") ? section["id"] : "") AKGui.QUOTE_CHAR ","
+      result .= "title: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(section.Has("title") ? section["title"] : "") AKGui.QUOTE_CHAR ","
+      result .= "fields: " this._AhkPluginFieldsToJs(section.Has("fields") ? section["fields"] : [])
+      result .= "}"
+    }
+    
+    result .= "]"
+    return result
+  }
+
+  ; Convert plugin fields to JavaScript
+  _AhkPluginFieldsToJs(fields) {
+    result := "["
+    first := true
+    
+    for field in fields {
+      if (!first) result .= ","
+      first := false
+      
+      result .= "{"
+      result .= "pluginId: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("pluginId") ? field["pluginId"] : "") AKGui.QUOTE_CHAR ","
+      result .= "key: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("key") ? field["key"] : "") AKGui.QUOTE_CHAR ","
+      result .= "label: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("label") ? field["label"] : "") AKGui.QUOTE_CHAR ","
+      result .= "description: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("description") ? field["description"] : "") AKGui.QUOTE_CHAR ","
+      result .= "type: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("type") ? field["type"] : "string") AKGui.QUOTE_CHAR ","
+      result .= "control: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("control") ? field["control"] : "text") AKGui.QUOTE_CHAR ","
+      result .= "default: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript("" (field.Has("default") ? field["default"] : "")) AKGui.QUOTE_CHAR ","
+      result .= "value: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript("" (field.Has("value") ? field["value"] : "")) AKGui.QUOTE_CHAR ","
+      result .= "scope: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("scope") ? field["scope"] : "plugin") AKGui.QUOTE_CHAR
+      result .= "}"
+    }
+    
+    result .= "]"
+    return result
+  }
+
+  ; Convert plugin actions to JavaScript
+  _AhkPluginActionsToJs(actions) {
+    result := "["
+    first := true
+    
+    for action in actions {
+      if (!first) result .= ","
+      first := false
+      
+      result .= "{"
+      result .= "action: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("action") ? action["action"] : "") AKGui.QUOTE_CHAR ","
+      result .= "label: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("label") ? action["label"] : "") AKGui.QUOTE_CHAR ","
+      result .= "description: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("description") ? action["description"] : "") AKGui.QUOTE_CHAR ","
+      result .= "category: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("category") ? action["category"] : "") AKGui.QUOTE_CHAR
+      result .= "}"
+    }
+    
+    result .= "]"
+    return result
+  }
+
   _saveSettings(args*) {
     cfg := this.App.Config
     oldDisabledPlugins := cfg.GENERAL.DisabledPlugins
@@ -206,12 +313,69 @@ class AKGui {
       cfg.GENERAL.SwapMouseXButtons := (("" args[11]) = "true" || args[11] = 1) ? 1 : 0
     if (args.Length >= 12)
       cfg.GENERAL.DisabledPlugins := ("" args[12])
+    if (args.Length >= 13)
+      this._applyEncodedPluginConfig("" args[13])
 
     ; ── Persist & reload ──────────────────────────────────────────────────────
     cfg.Save()
     this.App.ApplySettings(oldDisabledPlugins)
     if (this._settingsGui != 0) {
       this._populateSettingsPage(this._settingsGui)
+    }
+  }
+
+  ; Parse UI plugin settings payload lines: pluginId`tkey`tvalue
+  _applyEncodedPluginConfig(encoded) {
+    if (Trim(encoded) = "")
+      return
+
+    ; Build type index from loaded plugin descriptors: pluginId -> key -> type
+    typeIndex := Map()
+    for className, libObj in this.App._addedLibs {
+      descriptor := libObj.__GetPluginDescriptor()
+      if (!descriptor || !descriptor.Has("plugin") || !descriptor["plugin"].Has("id"))
+        continue
+
+      pluginId := descriptor["plugin"]["id"]
+      if (!typeIndex.Has(pluginId))
+        typeIndex[pluginId] := Map()
+
+      schema := libObj.__GetConfigSchema()
+      for fieldDesc in schema {
+        if (fieldDesc.Has("key")) {
+          fieldType := fieldDesc.Has("type") ? fieldDesc["type"] : "string"
+          typeIndex[pluginId][fieldDesc["key"]] := fieldType
+        }
+      }
+    }
+
+    for line in StrSplit(encoded, "`n", "`r") {
+      if (line = "")
+        continue
+      parts := StrSplit(line, "`t")
+      if (parts.Length < 3)
+        continue
+
+      pluginId := parts[1]
+      key := parts[2]
+      value := parts[3]
+
+      if (!this.App.Config.Has(pluginId))
+        this.App.Config[pluginId] := {}
+
+      valueType := "string"
+      if (typeIndex.Has(pluginId) && typeIndex[pluginId].Has(key))
+        valueType := typeIndex[pluginId][key]
+
+      if (valueType = "boolean") {
+        this.App.Config[pluginId][key] := (value = "1" || value = "true") ? true : false
+      } else if (valueType = "integer") {
+        this.App.Config[pluginId][key] := Integer(value)
+      } else if (valueType = "number") {
+        this.App.Config[pluginId][key] := Number(value)
+      } else {
+        this.App.Config[pluginId][key] := value
+      }
     }
   }
 

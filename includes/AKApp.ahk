@@ -18,6 +18,11 @@ class AKApp extends AKBase {
   _warnedDeprecatedActions := Map()
   _warnedActionCollisions := Map()
   _warnedActionNaming := Map()
+  
+  ; Phase 1+: Plugin metadata registries
+  _pluginRegistry := Map()        ; pluginId -> descriptor
+  _actionRegistry := Map()        ; actionName -> actionDescriptor
+  _pluginConfigRegistry := Map()  ; pluginId -> configSchema[]
 
   __New(ConfigFile:=0) {
     this.ActionDeprecationMap["RemapTo"] := "RemapKeyTo"
@@ -179,6 +184,189 @@ class AKApp extends AKBase {
     FileAppend(fileContent, outputFile)
   }
 
+  ; ── Phase 1+: Plugin Settings Metadata Helpers ─────────────────────────────────
+  ; Get all plugin pages (descriptors with settings pages) for the UI
+  GetPluginSettingsPages() {
+    pages := []
+    disabledPlugins := this._getDisabledPlugins()
+    
+    for pluginId, descriptor in this._pluginRegistry {
+      if (!descriptor.Has("settingsPage"))
+        continue
+      
+      settingsPage := descriptor["settingsPage"]
+      if (settingsPage.Has("hidden") && settingsPage["hidden"])
+        continue
+      
+      ; Determine if plugin is enabled (match by ID or class name)
+      isEnabled := true
+      for disabledName in disabledPlugins {
+        if (disabledName = pluginId) {
+          isEnabled := false
+          break
+        }
+      }
+      
+      ; Build page model
+      page := Map(
+        "id", pluginId,
+        "enabled", isEnabled
+      )
+      
+      if (descriptor.Has("plugin")) {
+        pluginDesc := descriptor["plugin"]
+        if (pluginDesc.Has("title"))
+          page["title"] := pluginDesc["title"]
+        if (pluginDesc.Has("description"))
+          page["description"] := pluginDesc["description"]
+        if (pluginDesc.Has("icon"))
+          page["icon"] := pluginDesc["icon"]
+      }
+      
+      if (settingsPage.Has("description"))
+        page["description"] := settingsPage["description"]
+      if (settingsPage.Has("icon"))
+        page["icon"] := settingsPage["icon"]
+      if (settingsPage.Has("navOrder"))
+        page["navOrder"] := settingsPage["navOrder"]
+      else
+        page["navOrder"] := 100
+      
+      ; Add current config values and schema
+      page["sections"] := this._buildPluginSections(pluginId, descriptor)
+      page["actions"] := this._buildPluginActions(pluginId, descriptor)
+      
+      pages.Push(page)
+    }
+    
+    ; this._sortPluginPages(pages)//FIXME: this can be done on js side, no need to do it in AHK
+    return pages
+  }
+
+  ; _sortPluginPages(&pages) {
+  ;   ; Small N expected, so bubble-sort keeps implementation simple and explicit.
+  ;   n := pages.Length
+  ;   if (n <= 1)
+  ;     return
+
+  ;   Loop n - 1 {
+  ;     i := 1
+  ;     Loop n - A_Index {
+  ;       left := pages[i]
+  ;       right := pages[i + 1]
+
+  ;       leftOrder := left.Has("navOrder") ? Integer(left["navOrder"]) : 100
+  ;       rightOrder := right.Has("navOrder") ? Integer(right["navOrder"]) : 100
+  ;       leftTitle := left.Has("title") ? ("" left["title"]) : ""
+  ;       rightTitle := right.Has("title") ? ("" right["title"]) : ""
+
+  ;       shouldSwap := (leftOrder > rightOrder) || ((leftOrder = rightOrder) && (leftTitle > rightTitle))
+  ;       if (shouldSwap) {
+  ;         tmp := pages[i]
+  ;         pages[i] := pages[i + 1]
+  ;         pages[i + 1] := tmp
+  ;       }
+  ;       i += 1
+  ;     }
+  ;   }
+  ; }
+
+  ; Build sections for a plugin settings page
+  _buildPluginSections(pluginId, descriptor) {
+    sections := []
+    configSchema := descriptor.Has("config") ? descriptor["config"] : []
+    sectionMap := Map() ; group fields by section
+    
+    ; Find the plugin instance (use className which may differ from pluginId)
+    pluginInstance := 0
+    for className, instance in this._addedLibs {
+      if (instance.__GetPluginDescriptor().Has("plugin") && instance.__GetPluginDescriptor()["plugin"].Has("id")) {
+        if (instance.__GetPluginDescriptor()["plugin"]["id"] = pluginId) {
+          pluginInstance := instance
+          break
+        }
+      }
+    }
+    
+    for fieldDesc in configSchema {
+      if (!fieldDesc.Has("section"))
+        continue
+      
+      sectionId := fieldDesc["section"]
+      if (!sectionMap.Has(sectionId)) {
+        sectionMap[sectionId] := []
+      }
+      sectionMap[sectionId].Push(fieldDesc)
+    }
+    
+    ; Convert to array of sections
+    for sectionId, fields in sectionMap {
+      section := Map(
+        "id", sectionId,
+        "title", sectionId,
+        "fields", []
+      )
+      
+      for fieldDesc in fields {
+        fieldKey := fieldDesc.Has("key") ? fieldDesc["key"] : ""
+        currentValue := fieldKey && IsObject(pluginInstance) ? 
+                        (pluginInstance.Config.Has(fieldKey) ? pluginInstance.Config[fieldKey] : "") : ""
+        fieldType := fieldDesc.Has("type") ? fieldDesc["type"] : "string"
+        fieldControl := fieldDesc.Has("control") ? fieldDesc["control"] : ""
+        if (fieldControl = "") {
+          if (fieldType = "boolean")
+            fieldControl := "switch"
+          else if (fieldType = "integer" || fieldType = "number")
+            fieldControl := "number"
+          else if (fieldType = "hotkey")
+            fieldControl := "hotkey"
+          else if (fieldType = "color")
+            fieldControl := "color"
+          else
+            fieldControl := "text"
+        }
+        
+        field := Map(
+          "pluginId", pluginId,
+          "key", fieldKey,
+          "label", fieldDesc.Has("label") ? fieldDesc["label"] : fieldKey,
+          "description", fieldDesc.Has("description") ? fieldDesc["description"] : "",
+          "type", fieldType,
+          "control", fieldControl,
+          "default", fieldDesc.Has("default") ? fieldDesc["default"] : "",
+          "value", currentValue,
+          "scope", fieldDesc.Has("scope") ? fieldDesc["scope"] : "plugin"
+        )
+        section["fields"].Push(field)
+      }
+      
+      sections.Push(section)
+    }
+    
+    return sections
+  }
+
+  ; Build actions list for a plugin settings page
+  _buildPluginActions(pluginId, descriptor) {
+    actions := []
+    actionDefs := descriptor.Has("actions") ? descriptor["actions"] : []
+    
+    for actionDesc in actionDefs {
+      action := Map(
+        "action", actionDesc.Has("action") ? actionDesc["action"] : "",
+        "label", actionDesc.Has("label") ? actionDesc["label"] : "",
+        "description", actionDesc.Has("description") ? actionDesc["description"] : "",
+        "category", actionDesc.Has("category") ? actionDesc["category"] : ""
+      )
+      
+      if (action["action"]) {
+        actions.Push(action)
+      }
+    }
+    
+    return actions
+  }
+
   AddPlugin(className, debug:=0) {
     libObj := %className%(this)
     if (!IsObject(libObj)) {
@@ -190,7 +378,28 @@ class AKApp extends AKBase {
     libObj._processBlocklistConfig()
     libObj._init()
     this._addedLibs[className] := libObj
-    ; TODO: inject configs in libs
+    
+    ; Phase 1+: Register plugin descriptor metadata
+    descriptor := libObj.__GetPluginDescriptor()
+    if (descriptor && descriptor.Count > 0) {
+      pluginId := descriptor.Has("plugin") && descriptor["plugin"].Has("id") ? descriptor["plugin"]["id"] : className
+      this._pluginRegistry[pluginId] := descriptor
+      
+      ; Register actions from descriptor
+      actionDefs := libObj.__GetActionDefinitions()
+      for actionDesc in actionDefs {
+        if (actionDesc.Has("action")) {
+          actionName := actionDesc["action"]
+          this._actionRegistry[actionName] := actionDesc
+        }
+      }
+      
+      ; Register config schema
+      configSchema := libObj.__GetConfigSchema()
+      if (configSchema.Length > 0) {
+        this._pluginConfigRegistry[pluginId] := configSchema
+      }
+    }
 
     actions := libObj.__ActionsHelp()
     for actionString, description in actions {

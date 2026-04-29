@@ -9,24 +9,213 @@ class AKPlugin extends AKBase {
       App.Config[className] := {}
     this.Config := App.Config[className]
   }
+
+  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
+  ; Override in plugin to return structured metadata. This is the new source of truth.
+  __DescribePlugin() {
+    return Map() ; Empty by default; plugins override to provide descriptor
+  }
+
+  ; Get normalized descriptor with defaults filled in
+  __GetPluginDescriptor() {
+    descriptor := this.__DescribePlugin()
+    if (!descriptor || descriptor.Count = 0)
+      return Map()
+    
+    ; Ensure config array exists
+    if (!descriptor.Has("config"))
+      descriptor["config"] := []
+    
+    ; Ensure actions array exists
+    if (!descriptor.Has("actions"))
+      descriptor["actions"] := []
+    
+    return descriptor
+  }
+
+  ; Extract config schema from descriptor
+  __GetConfigSchema() {
+    descriptor := this.__GetPluginDescriptor()
+    return descriptor.Has("config") ? descriptor["config"] : []
+  }
+
+  ; Extract actions from descriptor
+  __GetActionDefinitions() {
+    descriptor := this.__GetPluginDescriptor()
+    return descriptor.Has("actions") ? descriptor["actions"] : []
+  }
+
+  ; Get settings page definition
+  __GetSettingsPageDefinition() {
+    descriptor := this.__GetPluginDescriptor()
+    if (!descriptor.Has("settingsPage"))
+      return Map()
+    
+    page := descriptor["settingsPage"]
+    
+    ; Apply defaults
+    if (!page.Has("visible"))
+      page["visible"] := true
+    if (!page.Has("navOrder"))
+      page["navOrder"] := 100
+    
+    return page
+  }
+
+  ; Apply descriptor defaults to Config
+  __ApplyDefaultConfig() {
+    schema := this.__GetConfigSchema()
+    for fieldDesc in schema {
+      key := fieldDesc.Has("key") ? fieldDesc["key"] : ""
+      if (key && !this.Config.Has(key) && fieldDesc.Has("default")) {
+        this.Config[key] := fieldDesc["default"]
+      }
+    }
+  }
+
+  ; Reset a single config value to descriptor default
+  __ResetConfigValue(key) {
+    schema := this.__GetConfigSchema()
+    for fieldDesc in schema {
+      if (fieldDesc.Has("key") && fieldDesc["key"] = key && fieldDesc.Has("default")) {
+        this.Config[key] := fieldDesc["default"]
+        return true
+      }
+    }
+    return false
+  }
+
+  ; Reset all config values to descriptor defaults
+  __ResetAllConfig() {
+    schema := this.__GetConfigSchema()
+    for fieldDesc in schema {
+      key := fieldDesc.Has("key") ? fieldDesc["key"] : ""
+      if (key && fieldDesc.Has("default")) {
+        this.Config[key] := fieldDesc["default"]
+      }
+    }
+  }
+
+  ; Validate config value against schema
+  __ValidateConfigValue(key, value) {
+    schema := this.__GetConfigSchema()
+    for fieldDesc in schema {
+      if (fieldDesc.Has("key") && fieldDesc["key"] = key) {
+        ; Basic validation: check required
+        if (fieldDesc.Has("validation")) {
+          validation := fieldDesc["validation"]
+          if (validation.Has("required") && validation["required"] && (!value || value = "")) {
+            return false
+          }
+        }
+        return true
+      }
+    }
+    return true
+  }
+
+  ; ── Legacy Help Methods (Phase 1-5: TODO: remove after Phase 5) ────────────────
+  ; These derive from descriptor when available, for backward compatibility
   __ConfigHelp() {
-    return [] ; TODO
+    ; TODO: remove after Phase 5
+    descriptor := this.__GetPluginDescriptor()
+    if (!descriptor || descriptor.Count = 0)
+      return "" ; Fallback
+    
+    schema := this.__GetConfigSchema()
+    result := ""
+    for fieldDesc in schema {
+      if (fieldDesc.Has("key") && fieldDesc.Has("description")) {
+        if (result)
+          result .= "`n"
+        key := fieldDesc["key"]
+        desc := fieldDesc["description"]
+        defaultVal := fieldDesc.Has("default") ? fieldDesc["default"] : ""
+        result .= key " (default: '" defaultVal "'): " desc
+      }
+    }
+    return result
   }
+
   __UsageHelp() {
-    return "wtite help message for the plugin"
+    ; TODO: remove after Phase 5
+    descriptor := this.__GetPluginDescriptor()
+    if (descriptor && descriptor.Has("plugin")) {
+      plugin := descriptor["plugin"]
+      if (plugin.Has("description"))
+        return plugin["description"]
+    }
+    return "write help message for the plugin"
   }
+
   __ActionsHelp() {
-    return [] ; MUST return array like ["FnName": "FnName(params) description", ...] for all actions you want to register in the app
+    ; TODO: remove after Phase 5
+    results := Map()
+    descriptor := this.__GetPluginDescriptor()
+    if (!descriptor || descriptor.Count = 0)
+      return results
+    
+    actions := this.__GetActionDefinitions()
+    for actionDesc in actions {
+      if (actionDesc.Has("action")) {
+        actionName := actionDesc["action"]
+        label := actionDesc.Has("label") ? actionDesc["label"] : this._beautifyActionName(actionName)
+        description := actionDesc.Has("description") ? actionDesc["description"] : ""
+        params := actionDesc.Has("params") ? actionDesc["params"] : []
+        
+        ; Build signature string
+        paramsStr := ""
+        for param in params {
+          if (paramsStr)
+            paramsStr .= ", "
+          if (IsObject(param) && param.Has("name")) {
+            paramsStr .= param["name"]
+            if (param.Has("default"))
+              paramsStr .= ":=" param["default"]
+          } else {
+            paramsStr .= param ""
+          }
+        }
+        
+        sig := actionName "(" paramsStr ")"
+        results[actionName] := sig " - " description
+      }
+    }
+    return results
   }
+
   __HooksHelp() {
-    return [] ; MUST return array like ["FnName": "FnName(params) description", ...] for all hooks you want to register in the app
+    ; TODO: remove after Phase 5
+    descriptor := this.__GetPluginDescriptor()
+    if (descriptor && descriptor.Has("hooks"))
+      return descriptor["hooks"]
+    return []
   }
+
+  ; ── Former legacy methods (kept for reference) ─────────────────────────────────
+  ; These are deprecated. New plugins should use __DescribePlugin() instead.
   _processPluginConfig() {
   }
   _processBlocklistConfig() {
   }
   _init() {
   }
+
+  ; ── Helper: Convert PascalCase to "Sentence case" ──────────────────────────────
+  _beautifyActionName(fnName) {
+    ; Convert "EnterWindowMovingMode" to "Enter window moving mode"
+    result := ""
+    for i, char in StrSplit(fnName) {
+      if (i > 1 && char = StrUpper(char)) {
+        result .= " " StrLower(char)
+      } else {
+        result .= i = 1 ? StrUpper(char) : StrLower(char)
+      }
+    }
+    return result
+  }
+
+  ; ── App Bridge Methods ──────────────────────────────────────────────────────────
   RunAction(ActionString) {
     return this.App.RunAction(ActionString)
   }

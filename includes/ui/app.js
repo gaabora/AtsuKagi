@@ -18,8 +18,8 @@ class AhkHostBridge {
 
   saveSettings(payload) {
     if (!this.host || typeof this.host.SettingsSave !== 'function') return;
-    const [welcomeMsg, darkTheme, debugLevel, tooltipMs, transparency, borderColor, startupSound, notificationSound, reloadHotkey, suspendHotkey, swapXButtons, disabledPlugins] = payload;
-    this.host.SettingsSave(welcomeMsg, darkTheme, debugLevel, tooltipMs, transparency, borderColor, startupSound, notificationSound, reloadHotkey, suspendHotkey, swapXButtons, disabledPlugins);
+    const [welcomeMsg, darkTheme, debugLevel, tooltipMs, transparency, borderColor, startupSound, notificationSound, reloadHotkey, suspendHotkey, swapXButtons, disabledPlugins, pluginConfigEncoded] = payload;
+    this.host.SettingsSave(welcomeMsg, darkTheme, debugLevel, tooltipMs, transparency, borderColor, startupSound, notificationSound, reloadHotkey, suspendHotkey, swapXButtons, disabledPlugins, pluginConfigEncoded || '');
   }
 
   cancel() {
@@ -150,7 +150,26 @@ class SettingsForm {
       }
     });
 
-    return [welcomeMsg, darkTheme, debugLevel, tooltipMs, transparency, borderColor, startupSound, notificationSound, reloadHotkey, suspendHotkey, isSwapped, disabledPlugins.join(',')];
+    const pluginLines = [];
+    document.querySelectorAll('.plugin-field[data-plugin-id][data-key]').forEach((el) => {
+      const pluginId = el.getAttribute('data-plugin-id') || '';
+      const key = el.getAttribute('data-key') || '';
+      if (!pluginId || !key) return;
+
+      let value = '';
+      if (el.type === 'checkbox') {
+        value = el.checked ? '1' : '0';
+      } else {
+        value = el.value || '';
+      }
+      pluginLines.push(`${pluginId}\t${key}\t${value}`);
+    });
+
+    return [
+      welcomeMsg, darkTheme, debugLevel, tooltipMs, transparency, borderColor,
+      startupSound, notificationSound, reloadHotkey, suspendHotkey, isSwapped,
+      disabledPlugins.join(','), pluginLines.join('\n')
+    ];
   }
 
   getFieldValue(id) {
@@ -199,6 +218,10 @@ class SettingsForm {
     // Render plugin list
     if (state.plugins) {
       this._renderPlugins(state.plugins);
+      // Phase 1+: Render plugin settings pages
+      if (state.plugins.pages) {
+        this._renderPluginSettingsPages(state.plugins.pages);
+      }
     }
 
     // Render hotkeys table
@@ -270,6 +293,191 @@ class SettingsForm {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // Phase 1+: Render plugin settings pages dynamically
+  _renderPluginSettingsPages(pages) {
+    const nav = document.querySelector('.settings-nav');
+    const content = document.querySelector('.settings-content');
+    if (!nav || !content) return;
+
+    // Re-render safety: remove previously generated plugin pages/nav to avoid duplicates.
+    nav.querySelectorAll('[data-dynamic-plugin="1"]').forEach((el) => el.remove());
+    content.querySelectorAll('[data-dynamic-plugin="1"]').forEach((el) => el.remove());
+
+    // Find insertion point: after "Plugins" but before "Hotkeys"
+    const pluginsBtn = nav.querySelector('[data-section="plugins"]');
+    const hotkeysBtn = nav.querySelector('[data-section="hotkeys"]');
+
+    pages.forEach(page => {
+      // Create nav item
+      const navItem = document.createElement('button');
+      navItem.className = 'nav-item';
+      navItem.setAttribute('data-section', `plugin-${page.id}`);
+      navItem.setAttribute('data-dynamic-plugin', '1');
+      navItem.innerHTML = `<i class="${this._escapeHtml(page.icon || 'icons10-puzzle')}"></i><span>${this._escapeHtml(page.title || page.id)}</span>`;
+      
+      // Insert nav item after Plugins and before Hotkeys
+      if (pluginsBtn && hotkeysBtn) {
+        pluginsBtn.parentNode.insertBefore(navItem, hotkeysBtn);
+      } else if (pluginsBtn) {
+        pluginsBtn.parentNode.appendChild(navItem);
+      }
+
+      // Create content section
+      const section = document.createElement('div');
+      section.id = `section-plugin-${page.id}`;
+      section.className = 'settings-section';
+      section.setAttribute('data-dynamic-plugin', '1');
+      
+      // Build section HTML
+      let sectionHtml = `
+        <div class="setting-group">
+          <div class="plugin-page-header">
+            <div class="plugin-header-info">
+              <h2>${this._escapeHtml(page.title || page.id)}</h2>
+              <p class="subtitle">${this._escapeHtml(page.description || '')}</p>
+              ${!page.enabled ? '<div class="plugin-disabled-badge">Plugin is disabled</div>' : ''}
+            </div>
+          </div>
+      `;
+
+      // Add settings groups (sections)
+      if (page.sections && page.sections.length > 0) {
+        page.sections.forEach(sec => {
+          sectionHtml += `<div class="setting-group"><h3>${this._escapeHtml(sec.title || sec.id)}</h3>`;
+          
+          if (sec.fields && sec.fields.length > 0) {
+            sec.fields.forEach(field => {
+              sectionHtml += this._renderPluginField(field);
+            });
+          }
+          
+          sectionHtml += '</div>';
+        });
+      }
+
+      // Add Reset All button
+      sectionHtml += `
+        <div class="setting-group">
+          <button type="button" class="app-btn app-btn-subtle" data-plugin-reset-all="${page.id}">Reset All</button>
+        </div>
+      `;
+
+      sectionHtml += '</div>';
+      section.innerHTML = sectionHtml;
+
+      // Insert section into content
+      content.appendChild(section);
+
+      // Bind nav click handler
+      navItem.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelectorAll('.settings-nav .nav-item').forEach((item) => item.classList.remove('active'));
+        document.querySelectorAll('.settings-content .settings-section').forEach((s) => s.classList.remove('active'));
+        navItem.classList.add('active');
+        section.classList.add('active');
+      });
+
+      // Bind per-field reset buttons for this section.
+      section.querySelectorAll('[data-reset-field]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const key = btn.getAttribute('data-reset-field');
+          const def = btn.getAttribute('data-default') || '';
+          const field = section.querySelector(`.plugin-field[data-plugin-id="${page.id}"][data-key="${key}"]`);
+          if (!field) return;
+          if (field.type === 'checkbox') {
+            field.checked = (def === '1' || def === 'true');
+          } else {
+            field.value = def;
+          }
+          field.dispatchEvent(new Event('input'));
+          field.dispatchEvent(new Event('change'));
+        });
+      });
+    });
+
+    // Bind Reset All buttons
+    document.querySelectorAll('[data-plugin-reset-all]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const pluginId = btn.getAttribute('data-plugin-reset-all');
+        this._resetPluginFields(pluginId);
+      });
+    });
+  }
+
+  // Render a single plugin field
+  _renderPluginField(field) {
+    const key = field.key || '';
+    const label = field.label || key;
+    const description = field.description || '';
+    const control = field.control || 'text';
+    const value = field.value || '';
+    const defaultValue = field.default || '';
+    const pluginId = field.pluginId || '';
+
+    let controlHtml = '';
+    
+    switch (control) {
+      case 'switch':
+        const checked = (value === true || value === 1 || value === '1' || value === 'true') ? 'checked' : '';
+        controlHtml = `<label class="app-switch"><input type="checkbox" class="plugin-field" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}"${checked} /><div class="app-switch-view"></div><span class="app-switch-label" data-on="On" data-off="Off"></span></label>`;
+        break;
+      
+      case 'hotkey':
+        controlHtml = `
+          <div class="field-with-actions">
+            <input type="text" class="app-input-text plugin-field" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" value="${this._escapeHtml(value)}" placeholder="Press hotkey expression" />
+            <div class="field-actions">
+              <button type="button" class="app-btn app-btn-subtle field-btn" data-reset-field="${this._escapeHtml(key)}" data-default="${this._escapeHtml(defaultValue)}">Reset</button>
+            </div>
+          </div>
+        `;
+        break;
+      
+      case 'color':
+        controlHtml = `
+          <div class="field-with-actions">
+            <input type="text" class="app-input-text plugin-field" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" value="${this._escapeHtml(value)}" placeholder="${this._escapeHtml(defaultValue)}" />
+            <div class="field-actions">
+              <button type="button" class="app-btn app-btn-subtle field-btn" data-reset-field="${this._escapeHtml(key)}" data-default="${this._escapeHtml(defaultValue)}">Reset</button>
+            </div>
+          </div>
+        `;
+        break;
+      
+      default: // text, string, etc.
+        controlHtml = `
+          <div class="field-with-actions">
+            <input type="text" class="app-input-text plugin-field" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" value="${this._escapeHtml(value)}" />
+            <div class="field-actions">
+              <button type="button" class="app-btn app-btn-subtle field-btn" data-reset-field="${this._escapeHtml(key)}" data-default="${this._escapeHtml(defaultValue)}">Reset</button>
+            </div>
+          </div>
+        `;
+    }
+
+    return `
+      <div class="setting-row">
+        <label class="field-label">${this._escapeHtml(label)}</label>
+        ${description ? `<p class="field-description">${this._escapeHtml(description)}</p>` : ''}
+        <div class="app-input-container">
+          ${controlHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  // Reset plugin fields to defaults
+  _resetPluginFields(pluginId) {
+    const section = document.getElementById(`section-plugin-${pluginId}`);
+    if (!section) return;
+
+    section.querySelectorAll('[data-reset-field]').forEach(btn => {
+      btn.click();
+    });
   }
 
   /**

@@ -2,35 +2,98 @@ class KDEMoverSizer extends AKPlugin {
   _frameGui := {}
   _drawGridGUIOptions := "+Border"
   _drawGridColor := "White"
+
+  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "KDEMoverSizer",
+        "title", "KDE Mover-Sizer",
+        "description", "Enhanced window moving/resizing with drag from any place on window instead of titlebar/borders.",
+        "icon", "icons10-keyboard",
+        "category", "Window Management"
+      ),
+      "settingsPage", Map(
+        "description", "Configure drag-anywhere movement, resizing, snapping, and preview behavior.",
+        "icon", "icons10-keyboard"
+      ),
+      "config", [
+        Map(
+          "key", "LockAxisHotkey",
+          "label", "Lock axis hotkey",
+          "description", "Hold during move or resize to lock the dominant axis.",
+          "type", "hotkey",
+          "default", "Shift",
+          "section", "Movement",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "QuickPositionHotkey",
+          "label", "Quick position hotkey",
+          "description", "Hold to snap the window into quick-position regions.",
+          "type", "hotkey",
+          "default", "LWin",
+          "section", "Movement",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "EnableSnapping",
+          "label", "Enable snapping",
+          "description", "Snap dragged or resized windows to monitor edges.",
+          "type", "boolean",
+          "default", true,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "ShowWindowContent",
+          "label", "Show window content while dragging",
+          "description", "When disabled, show only a frame preview instead of moving the live window.",
+          "type", "boolean",
+          "default", true,
+          "section", "Visuals",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "BringToFront",
+          "label", "Bring window to front",
+          "description", "Activate the target window when move or resize mode begins.",
+          "type", "boolean",
+          "default", false,
+          "section", "Behavior",
+          "scope", "plugin"
+        )
+      ],
+      "actions", [
+        Map(
+          "action", "EnterWindowMovingMode",
+          "label", "Move window",
+          "description", "Move a window by dragging from anywhere on it.",
+          "params", [],
+          "category", "Window Movement",
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "ShowWindowContent", "BringToFront"]
+        ),
+        Map(
+          "action", "EnterWindowResizingMode",
+          "label", "Resize window",
+          "description", "Resize a window by dragging from anywhere on it.",
+          "params", [],
+          "category", "Window Movement",
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "ShowWindowContent", "BringToFront"]
+        )
+      ],
+      "hooks", []
+    )
+  }
+
+  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
+  ; These are now derived from __DescribePlugin() by the base class
   _processBlocklistConfig() {
-    
   }
+
   _processPluginConfig() {
-   if (!this.Config.Has("LockAxisHotkey"))
-      this.Config.LockAxisHotkey := 'Shift'
-    if (!this.Config.Has("QuickPositionHotkey"))
-      this.Config.QuickPositionHotkey := 'LWin'
-    if (!this.Config.Has("EnableSnapping"))
-      this.Config.EnableSnapping := true
-    if (!this.Config.Has("ShowWindowContent"))
-      this.Config.ShowWindowContent := true
-    if (!this.Config.Has("BringToFront"))
-      this.Config.BringToFront := false
-  }
-; TODO: check features of https://github.com/Z1proW/WinDrag 
-  __ConfigHelp() {
-    return "LockAxisHotkey (default: 'Shift'): hold to lock horizontal/vertical movement. QuickPositionHotkey (default: 'LWin'): hold to snap windows. EnableSnapping (default: true). ShowWindowContent (default: true): show window preview during move. BringToFront (default: false)."
-  }
-
-  __UsageHelp() {
-    return "Enhanced window moving/resizing with drag from any place on window instead of titlebar/borders. Visual frame guide overlay. Supports axis-locking and snap-to-grid. Based on KDE Mover-Sizer v2.9."
-  }
-
-  __ActionsHelp() {
-    texts := Map()
-    texts["EnterWindowMovingMode"]   := "EnterWindowMovingMode()"
-    texts["EnterWindowResizingMode"] := "EnterWindowResizingMode()"
-    return texts
+    ; Apply descriptor defaults, then any additional processing if needed
+    this.__ApplyDefaultConfig()
   }
   
   EnterWindowMovingMode() { ;;;
