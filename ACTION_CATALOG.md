@@ -6,7 +6,7 @@ This document lists all available actions by plugin. Actions are user-callable f
 Built-in general-purpose actions available in all plugins.
 
 - **IfThenElse(IfActionString, ThenActionString, ElseActionString)** - Evaluate condition (action string), then run ThenActionString if true, ElseActionString if false. Useful for branching logic.
-- **SkipIfBlacklisted(BlacklistName, ActionString, FallbackAction='')** - Skip action if active window is in named blacklist; optionally run fallback instead of passthrough. Used to exclude certain windows from plugins.
+- **SkipIfBlocklisted(BlocklistName, ActionString, FallbackAction='')** - Skip action if active window is in named blocklist; optionally run fallback instead of passthrough. Used to exclude certain windows from plugins.
 - **RemapKeyTo(Hotkey)** - Simulate keyboard input. Same as deprecated RemapTo; kept for backward compatibility.
 - **DoNothing()** - No-op action. Useful for disabling a hotkey without removing config.
 - **ShowInfo(text, title='', timeout=2000)** - Display info popup with message, title, and optional timeout (ms).

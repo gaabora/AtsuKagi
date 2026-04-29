@@ -5,13 +5,13 @@ class GeneralHandlers extends AKPlugin {
   }
 
   __UsageHelp() {
-    return "Core action utilities: conditional execution, blacklist checking, key remapping, info popups. Used as building blocks for other plugin actions."
+    return "Core action utilities: conditional execution, blocklist checking, key remapping, info popups. Used as building blocks for other plugin actions."
   }
 
   __ActionsHelp() {
     texts := Map()
     texts["IfThenElse"] := "IfThenElse(IfActionString, ThenActionString, ElseActionString)"
-    texts["SkipIfBlacklisted"] := "SkipIfBlacklisted(BlacklistName, ActionString, FallbackAction:='') - skip action if window is in named blacklist, optionally run fallback instead of passthrough"
+    texts["SkipIfBlocklisted"] := "SkipIfBlocklisted(BlocklistName, ActionString, FallbackAction:='') - skip action if window is in named blocklist, optionally run fallback instead of passthrough"
     texts["RemapKeyTo"] := "RemapKeyTo(Hotkey)"
     texts["DoNothing"]  := "DoNothing()"
     texts["ShowInfo"]   := "ShowInfo(text, title:='', timeout:=2000)"
@@ -41,14 +41,14 @@ class GeneralHandlers extends AKPlugin {
     return
   }
 
-  ; Skip the action if the hovered window matches a named blacklist.
-  ; If blacklisted: runs fallbackAction if provided, otherwise passes through the original key.
-  ; Usage in config: SkipIfBlacklisted(NoRightClickGesture, EnterGestureMode(1, 4))
-  ;                  SkipIfBlacklisted(NoCtrlCHotkey, SwitchSelectedTextCase(), DoNothing())
-  SkipIfBlacklisted(blacklistName, actionString, fallbackAction:="") { ;;;
+  ; Skip the action if the hovered window matches a named blocklist.
+  ; If blocklisted: runs fallbackAction if provided, otherwise passes through the original key.
+  ; Usage in config: SkipIfBlocklisted(NoRightClickGesture, EnterGestureMode(1, 4))
+  ;                  SkipIfBlocklisted(NoCtrlCHotkey, SwitchSelectedTextCase(), DoNothing())
+  SkipIfBlocklisted(blocklistName, actionString, fallbackAction:="") { ;;;
     MouseGetPos(,, &hwnd)
-    if (this.App.IsInBlacklist(blacklistName, hwnd)) {
-      this.outputDebugLine('SkipIfBlacklisted(' blacklistName '): BLOCKED for hwnd=' hwnd)
+    if (this.App.IsInBlocklist(blocklistName, hwnd)) {
+      this.outputDebugLine('SkipIfBlocklisted(' blocklistName '): BLOCKED for hwnd=' hwnd)
       if (fallbackAction != "") {
         this.RunAction(fallbackAction)
       } else {
@@ -60,7 +60,7 @@ class GeneralHandlers extends AKPlugin {
       }
       return
     }
-    this.outputDebugLine('SkipIfBlacklisted(' blacklistName '): ALLOWED, running ' actionString)
+    this.outputDebugLine('SkipIfBlocklisted(' blocklistName '): ALLOWED, running ' actionString)
     this.RunAction(actionString)
   }
 

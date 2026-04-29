@@ -5,17 +5,17 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "runtime": "c:\\apps\\DevTools\\bin\\AutoHotkey64.exe",
+      "runtime": "${config:haribol.paths.ahkRuntime}",
       "type": "ahkdbg",
       "request": "launch",
       "name": "AHK v2 Debug APP",
-      "program": "${workspaceFolder}/AtsuiKagi.ahk",
+      "program": "${workspaceFolder}/Haribol!.ahk",
       "port": 9005,
       "captureStreams": true,
       "stopOnEntry": false,
     },
     {
-      "runtime": "c:\\apps\\DevTools\\bin\\AutoHotkey64.exe",
+      "runtime": "${config:haribol.paths.ahkRuntime}",
       "type": "ahkdbg",
       "request": "launch",
       "name": "AHK v2 Debug current file",
@@ -28,7 +28,7 @@
       ]
     },
     {
-      "runtime": "c:\\apps\\DevTools\\bin\\AutoHotkey64.exe",
+      "runtime": "${config:haribol.paths.ahkRuntime}",
       "type": "ahkdbg",
       "request": "launch",
       "name": "AHK v2 Debug IniFileTests",

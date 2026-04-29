@@ -26,7 +26,9 @@ APP.AddPlugin('GeneralHandlers', 0)
 
 #Include dynamicPlugins.ahk
 
+
 APP.BindAllHotkeys()
+
 
 if (APP.Config.GENERAL.WelcomeMessage) {
   APP.ShowInfo(APP.Config.GENERAL.WelcomeMessage)
@@ -34,3 +36,7 @@ if (APP.Config.GENERAL.WelcomeMessage) {
 }
 
 ; APP.SoundPlay(APP.Config.GENERAL.StartupSound)
+
+; ; Resources for compiled builds (needed by settings WebView in .exe mode)
+; ;@Ahk2Exe-AddResource lib\WebViewToo-main\Lib\32bit\WebView2Loader.dll, 32bit\WebView2Loader.dll
+; ;@Ahk2Exe-AddResource lib\WebViewToo-main\Lib\64bit\WebView2Loader.dll, 64bit\WebView2Loader.dll

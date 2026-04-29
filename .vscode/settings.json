@@ -1,4 +1,6 @@
 {
+  "haribol.paths.ahkCompiler": "c:\\apps\\DevTools\\bin\\Ahk2Exe.exe",
+  "haribol.paths.ahkRuntime": "c:\\apps\\DevTools\\bin\\AutoHotkey64.exe",
   "workbench.colorCustomizations": {
     "activityBar.background": "#ec190a",
     "titleBar.inactiveBackground": "#ec190a",
@@ -17,7 +19,7 @@
   "AHK++.v2.file": {
     "compileBaseFile": "",
     "helpPath": "C:/Program Files/AutoHotkey/v2/AutoHotkey.chm",
-    "interpreterPath": "c:\\apps\\DevTools\\bin\\AutoHotkey64.exe",
+    "interpreterPath": "${config:haribol.paths.ahkRuntime}",
     "maxScanDepth": 2,
     "templateSnippetName": "AhkTemplateV2"
   }

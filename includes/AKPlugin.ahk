@@ -23,7 +23,7 @@ class AKPlugin extends AKBase {
   }
   _processPluginConfig() {
   }
-  _processBlacklistConfig() {
+  _processBlocklistConfig() {
   }
   _init() {
   }
@@ -33,11 +33,11 @@ class AKPlugin extends AKBase {
   IsKeyboardHookStealerWindowActive() {
     return this.App.IsKeyboardHookStealerWindowActive()
   }
-  IsWindowBlacklisted(params*) {
-    return this.App.IsWindowBlacklisted(params*)
+  IsWindowBlocklisted(params*) {
+    return this.App.IsWindowBlocklisted(params*)
   }
-  IsInBlacklist(params*) {
-    return this.App.IsInBlacklist(params*)
+  IsInBlocklist(params*) {
+    return this.App.IsInBlocklist(params*)
   }
   Speak(params*) {
     return this.App.Speak(params*)

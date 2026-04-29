@@ -1,6 +1,6 @@
 # Plugin Authoring Guide
 
-This guide helps you create new plugins for AtsuiKagi. Plugins are AutoHotkey v2 classes that extend `AKPlugin` and register hotkey actions.
+This guide helps you create new plugins for Haribol!. Plugins are AutoHotkey v2 classes that extend `AKPlugin` and register hotkey actions.
 
 ## Quick Start
 
@@ -55,9 +55,9 @@ class MyPlugin extends AKPlugin {
     ; Parse and validate this.Config entries
   }
   
-  ; Optional: process blacklist config for this plugin
-  _processBlacklistConfig() {
-    ; Declare what blacklist names this plugin uses
+  ; Optional: process blocklist config for this plugin
+  _processBlocklistConfig() {
+    ; Declare what blocklist names this plugin uses
   }
   
   ; User-callable action (registered in hotkey config)
@@ -186,8 +186,8 @@ ActionOnHoveredWindow(ByValue:=10) { ;;;
   if (hwnd = 0)
     return this.ShowWarning("No window under cursor")
   
-  if (this.IsWindowBlacklisted(hwnd, A_ThisFunc))
-    return this.ShowWarning("Window is blacklisted for this action")
+  if (this.IsWindowBlocklisted(hwnd, A_ThisFunc))
+    return this.ShowWarning("Window is blocklisted for this action")
   
   ; Do something with hwnd...
   WinSetTransparent(WinGetTransparent("ahk_id " hwnd) - ByValue, "ahk_id " hwnd)
@@ -221,9 +221,9 @@ if (!WinExist("ahk_id " hwnd)) {
 }
 ```
 
-### Use Blacklist
+### Use Blocklist
 ```autohotkey
-if (this.IsWindowBlacklisted(hwnd, "MyBlacklistName"))
+if (this.IsWindowBlocklisted(hwnd, "MyBlocklistName"))
   return
 ```
 
@@ -289,7 +289,7 @@ Use these prefixes consistently for clarity:
 | `Switch*`, `GoTo*` | navigation/targets | SwitchLayout, GoToDesktop |
 | `Increase*`, `Decrease*` | bounded numeric adjustments | IncreaseTransparency |
 | `Set*` | explicit value setters | SetThreshold, SetWindowBorderColor |
-| `Is*` | boolean conditions (for IfThenElse) | IsWindowBlacklisted, IsFeatureEnabled |
+| `Is*` | boolean conditions (for IfThenElse) | IsWindowBlocklisted, IsFeatureEnabled |
 | `Get*` | data retrieval (info-only, no side-effects) | GetDesktopCount, GetWindowTitle |
 | `Run*` | higher-level orchestration | RunFullWorkflow |
 
@@ -305,7 +305,7 @@ Use these prefixes consistently for clarity:
 
 4. **Document dependencies.** If your plugin requires DLLs, note in `_init()` and `__ConfigHelp()`.
 
-5. **Respect user blacklists.** Always check `IsWindowBlacklisted()` before modifying windows.
+5. **Respect user blocklists.** Always check `IsWindowBlocklisted()` before modifying windows.
 
 6. **Test before release.** Build exe, test plugin enable/disable and a few key actions.
 
@@ -322,8 +322,8 @@ Your plugin inherits these useful methods:
 this.RunAction(actionString)
 
 ; Window management (from AKApp)
-this.IsWindowBlacklisted(hwnd, actionName)
-this.IsInBlacklist(blacklistName, hwnd)
+this.IsWindowBlocklisted(hwnd, actionName)
+this.IsInBlocklist(blocklistName, hwnd)
 this.ToolTip(text, x, y, duration)
 this.ShowInfo(text, title, timeout)    ; Info popup
 this.ShowWarning(text)                 ; Warning box
@@ -342,7 +342,7 @@ this.App                               ; Reference to AKApp instance
 
 After creating your plugin, place it here:
 ```
-AtsuiKagi/
+Haribol!/
 ├── plugins/
 │   ├── MyPlugin.ahk              ← Your new plugin
 │   ├── WindowManager.ahk
@@ -352,7 +352,7 @@ AtsuiKagi/
 │   ├── AKPlugin.ahk              ← Base class
 │   ├── AKApp.ahk                 ← Application core
 │   └── ...
-└── AtsuiKagi.ahk                 ← Main script
+└── Haribol!.ahk                 ← Main script
 ```
 
 ---
@@ -369,8 +369,8 @@ AtsuiKagi/
 - Verify action is listed in `__ActionsHelp()` Map with exact name.
 - Run ACTION_CATALOG generation step (CI/CD task).
 
-**Blacklist not working:**
-- Verify blacklist name matches entries in config.ini under `[Blacklists]` section.
+**Blocklist not working:**
+- Verify blocklist name matches entries in config.ini under `[Blocklists]` section.
 - Use exact case: "NoMoveResize" not "nomoreresize".
 
 ---

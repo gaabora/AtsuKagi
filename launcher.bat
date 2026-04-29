@@ -8,6 +8,6 @@ if "%PROCESSOR_ARCHITECTURE%"=="x86" (
 )
 
 
-"%~dp0%AHK%" "%~dp0AtsuiKagi.ahk"
+"%~dp0%AHK%" "%~dp0Haribol!.ahk"
 
 endlocal

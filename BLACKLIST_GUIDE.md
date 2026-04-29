@@ -1,12 +1,12 @@
-# Window Blacklist System
+# Window Blocklist System
 
-## What is a Blacklist?
+## What is a Blocklist?
 
-A **blacklist** is a list of window classes or titles that a plugin will intentionally exclude from its actions. It's a configuration-driven mechanism to protect specific applications from being affected by AtsuiKagi features.
+A **blocklist** is a list of window classes or titles that a plugin will intentionally exclude from its actions. It's a configuration-driven mechanism to protect specific applications from being affected by Haribol! features.
 
 **Simple analogy:** Like a firewall blocklist that says "don't apply this rule to these windows."
 
-## Why Use Blacklists?
+## Why Use Blocklists?
 
 Some applications:
 - Have custom window management you don't want to override (games, RDP, full-screen apps)
@@ -14,21 +14,21 @@ Some applications:
 - Behave unexpectedly when modified (transparency, moving, resizing)
 - Need to preserve native behavior (keyboard layouts, text input)
 
-Blacklists let you disable plugin actions for these apps without disabling the entire plugin.
+Blocklists let you disable plugin actions for these apps without disabling the entire plugin.
 
 ## How to Configure
 
-Blacklists are defined in your `config.ini` under the `[Blacklists]` section:
+Blocklists are defined in your `config.ini` under the `[Blocklists]` section:
 
 ```ini
-[Blacklists]
+[Blocklists]
 NoMoveResize=ahk_class Notepad|ahk_class WordPadClass|ahk_class PuTTY
 NoTransparency=ahk_exe game.exe|ahk_class RDPClient
 NoKeyboardSwitch=ahk_class "MSDEV.1"|ahk_class VirtualConsoleClass
 ```
 
 **Format:**
-- One blacklist per line: `BlacklistName=matcher1|matcher2|matcher3`
+- One blocklist per line: `BlocklistName=matcher1|matcher2|matcher3`
 - Each matcher is a [WinTitle parameter](https://www.autohotkey.com/docs/v2.0/misc/WinTitle.htm): `ahk_class ClassName`, `ahk_exe ExeName.exe`, `ahk_pid 12345`, or window title text
 
 **Example entries:**
@@ -38,19 +38,19 @@ NoRightClickGesture=ahk_class ConsoleWindowClass
 NoVirtualDesktopSwitch=ahk_class TscShellContainerClass  ; RDP window
 ```
 
-## How Plugins Use Blacklists
+## How Plugins Use Blocklists
 
 ### For Plugin Developers
 
-In your plugin action, check if the target window is blacklisted:
+In your plugin action, check if the target window is blocklisted:
 
 ```autohotkey
 MyMoveAction(hwnd:=0) {
   if (hwnd = 0)
     WinGetActiveTitle(&hwnd)
   
-  ; Skip if window is in "NoMoveResize" blacklist
-  if (this.IsWindowBlacklisted(hwnd, "NoMoveResize"))
+  ; Skip if window is in "NoMoveResize" blocklist
+  if (this.IsWindowBlocklisted(hwnd, "NoMoveResize"))
     return  ; Silently skip
   
   ; Proceed with moving the window
@@ -60,20 +60,20 @@ MyMoveAction(hwnd:=0) {
 
 ### For Users (In Config)
 
-Wrap actions with `SkipIfBlacklisted` to exclude blacklisted windows:
+Wrap actions with `SkipIfBlocklisted` to exclude blocklisted windows:
 
 ```ini
-#j=SkipIfBlacklisted(NoMoveResize, MoveWindowToPrevDesktop())
-#k=SkipIfBlacklisted(NoMoveResize, MoveWindowToNextDesktop())
-^+Up=SkipIfBlacklisted(NoTransparency, IncreaseWindowTransparency(32))
-#Tab=SkipIfBlacklisted(NoVirtualDesktopSwitch, GoToNextDesktop())
+#j=SkipIfBlocklisted(NoMoveResize, MoveWindowToPrevDesktop())
+#k=SkipIfBlocklisted(NoMoveResize, MoveWindowToNextDesktop())
+^+Up=SkipIfBlocklisted(NoTransparency, IncreaseWindowTransparency(32))
+#Tab=SkipIfBlocklisted(NoVirtualDesktopSwitch, GoToNextDesktop())
 ```
 
-This reads as: **"Bind hotkey #J to MoveWindowToPrevDesktop, but skip this action if the window is in the NoMoveResize blacklist."**
+This reads as: **"Bind hotkey #J to MoveWindowToPrevDesktop, but skip this action if the window is in the NoMoveResize blocklist."**
 
-## Blacklist Matching Rules
+## Blocklist Matching Rules
 
-A window matches a blacklist if **any** of its properties match **any** entry in the blacklist.
+A window matches a blocklist if **any** of its properties match **any** entry in the blocklist.
 
 **Examples:**
 
@@ -89,9 +89,9 @@ Matching:
 - ❌ `Explorer.exe` → not matched
 - ❌ `Notepad` title but different class → depends on class match (if any)
 
-## Common Blacklists
+## Common Blocklists
 
-Here are blacklist patterns recommended for different plugins:
+Here are blocklist patterns recommended for different plugins:
 
 ### WindowManager Plugin
 ```ini
@@ -120,7 +120,7 @@ NoGestureMode=ahk_exe game.exe|ahk_class UnityWndClass|ahk_class "Source 2"
 
 ## Tips
 
-1. **Start minimal.** Only blacklist windows that actually break. Overly broad blacklists make plugins less useful.
+1. **Start minimal.** Only blocklist windows that actually break. Overly broad blocklists make plugins less useful.
 
 2. **Test carefully.** Add entries one by one and test each plugin action:
    ```
@@ -136,49 +136,49 @@ NoGestureMode=ahk_exe game.exe|ahk_class UnityWndClass|ahk_class "Source 2"
 
 4. **Check class name with debugging.** Hold Alt+F12 in the app and use the Window Spy tool that comes with AutoHotkey to see exact class/process names.
 
-5. **One action, one blacklist.** If plugin has multiple related actions, create separate blacklists if they have different exclusion needs:
+5. **One action, one blocklist.** If plugin has multiple related actions, create separate blocklists if they have different exclusion needs:
    ```
    NoMoveResize=...
    NoTransparency=...
    NoMinimize=...
    ```
-   Then each action checks its own blacklist.
+   Then each action checks its own blocklist.
 
 ## Example Workflow
 
 1. **Configure a hotkey:**
    ```ini
-   #j=SkipIfBlacklisted(NoMoveResize, IncreaseWindowTransparency(32))
+   #j=SkipIfBlocklisted(NoMoveResize, IncreaseWindowTransparency(32))
    ```
 
-2. **Add blacklist matching apps you don't want affected:**
+2. **Add blocklist matching apps you don't want affected:**
    ```ini
-   [Blacklists]
+   [Blocklists]
    NoMoveResize=ahk_exe game.exe|ahk_class VLC
    ```
 
 3. **Test:**
    - Activate a whitelisted app → press #J → window becomes transparent ✅
-   - Activate game.exe → press #J → nothing happens (blacklisted) ✅
+   - Activate game.exe → press #J → nothing happens (blocklisted) ✅
 
-4. **Refine:** If some game still gets affected, add its class to blacklist and test again.
+4. **Refine:** If some game still gets affected, add its class to blocklist and test again.
 
-## Debugging Blacklists
+## Debugging Blocklists
 
-If a blacklist isn't working:
+If a blocklist isn't working:
 
 1. **Verify syntax in config.ini:**
-   - Check for typos in section header `[Blacklists]`
+   - Check for typos in section header `[Blocklists]`
    - No leading/trailing spaces around `=` and `|`
    - Correct `ahk_class`/`ahk_exe` prefix
 
 2. **Check window properties:**
    - Use AHK Window Spy (Alt+F12) to get exact class/process
-   - Copy-paste exact strings to blacklist config
+   - Copy-paste exact strings to blocklist config
 
-3. **Verify plugin is using correct blacklist name:**
+3. **Verify plugin is using correct blocklist name:**
    - Config has `NoMoveResize=...`
-   - But action checks `IsWindowBlacklisted(hwnd, "WrongName")` ← typo!
+   - But action checks `IsWindowBlocklisted(hwnd, "WrongName")` ← typo!
 
 4. **Reload config:**
    - Close and reopen settings UI
@@ -186,27 +186,27 @@ If a blacklist isn't working:
 
 5. **Enable debug logging:**
    - Open settings UI → Logs tab
-   - Watch debug output for `IsWindowBlacklisted()` results
+   - Watch debug output for `IsWindowBlocklisted()` results
 
 Example debug output:
 ```
-IsWindowBlacklisted: nopad.exe NOT in NoMoveResize blacklist → allowed
-IsWindowBlacklisted: game.exe in NoMoveResize blacklist → BLOCKED
+IsWindowBlocklisted: nopad.exe NOT in NoMoveResize blocklist → allowed
+IsWindowBlocklisted: game.exe in NoMoveResize blocklist → BLOCKED
 ```
 
-## Advanced: Programmatic Blacklist Checking
+## Advanced: Programmatic Blocklist Checking
 
 From plugin code:
 
 ```autohotkey
-; Check if current window is blacklisted
-if (this.IsWindowBlacklisted(hwnd, "NoMoveResize")) {
-  ; Gracefully handle blacklisted window
-  return this.ShowInfo("This window is protected from moving", "Blacklisted")
+; Check if current window is blocklisted
+if (this.IsWindowBlocklisted(hwnd, "NoMoveResize")) {
+  ; Gracefully handle blocklisted window
+  return this.ShowInfo("This window is protected from moving", "Blocklisted")
 }
 
-; Check if in any specific blacklist
-if (this.IsInBlacklist("NoVirtualDesktopSwitch", hwnd)) {
+; Check if in any specific blocklist
+if (this.IsInBlocklist("NoVirtualDesktopSwitch", hwnd)) {
   ;Do something else
 }
 ```

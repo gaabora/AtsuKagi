@@ -65,7 +65,7 @@ class WindowManager extends AKPlugin {
     return texts
   }
 
-  _processBlacklistConfig() {
+  _processBlocklistConfig() {
   }
 
   _processPluginConfig() {
@@ -512,8 +512,8 @@ class WindowManager extends AKPlugin {
   _checkHwnd(&hwnd, fnName) {
     if (hwnd=0)
       hwnd := WinGetID("A")
-    if (this.IsWindowBlacklisted(hwnd, fnName)) {
-      this.ShowInfo(this.beautifyActionName(fnName) " disabled for blacklisted " this._getWindowDescription(hwnd))
+    if (this.IsWindowBlocklisted(hwnd, fnName)) {
+      this.ShowInfo(this.beautifyActionName(fnName) " disabled for blocklisted " this._getWindowDescription(hwnd))
       return false
     }
     return true

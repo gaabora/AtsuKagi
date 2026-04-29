@@ -7,15 +7,15 @@
         "kind": "build",
         "isDefault": true
       },
-      "command": "c:\\Program Files\\AutoHotkey\\Compiler\\Ahk2Exe.exe",
+      "command": "${config:haribol.paths.ahkCompiler}",
       "type": "shell",
       "args": [
         "/in",
-        "${workspaceRoot}\\AtsuiKagi.ahk",
+        "${workspaceRoot}\\Haribol!.ahk",
         "/icon",
         "${workspaceRoot}\\assets\\app.ico",
         "/base",
-        "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe"
+        "${config:haribol.paths.ahkRuntime}"
       ],
       "problemMatcher": {
         "owner": "ahk",
@@ -39,7 +39,7 @@
     {
       "label": "test",
       "type": "shell",
-      "command": "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
+      "command": "${config:haribol.paths.ahkRuntime}",
       "args": [
         "tests\\IniFileTests.ahk"
       ],
@@ -69,9 +69,9 @@
     {
       "label": "run script",
       "type": "shell",
-      "command": "c:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe",
+      "command": "${config:haribol.paths.ahkRuntime}",
       "args": [
-        "${workspaceRoot}\\AtsuiKagi.ahk"
+        "${workspaceRoot}\\Haribol!.ahk"
       ],
       "problemMatcher": {
         "owner": "ahk",
@@ -94,7 +94,7 @@
     },
     {
       "label": "run binary",
-      "command": "${workspaceRoot}\\AtsuiKagi.exe",
+      "command": "${workspaceRoot}\\Haribol!.exe",
       "type": "shell",
       "problemMatcher": []
     }

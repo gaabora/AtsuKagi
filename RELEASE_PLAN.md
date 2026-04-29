@@ -1,4 +1,4 @@
-# AtsuiKagi Release Organization Plan
+# Haribol! Release Organization Plan
 
 ## Goal
 Prepare the project for a clean v1 release by standardizing plugin/action naming, documenting behavior, reducing risk in unfinished plugins, and shipping a simple user-first README.
@@ -43,10 +43,10 @@ This plan is based on current structure and code in `includes/` and `plugins/`.
   - These methods are used to populate plugin docs in settings UI and generate `ACTION_CATALOG.md`
 - [x] Implement all helper methods in each plugin (`VirtualDesktopManager`, `WindowManager`, `TimerHandlers`, `TextToSpeech`, `ShellMessageHook`, `TouchGesturesSimulator`, `SwapButtonsHandler`, `RDPWindowHandler`, `KDEMoverSizer`)
 - [x] Introduce `ACTION_CATALOG.md` auto-generated from all `__ActionsHelp()` methods (some .bat or .py file that can also be CI/CD task or manual build step)
-- [x] Document **blacklist** concept in one place (`ARCHITECTURE.md` or `PLUGIN_API.md`):
-  - **Blacklist**: config-driven list of window classes/titles that a plugin ignores (skips its actions)
-  - Examples: `NoMoveResize` blacklist means "don't move/resize windows with these titles"
-  - Mention where it's used: `SkipIfBlacklisted` action checks a window's class/title and returns early if blacklisted
+- [x] Document **blocklist** concept in one place (`ARCHITECTURE.md` or `PLUGIN_API.md`):
+  - **Blocklist**: config-driven list of window classes/titles that a plugin ignores (skips its actions)
+  - Examples: `NoMoveResize` blocklist means "don't move/resize windows with these titles"
+  - Mention where it's used: `SkipIfBlocklisted` action checks a window's class/title and returns early if blocklisted
   - Keep language simple: "excludes certain windows from being affected by this plugin"
 - [x] Add plugin authoring guide (`PLUGIN_API.md`) with copy-paste template including:
   - class stub with `__ConfigHelp()`, `__UsageHelp()`, `__ActionsHelp()`, `__HooksHelp()`
@@ -57,7 +57,7 @@ This plan is based on current structure and code in `includes/` and `plugins/`.
 ### Phase 4: README Overhaul (must do)
 - [x] Replace `README.txt` with a clean `README.md` focused on users.
 - [x] Keep README short and practical:
-  - What AtsuiKagi is
+  - What Haribol! is
   - Why it is useful
   - Top features
   - Quick start
@@ -105,7 +105,7 @@ Parameters:
 - `param1` (type, default): meaning
 - `param2` (type, default): meaning
 Config dependencies: `[Section] KeyName` (if any)
-Blacklist interaction: none | uses `NoMoveResize` | custom
+Blocklist interaction: none | uses `NoMoveResize` | custom
 Side effects: window state, input send, desktop switch, etc.
 Example hotkey mapping: `#Enter=ActionName()`
 ```

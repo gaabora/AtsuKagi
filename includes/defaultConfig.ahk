@@ -7,7 +7,7 @@ ProcessGereralConfigSection(configSection) {
   SetPropIfNotExist(configSection, "HotkeyInterval"               , 1000)
   SetPropIfNotExist(configSection, "MaxHotkeysPerInterval"        , 1000)
   SetPropIfNotExist(configSection, "KeyboardHookStealersList"     , "TscShellContainerClass")
-  SetPropIfNotExist(configSection, "BlacklistGlobalWindowClasses" , "WorkerW Progman Shell_TrayWnd Shell_SecondaryTrayWnd TscShellContainerClass")
+  SetPropIfNotExist(configSection, "BlocklistGlobalWindowClasses" , "WorkerW Progman Shell_TrayWnd Shell_SecondaryTrayWnd TscShellContainerClass")
   SetPropIfNotExist(configSection, "WindowOnTopBorderColor"       , "0xAACCFF")
   SetPropIfNotExist(configSection, "WindowTransparencyValue"      , 128)
   SetPropIfNotExist(configSection, "WelcomeMessage"               , "Haribol!")
@@ -38,15 +38,15 @@ ProcessThemeConfigSection(configSection) {
   SetPropIfNotExist(configSection, "Margin"                    , 5)
 }
 
-ProcessBlacklistsConfigSection(configSection) {
-  ; Named blacklists that can be referenced by plugins and actions.
+ProcessBlocklistsConfigSection(configSection) {
+  ; Named blocklists that can be referenced by plugins and actions.
   ; Each entry is a comma-separated list of patterns.
   ; Pattern format:
   ;   ClassName          - match by window class (default)
   ;   class:ClassName    - match by window class (explicit)
   ;   exe:Process.exe    - match by process executable name
   ;   path:substring     - match substring in process full path
-  SetPropIfNotExist(configSection, "NoMoveResize"      , "WorkerW, Progman, Shell_TrayWnd, Shell_SecondaryTrayWnd, TscShellContainerClass") ; TODO need to add some prefix symbol for builtin named blacklists and make them readonly for users, so they can be updated with software update, when user trying to edit builtin list, it should create users named blacklist with similar name but without that symbol, and users list should implicitly auto inherit records from builtin blacklist so no duplicated records can be added.
+  SetPropIfNotExist(configSection, "NoMoveResize"      , "WorkerW, Progman, Shell_TrayWnd, Shell_SecondaryTrayWnd, TscShellContainerClass") ; TODO need to add some prefix symbol for builtin named blocklists and make them readonly for users, so they can be updated with software update, when user trying to edit builtin list, it should create users named blocklist with similar name but without that symbol, and users list should implicitly auto inherit records from builtin blocklist so no duplicated records can be added.
   SetPropIfNotExist(configSection, "NoCtrlCHotkey"     , "class:ConsoleWindowClass, class:PuTTY")
   SetPropIfNotExist(configSection, "NoRightClickGesture", "exe:REAPER.exe")
 }
@@ -54,7 +54,7 @@ ProcessBlacklistsConfigSection(configSection) {
 GetDefaultHotkeysConfig() {
   config := Map()
   config["#Esc"]         := 'Run("scrnsave.scr /s")'
-  config["RButton"]      := "SkipIfBlacklisted(NoRightClickGesture, EnterGestureMode(1, 4))"
+  config["RButton"]      := "SkipIfBlocklisted(NoRightClickGesture, EnterGestureMode(1, 4))"
   config["XButton2"]     := "EnterGestureMode(4, 4, ToggleTaskView)"
 
   config["#!i"]          := "ShowHoveredWindowInfo"

@@ -2,7 +2,7 @@ class KDEMoverSizer extends AKPlugin {
   _frameGui := {}
   _drawGridGUIOptions := "+Border"
   _drawGridColor := "White"
-  _processBlacklistConfig() {
+  _processBlocklistConfig() {
     
   }
   _processPluginConfig() {
@@ -17,7 +17,7 @@ class KDEMoverSizer extends AKPlugin {
     if (!this.Config.Has("BringToFront"))
       this.Config.BringToFront := false
   }
-
+; TODO: check features of https://github.com/Z1proW/WinDrag 
   __ConfigHelp() {
     return "LockAxisHotkey (default: 'Shift'): hold to lock horizontal/vertical movement. QuickPositionHotkey (default: 'LWin'): hold to snap windows. EnableSnapping (default: true). ShowWindowContent (default: true): show window preview during move. BringToFront (default: false)."
   }
@@ -48,7 +48,7 @@ class KDEMoverSizer extends AKPlugin {
     hotkeyInfo := ExtractHotkeyInfo(A_ThisHotkey)
     MouseButton := hotkeyInfo.key
 
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
+    if (this.IsWindowBlocklisted(hwnd, A_ThisFunc)) {
       SendEvent("{Blind}{" MouseButton " down}")
       KeyWait(MouseButton, "U")
       SendEvent("{Blind}{" MouseButton " up}")
@@ -175,7 +175,7 @@ class KDEMoverSizer extends AKPlugin {
     hotkeyInfo := ExtractHotkeyInfo(A_ThisHotkey)
     MouseButton := hotkeyInfo.key
 
-    if (this.IsWindowBlacklisted(hwnd, A_ThisFunc)) {
+    if (this.IsWindowBlocklisted(hwnd, A_ThisFunc)) {
       SendEvent("{Blind}{" MouseButton " down}")
       KeyWait(MouseButton, "U")
       SendEvent("{Blind}{" MouseButton " up}")

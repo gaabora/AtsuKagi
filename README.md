@@ -1,6 +1,6 @@
-# AtsuiKagi
+# Haribol!
 
-AtsuiKagi is portable utility that combines window manager, virtual desktops, dynamic hotkeys manager, keyboard layout switching, touch gesture simulation, and small everyday workflow shortcuts on Windows.
+Haribol! is portable utility that combines window manager, virtual desktops, dynamic hotkeys manager, keyboard layout switching, touch gesture simulation, and small everyday workflow shortcuts on Windows.
 
 It is built around a plugin system, but you do not need to think about plugins to start using it. Run the script, open Settings from the tray icon, and enable only the parts you want.
 
@@ -16,7 +16,7 @@ It is built around a plugin system, but you do not need to think about plugins t
 ## Quick Start
 
 1. Install AutoHotkey v2.
-2. Run [AtsuiKagi.ahk](AtsuiKagi.ahk).
+2. Run [Haribol!.ahk](Haribol!.ahk).
 3. Find the tray icon and open `Settings` from the tray menu.
 4. Adjust plugins, hotkeys, sounds, and theme settings.
 5. Reload the app from the tray menu or use the configured reload hotkey.
@@ -62,7 +62,7 @@ These examples come from the current default config.
 | `Win+WheelUp` | `IfThenElse(IsMouseOverWindowTitlebar, GoWithHoveredWindowToPrevDesktop, GoToPrevDesktop)` | Switch desktop, or move with hovered window |
 | `CapsLock` | `SwitchKeyboardLayout()` | Switch current keyboard layout |
 | `Ctrl+CapsLock` | `SwitchSelectedTextLayout(EN,RU)` | Convert selected text between EN and RU layouts |
-| `RButton` | `SkipIfBlacklisted(NoRightClickGesture, EnterGestureMode(1, 4))` | Right-button gesture mode unless excluded by blacklist |
+| `RButton` | `SkipIfBlocklisted(NoRightClickGesture, EnterGestureMode(1, 4))` | Right-button gesture mode unless excluded by blocklist |
 | `XButton2` | `EnterGestureMode(4, 4, ToggleTaskView)` | Four-finger gesture mode with Task View fallback |
 
 See the full list in [includes/defaultConfig.ahk](includes\defaultConfig.ahk).

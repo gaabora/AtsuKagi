@@ -50,7 +50,8 @@ class AKGui {
       }
     }
 
-    nw := WebViewGui("+Resize -Caption",,, {DefaultWidth: 820, DefaultHeight: 560})
+    webViewSettings := this._getWebViewSettings()
+    nw := WebViewGui("+Resize -Caption",,, webViewSettings)
     nw.Title := this.App.ScriptName " — Settings"
     this._settingsGui := nw
 
@@ -66,6 +67,32 @@ class AKGui {
     nw.OnEvent("Close", (*) => (this._settingsGui := 0))
     nw.Navigate("includes/ui/settings.html")
     nw.Show("w820 h560")
+  }
+
+  _getWebViewSettings() {
+    settings := {DefaultWidth: 820, DefaultHeight: 560}
+    bits := A_PtrSize * 8
+    dllRelPath :=  bits "bit\\WebView2Loader.dll"
+
+    ; Compiled build: extract embedded loader into temp and use it.
+    ; if (A_IsCompiled) {
+    ;   try {
+    ;     WebViewCtrl.CreateFileFromResource(dllRelPath, WebViewCtrl.TempDir)
+    ;   }
+    ;   extractedDll := WebViewCtrl.TempDir "\\" dllRelPath
+    ;   if (FileExist(extractedDll)) {
+    ;     settings.DllPath := extractedDll
+    ;     settings.DataDir := WebViewCtrl.TempDir
+    ;     return settings
+    ;   }
+    ; }
+
+    ; Script mode fallback: use bundled library loader path.
+    localDll := A_ScriptDir "\\lib\\WebViewToo-main\\Lib\\" dllRelPath
+    if (FileExist(localDll)) {
+      settings.DllPath := localDll
+    }
+    return settings
   }
 
   _populateSettingsPage(nw) {
