@@ -350,13 +350,25 @@ class AKApp extends AKBase {
   _buildPluginActions(pluginId, descriptor) {
     actions := []
     actionDefs := descriptor.Has("actions") ? descriptor["actions"] : []
+    hotkeysCfg := this.Config.Has("HOTKEYS") ? this.Config.HOTKEYS : 0
     
     for actionDesc in actionDefs {
+      actionName := actionDesc.Has("action") ? actionDesc["action"] : ""
+      assignedHotkeys := []
+      if (hotkeysCfg) {
+        for hk, actionText in hotkeysCfg {
+          info := this._parseActionInfo(actionText)
+          if (info.fnName = actionName)
+            assignedHotkeys.Push(convertToReadableHotkey(hk))
+        }
+      }
+
       action := Map(
-        "action", actionDesc.Has("action") ? actionDesc["action"] : "",
+        "action", actionName,
         "label", actionDesc.Has("label") ? actionDesc["label"] : "",
         "description", actionDesc.Has("description") ? actionDesc["description"] : "",
-        "category", actionDesc.Has("category") ? actionDesc["category"] : ""
+        "category", actionDesc.Has("category") ? actionDesc["category"] : "",
+        "hotkeys", assignedHotkeys
       )
       
       if (action["action"]) {

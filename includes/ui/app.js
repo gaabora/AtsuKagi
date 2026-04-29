@@ -301,6 +301,13 @@ class SettingsForm {
     const content = document.querySelector('.settings-content');
     if (!nav || !content) return;
 
+    const sortedPages = [...(pages || [])].sort((a, b) => {
+      const ao = Number.isFinite(Number(a?.navOrder)) ? Number(a.navOrder) : 100;
+      const bo = Number.isFinite(Number(b?.navOrder)) ? Number(b.navOrder) : 100;
+      if (ao !== bo) return ao - bo;
+      return String(a?.title || a?.id || '').localeCompare(String(b?.title || b?.id || ''));
+    });
+
     // Re-render safety: remove previously generated plugin pages/nav to avoid duplicates.
     nav.querySelectorAll('[data-dynamic-plugin="1"]').forEach((el) => el.remove());
     content.querySelectorAll('[data-dynamic-plugin="1"]').forEach((el) => el.remove());
@@ -309,7 +316,7 @@ class SettingsForm {
     const pluginsBtn = nav.querySelector('[data-section="plugins"]');
     const hotkeysBtn = nav.querySelector('[data-section="hotkeys"]');
 
-    pages.forEach(page => {
+    sortedPages.forEach(page => {
       // Create nav item
       const navItem = document.createElement('button');
       navItem.className = 'nav-item';
@@ -357,6 +364,11 @@ class SettingsForm {
         });
       }
 
+      // Add actions summary block grouped by category.
+      if (page.actions && page.actions.length > 0) {
+        sectionHtml += this._renderPluginActionsSummary(page.actions);
+      }
+
       // Add Reset All button
       sectionHtml += `
         <div class="setting-group">
@@ -392,6 +404,12 @@ class SettingsForm {
           } else {
             field.value = def;
           }
+          if (field.classList.contains('plugin-field-hotkey')) {
+            const display = document.querySelector(`[data-plugin-hotkey-display="${page.id}::${key}"]`);
+            if (display) {
+              display.value = def ? this._humanizeHotkey(def) : '';
+            }
+          }
           field.dispatchEvent(new Event('input'));
           field.dispatchEvent(new Event('change'));
         });
@@ -406,6 +424,37 @@ class SettingsForm {
         this._resetPluginFields(pluginId);
       });
     });
+  }
+
+  _renderPluginActionsSummary(actions) {
+    const grouped = new Map();
+    (actions || []).forEach((action) => {
+      const category = action.category || 'Actions';
+      if (!grouped.has(category)) grouped.set(category, []);
+      grouped.get(category).push(action);
+    });
+
+    let html = '<div class="setting-group plugin-actions-summary"><h3>Actions</h3>';
+    grouped.forEach((items, category) => {
+      html += `<div class="plugin-action-category"><div class="plugin-action-category-title">${this._escapeHtml(category)}</div>`;
+      items.forEach((item) => {
+        const hotkeys = Array.isArray(item.hotkeys) ? item.hotkeys : [];
+        const hotkeysHtml = hotkeys.length
+          ? `<div class="plugin-action-hotkeys">${hotkeys.map((hk) => `<span class="plugin-hotkey-chip">${this._escapeHtml(hk)}</span>`).join('')}</div>`
+          : `<div class="plugin-action-hotkeys plugin-action-hotkeys-empty">No hotkey assigned</div>`;
+        html += `
+          <div class="plugin-action-item">
+            <div class="plugin-action-name">${this._escapeHtml(item.label || item.action || '')}</div>
+            <div class="plugin-action-description">${this._escapeHtml(item.description || '')}</div>
+            ${hotkeysHtml}
+          </div>
+        `;
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+
+    return html;
   }
 
   // Render a single plugin field
@@ -427,10 +476,13 @@ class SettingsForm {
         break;
       
       case 'hotkey':
+        const hotkeyDisplayKey = `${pluginId}::${key}`;
         controlHtml = `
           <div class="field-with-actions">
-            <input type="text" class="app-input-text plugin-field" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" value="${this._escapeHtml(value)}" placeholder="Press hotkey expression" />
+            <input type="hidden" class="plugin-field plugin-field-hotkey" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" data-display-for-plugin-hotkey="${this._escapeHtml(hotkeyDisplayKey)}" value="${this._escapeHtml(value)}" />
+            <input type="text" class="app-input-text hotkey-display-input" readonly value="${this._escapeHtml(value)}" data-plugin-hotkey-display="${this._escapeHtml(hotkeyDisplayKey)}" placeholder="Press Record" />
             <div class="field-actions">
+              <button type="button" class="app-btn app-btn-subtle field-btn" data-hotkey-selector=".plugin-field-hotkey[data-plugin-id=&quot;${this._escapeHtml(pluginId)}&quot;][data-key=&quot;${this._escapeHtml(key)}&quot;]" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Record</button>
               <button type="button" class="app-btn app-btn-subtle field-btn" data-reset-field="${this._escapeHtml(key)}" data-default="${this._escapeHtml(defaultValue)}">Reset</button>
             </div>
           </div>
@@ -438,10 +490,15 @@ class SettingsForm {
         break;
       
       case 'color':
+        const colorKey = `${pluginId}::${key}`;
         controlHtml = `
           <div class="field-with-actions">
-            <input type="text" class="app-input-text plugin-field" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" value="${this._escapeHtml(value)}" placeholder="${this._escapeHtml(defaultValue)}" />
+            <input type="text" class="app-input-text plugin-field plugin-color-input" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" data-plugin-color-key="${this._escapeHtml(colorKey)}" value="${this._escapeHtml(value)}" placeholder="${this._escapeHtml(defaultValue)}" />
             <div class="field-actions">
+              <button type="button" class="app-btn app-btn-subtle field-btn" data-color-selector=".plugin-color-input[data-plugin-id=&quot;${this._escapeHtml(pluginId)}&quot;][data-key=&quot;${this._escapeHtml(key)}&quot;]" data-win-toggle="modal" data-win-target="#ColorPickerDialog">
+                <span class="color-swatch-small" data-plugin-color-swatch="${this._escapeHtml(colorKey)}" aria-hidden="true"></span>
+                <span>Pick</span>
+              </button>
               <button type="button" class="app-btn app-btn-subtle field-btn" data-reset-field="${this._escapeHtml(key)}" data-default="${this._escapeHtml(defaultValue)}">Reset</button>
             </div>
           </div>
@@ -487,11 +544,48 @@ class SettingsForm {
     this._updateTransparencyUI();
     if (colorController) {
       colorController.syncFromForm();
+      colorController.updatePluginSwatches();
     }
     if (hotkeyController) {
       hotkeyController.updatePreview('ReloadAppHotkey');
       hotkeyController.updatePreview('SuspendAppHotkey');
+      hotkeyController.updatePluginPreviews();
     }
+  }
+
+  _humanizeHotkey(hk) {
+    if (!hk) return '';
+    let input = hk;
+    const labels = [];
+
+    if (input.indexOf('*') !== -1) {
+      labels.push('Wildcard');
+      input = input.replace(/\*/g, '');
+    }
+    if (input.indexOf('~') !== -1) {
+      labels.push('Passthrough');
+      input = input.replace(/~/g, '');
+    }
+    if (input.indexOf('^') !== -1) {
+      labels.push('Ctrl');
+      input = input.replace(/\^/g, '');
+    }
+    if (input.indexOf('!') !== -1) {
+      labels.push('Alt');
+      input = input.replace(/!/g, '');
+    }
+    if (input.indexOf('+') !== -1) {
+      labels.push('Shift');
+      input = input.replace(/\+/g, '');
+    }
+    if (input.indexOf('#') !== -1) {
+      labels.push('Win');
+      input = input.replace(/#/g, '');
+    }
+
+    const key = input.trim();
+    if (key) labels.push(key);
+    return labels.join(' + ');
   }
 
   _updateTransparencyUI() {
@@ -513,6 +607,8 @@ class ColorPickerController {
   constructor(dom) {
     this.dom = dom;
     this.colorWheel = null;
+    this.targetInput = null;
+    this.targetSwatch = null;
     this.dialogHex = document.getElementById('DialogColorHex');
     this.dialogRgb = document.getElementById('DialogColorRgb');
     this.dialogLch = document.getElementById('DialogColorLch');
@@ -549,7 +645,27 @@ class ColorPickerController {
       this.colorInput.addEventListener('input', () => this.syncFromForm());
     }
 
+    document.addEventListener('input', (ev) => {
+      const input = ev.target.closest('.plugin-color-input');
+      if (!input) return;
+      this._updatePluginSwatchForInput(input);
+    });
+
+    document.addEventListener('change', (ev) => {
+      const input = ev.target.closest('.plugin-color-input');
+      if (!input) return;
+      this._updatePluginSwatchForInput(input);
+    });
+
     this.syncFromForm();
+  }
+
+  beginForTrigger(trigger) {
+    const selector = trigger?.getAttribute('data-color-selector') || '';
+    const input = selector ? document.querySelector(selector) : this.colorInput;
+    this.targetInput = input || this.colorInput;
+    this.targetSwatch = this._resolveSwatch(this.targetInput);
+    this.syncFromTarget();
   }
 
   _onWheelChange() {
@@ -582,19 +698,33 @@ class ColorPickerController {
   }
 
   syncFromForm() {
-    const parsed = this._parseAhkHexColor(this.colorInput.value);
+    this.targetInput = this.colorInput;
+    this.targetSwatch = this.smallSwatch;
+    this.syncFromTarget();
+  }
+
+  syncFromTarget() {
+    const activeInput = this.targetInput || this.colorInput;
+    const parsed = this._parseAhkHexColor(activeInput?.value || '');
+    if (this.dialogHex) {
+      this.dialogHex.value = activeInput?.value || '';
+    }
     if (parsed) {
       if (this.colorWheel) {
         this.colorWheel.rgb = parsed;
         this.colorWheel.redraw();
       }
       if (this.dialogPreview) {
-        this.dialogPreview.style.background = this._toCssColor(this.colorInput.value);
+        this.dialogPreview.style.background = this._toCssColor(activeInput?.value || '');
       }
     } else if (this.dialogPreview) {
       this.dialogPreview.style.background = '#ffffff';
     }
-    this._updateMainSwatch(this.colorInput.value);
+    if (activeInput === this.colorInput) {
+      this._updateMainSwatch(activeInput?.value || '');
+    } else {
+      this._updatePluginSwatch(this.targetSwatch, activeInput?.value || '');
+    }
   }
 
   _updateMainSwatch(hexLike) {
@@ -606,9 +736,43 @@ class ColorPickerController {
   apply() {
     if (!this.dialogHex) return;
     const hex6 = this._normalizeHex6(this.dialogHex.value);
-    if (hex6 && this.colorInput) {
-      this.colorInput.value = '0x' + hex6;
-      this._updateMainSwatch(this.colorInput.value);
+    const activeInput = this.targetInput || this.colorInput;
+    if (hex6 && activeInput) {
+      activeInput.value = '0x' + hex6;
+      activeInput.dispatchEvent(new Event('input'));
+      activeInput.dispatchEvent(new Event('change'));
+      if (activeInput === this.colorInput) {
+        this._updateMainSwatch(activeInput.value);
+      } else {
+        this._updatePluginSwatch(this.targetSwatch, activeInput.value);
+      }
+    }
+  }
+
+  updatePluginSwatches() {
+    document.querySelectorAll('.plugin-color-input').forEach((input) => {
+      this._updatePluginSwatchForInput(input);
+    });
+  }
+
+  _updatePluginSwatchForInput(input) {
+    if (!input) return;
+    const key = input.getAttribute('data-plugin-color-key');
+    if (!key) return;
+    const swatch = document.querySelector(`[data-plugin-color-swatch="${key}"]`);
+    this._updatePluginSwatch(swatch, input.value || '');
+  }
+
+  _resolveSwatch(input) {
+    if (!input || input === this.colorInput) return this.smallSwatch;
+    const key = input.getAttribute('data-plugin-color-key');
+    if (!key) return null;
+    return document.querySelector(`[data-plugin-color-swatch="${key}"]`);
+  }
+
+  _updatePluginSwatch(swatch, hexLike) {
+    if (swatch) {
+      swatch.style.background = this._toCssColor(hexLike);
     }
   }
 
@@ -658,14 +822,17 @@ class HotkeyRecorderController {
     this.dom = dom;
     this.recording = false;
     this.targetId = '';
+    this.targetElement = null;
+    this.targetDisplayElement = null;
     this.pendingRaw = '';
     this.init();
   }
 
   init() {
-    const recordButtons = document.querySelectorAll('[data-hotkey-target]');
-    recordButtons.forEach(btn => {
-      btn.addEventListener('click', () => this._onRecordButtonClick(btn));
+    document.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-hotkey-target], [data-hotkey-selector]');
+      if (!btn) return;
+      this._onRecordButtonClick(btn);
     });
 
     document.addEventListener('keydown', (ev) => this._onRecordKey(ev), { capture: true });
@@ -673,10 +840,13 @@ class HotkeyRecorderController {
 
   _onRecordButtonClick(btn) {
     const targetId = btn.getAttribute('data-hotkey-target');
-    const input = this.dom.getField(targetId);
+    const selector = btn.getAttribute('data-hotkey-selector');
+    const input = selector ? document.querySelector(selector) : this.dom.getField(targetId);
     if (!input) return;
 
     this.targetId = targetId;
+    this.targetElement = input;
+    this.targetDisplayElement = this._resolveDisplayElement(input);
     this.pendingRaw = input.value || '';
 
     const optWildcard = document.getElementById('hotkeyOptWildcard');
@@ -730,14 +900,18 @@ class HotkeyRecorderController {
   }
 
   apply() {
-    if (!this.targetId || !this.pendingRaw) return;
-    const input = this.dom.getField(this.targetId);
-    if (!input) return;
+    const input = this.targetElement || this.dom.getField(this.targetId);
+    if (!input || !this.pendingRaw) return;
 
     input.value = this.pendingRaw;
     input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new Event('change'));
     this._stopRecording();
-    this.updatePreview(this.targetId);
+    if (this.targetId) {
+      this.updatePreview(this.targetId);
+    } else {
+      this._updateElementPreview(input, this.targetDisplayElement);
+    }
   }
 
   updatePreview(inputId) {
@@ -748,6 +922,25 @@ class HotkeyRecorderController {
     const txt = (input.value || '').trim();
     const readable = txt ? this._humanizeAhkHotkey(txt) : '';
     if (display) display.value = readable;
+  }
+
+  updatePluginPreviews() {
+    document.querySelectorAll('.plugin-field-hotkey').forEach((input) => {
+      this._updateElementPreview(input, this._resolveDisplayElement(input));
+    });
+  }
+
+  _resolveDisplayElement(input) {
+    if (!input) return null;
+    const displayKey = input.getAttribute('data-display-for-plugin-hotkey');
+    if (!displayKey) return null;
+    return document.querySelector(`[data-plugin-hotkey-display="${displayKey}"]`);
+  }
+
+  _updateElementPreview(input, display) {
+    if (!input || !display) return;
+    const txt = (input.value || '').trim();
+    display.value = txt ? this._humanizeAhkHotkey(txt) : '';
   }
 
   _toAhkHotkey(ev, wildcard, passthrough) {
@@ -943,6 +1136,11 @@ class SettingsPage {
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => this.colorPicker.syncFromForm());
     }
+    document.addEventListener('click', (ev) => {
+      const trigger = ev.target.closest('[data-color-selector]');
+      if (!trigger) return;
+      this.colorPicker.beginForTrigger(trigger);
+    });
     if (applyBtn) {
       applyBtn.addEventListener('click', () => {
         this.colorPicker.apply();

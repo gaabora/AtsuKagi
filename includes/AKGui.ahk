@@ -287,7 +287,8 @@ class AKGui {
       result .= "action: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("action") ? action["action"] : "") AKGui.QUOTE_CHAR ","
       result .= "label: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("label") ? action["label"] : "") AKGui.QUOTE_CHAR ","
       result .= "description: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("description") ? action["description"] : "") AKGui.QUOTE_CHAR ","
-      result .= "category: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("category") ? action["category"] : "") AKGui.QUOTE_CHAR
+      result .= "category: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("category") ? action["category"] : "") AKGui.QUOTE_CHAR ","
+      result .= "hotkeys: " this._AhkArrayToJs(action.Has("hotkeys") ? action["hotkeys"] : [])
       result .= "}"
     }
     
