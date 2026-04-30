@@ -166,10 +166,9 @@
             <div class="app-input-container">
               <div class="field-with-actions">
                 <input type="hidden" id="ReloadAppHotkey" />
-                <input class="app-input-text hotkey-display-input" type="text" id="ReloadAppHotkeyDisplay" readonly placeholder="Press Record" />
-                <div class="field-actions">
-                  <button type="button" class="app-btn app-btn-subtle field-btn" data-hotkey-target="ReloadAppHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog"><span>Record</span></button>
-                </div>
+                <button type="button" class="app-btn hotkey-badge hotkey-badge-large" data-hotkey-target="ReloadAppHotkey" data-hotkey-display-for="ReloadAppHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">
+                  <span class="hotkey-badge-label">Assign hotkey</span>
+                </button>
               </div>
             </div>
           </div>
@@ -179,10 +178,9 @@
             <div class="app-input-container">
               <div class="field-with-actions">
                 <input type="hidden" id="SuspendAppHotkey" />
-                <input class="app-input-text hotkey-display-input" type="text" id="SuspendAppHotkeyDisplay" readonly placeholder="Press Record" />
-                <div class="field-actions">
-                  <button type="button" class="app-btn app-btn-subtle field-btn" data-hotkey-target="SuspendAppHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog"><span>Record</span></button>
-                </div>
+                <button type="button" class="app-btn hotkey-badge hotkey-badge-large" data-hotkey-target="SuspendAppHotkey" data-hotkey-display-for="SuspendAppHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">
+                  <span class="hotkey-badge-label">Assign hotkey</span>
+                </button>
               </div>
             </div>
           </div>
@@ -328,5 +326,6 @@
   
   <script src="app.js"></script>
   <script src="windows-ui.min.js"></script>
+  <script src="devtools-state-export.js"></script>
 </body>
 </html>

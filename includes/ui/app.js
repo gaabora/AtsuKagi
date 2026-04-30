@@ -16,8 +16,21 @@ class AhkHostBridge {
     return null;
   }
 
-  saveSettings(payload) {
-    if (!this.host || typeof this.host.SettingsSave !== 'function') return;
+  saveSettings(payloadObject, legacyPayload) {
+    if (!this.host) return;
+
+    if (typeof this.host.SettingsSaveV2 === 'function') {
+      const obj = payloadObject || {};
+      const generalEncoded = SettingsForm.encodeGeneralLines(obj.general || {});
+      const disabledCsv = Array.isArray(obj.disabledPlugins) ? obj.disabledPlugins.join(',') : '';
+      const pluginEncoded = SettingsForm.encodePluginConfigLines(obj.pluginConfigs || {});
+      const hotkeysEncoded = SettingsForm.encodeHotkeysLines(obj.hotkeys || []);
+      this.host.SettingsSaveV2(generalEncoded, disabledCsv, pluginEncoded, hotkeysEncoded);
+      return;
+    }
+
+    if (typeof this.host.SettingsSave !== 'function') return;
+    const payload = legacyPayload || [];
     const [welcomeMsg, darkTheme, debugLevel, tooltipMs, transparency, borderColor, startupSound, notificationSound, reloadHotkey, suspendHotkey, swapXButtons, disabledPlugins, pluginConfigEncoded] = payload;
     this.host.SettingsSave(welcomeMsg, darkTheme, debugLevel, tooltipMs, transparency, borderColor, startupSound, notificationSound, reloadHotkey, suspendHotkey, swapXButtons, disabledPlugins, pluginConfigEncoded || '');
   }
@@ -124,12 +137,13 @@ class SettingsDom {
 class SettingsForm {
   constructor(dom) {
     this.dom = dom;
+    this._hotkeyEntries = [];
   }
 
   /**
    * Serialize form state into save payload.
    */
-  serialize() {
+  serializeObject() {
     const welcomeMsg = this.getFieldValue('WelcomeMessage');
     const darkTheme = this.getFieldValue('DarkTheme');
     const debugLevel = this.getFieldValue('DebugLevel');
@@ -150,26 +164,113 @@ class SettingsForm {
       }
     });
 
-    const pluginLines = [];
+    const pluginConfigs = {};
     document.querySelectorAll('.plugin-field[data-plugin-id][data-key]').forEach((el) => {
       const pluginId = el.getAttribute('data-plugin-id') || '';
       const key = el.getAttribute('data-key') || '';
       if (!pluginId || !key) return;
 
+      if (!pluginConfigs[pluginId]) {
+        pluginConfigs[pluginId] = {};
+      }
+
       let value = '';
       if (el.type === 'checkbox') {
-        value = el.checked ? '1' : '0';
+        value = !!el.checked;
       } else {
         value = el.value || '';
       }
-      pluginLines.push(`${pluginId}\t${key}\t${value}`);
+      pluginConfigs[pluginId][key] = value;
     });
 
+    return {
+      general: {
+        WelcomeMessage: welcomeMsg,
+        DarkTheme: darkTheme,
+        DebugLevel: debugLevel,
+        ToolTipTimeoutMs: tooltipMs,
+        WindowTransparencyValue: transparency,
+        WindowOnTopBorderColor: borderColor,
+        StartupSound: startupSound,
+        NotificationSound: notificationSound,
+        ReloadAppHotkey: reloadHotkey,
+        SuspendAppHotkey: suspendHotkey,
+        SwapMouseXButtons: this.getFieldChecked('SwapMouseXButtons')
+      },
+      disabledPlugins,
+      pluginConfigs,
+      hotkeys: [...this._hotkeyEntries]
+    };
+  }
+
+  serializeLegacy(payloadObject) {
+    const obj = payloadObject || this.serializeObject();
+    const gen = obj.general || {};
+    const disabled = Array.isArray(obj.disabledPlugins) ? obj.disabledPlugins : [];
+    const pluginConfigEncoded = SettingsForm.encodePluginConfigLines(obj.pluginConfigs || {});
+
     return [
-      welcomeMsg, darkTheme, debugLevel, tooltipMs, transparency, borderColor,
-      startupSound, notificationSound, reloadHotkey, suspendHotkey, isSwapped,
-      disabledPlugins.join(','), pluginLines.join('\n')
+      gen.WelcomeMessage || '',
+      gen.DarkTheme || '',
+      gen.DebugLevel || '',
+      gen.ToolTipTimeoutMs || '',
+      gen.WindowTransparencyValue || '',
+      gen.WindowOnTopBorderColor || '',
+      gen.StartupSound || '',
+      gen.NotificationSound || '',
+      gen.ReloadAppHotkey || '',
+      gen.SuspendAppHotkey || '',
+      gen.SwapMouseXButtons ? 'true' : 'false',
+      disabled.join(','),
+      pluginConfigEncoded
     ];
+  }
+
+  static encodePluginConfigLines(pluginConfigs) {
+    const lines = [];
+    Object.keys(pluginConfigs || {}).forEach((pluginId) => {
+      const cfg = pluginConfigs[pluginId] || {};
+      Object.keys(cfg).forEach((key) => {
+        const rawValue = cfg[key];
+        const value = typeof rawValue === 'boolean' ? (rawValue ? '1' : '0') : `${rawValue ?? ''}`;
+        lines.push(`${SettingsForm.escapeLinePart(pluginId)}\t${SettingsForm.escapeLinePart(key)}\t${SettingsForm.escapeLinePart(value)}`);
+      });
+    });
+    return lines.join('\n');
+  }
+
+  static encodeGeneralLines(general) {
+    const lines = [];
+    Object.keys(general || {}).forEach((key) => {
+      const rawValue = general[key];
+      const value = typeof rawValue === 'boolean' ? (rawValue ? '1' : '0') : `${rawValue ?? ''}`;
+      lines.push(`${SettingsForm.escapeLinePart(key)}\t${SettingsForm.escapeLinePart(value)}`);
+    });
+    return lines.join('\n');
+  }
+
+  static encodeHotkeysLines(hotkeys) {
+    const lines = [];
+    (hotkeys || []).forEach((entry) => {
+      const hotKey = `${entry?.hotKey || ''}`;
+      const action = `${entry?.action || ''}`;
+      if (!hotKey || !action) return;
+      lines.push(`${SettingsForm.escapeLinePart(hotKey)}\t${SettingsForm.escapeLinePart(action)}`);
+    });
+    return lines.join('\n');
+  }
+
+  static escapeLinePart(value) {
+    return `${value ?? ''}`
+      .replace(/\\/g, '\\\\')
+      .replace(/\r/g, '\\r')
+      .replace(/\n/g, '\\n')
+      .replace(/\t/g, '\\t');
+  }
+
+  serialize() {
+    const payloadObject = this.serializeObject();
+    return this.serializeLegacy(payloadObject);
   }
 
   getFieldValue(id) {
@@ -214,6 +315,12 @@ class SettingsForm {
     this.setFieldValue('ReloadAppHotkey', gen.ReloadAppHotkey || '');
     this.setFieldValue('SuspendAppHotkey', gen.SuspendAppHotkey || '');
     this.setFieldChecked('SwapMouseXButtons', gen.SwapMouseXButtons === true || gen.SwapMouseXButtons === 1 || gen.SwapMouseXButtons === '1');
+
+    this._hotkeyEntries = Array.isArray(state.hotkeys)
+      ? state.hotkeys
+          .map((hk) => ({ hotKey: `${hk?.hotKey || ''}`, action: `${hk?.action || ''}` }))
+          .filter((hk) => hk.hotKey && hk.action)
+      : [];
 
     // Render plugin list
     if (state.plugins) {
@@ -366,7 +473,7 @@ class SettingsForm {
 
       // Add actions summary block grouped by category.
       if (page.actions && page.actions.length > 0) {
-        sectionHtml += this._renderPluginActionsSummary(page.actions);
+        sectionHtml += this._renderPluginActionsSummary(page.id, page.actions);
       }
 
       // Add Reset All button
@@ -381,15 +488,6 @@ class SettingsForm {
 
       // Insert section into content
       content.appendChild(section);
-
-      // Bind nav click handler
-      navItem.addEventListener('click', (e) => {
-        e.preventDefault();
-        document.querySelectorAll('.settings-nav .nav-item').forEach((item) => item.classList.remove('active'));
-        document.querySelectorAll('.settings-content .settings-section').forEach((s) => s.classList.remove('active'));
-        navItem.classList.add('active');
-        section.classList.add('active');
-      });
 
       // Bind per-field reset buttons for this section.
       section.querySelectorAll('[data-reset-field]').forEach((btn) => {
@@ -426,7 +524,7 @@ class SettingsForm {
     });
   }
 
-  _renderPluginActionsSummary(actions) {
+  _renderPluginActionsSummary(pluginId, actions) {
     const grouped = new Map();
     (actions || []).forEach((action) => {
       const category = action.category || 'Actions';
@@ -438,15 +536,18 @@ class SettingsForm {
     grouped.forEach((items, category) => {
       html += `<div class="plugin-action-category"><div class="plugin-action-category-title">${this._escapeHtml(category)}</div>`;
       items.forEach((item) => {
-        const hotkeys = Array.isArray(item.hotkeys) ? item.hotkeys : [];
+        const actionName = `${item?.action || ''}`;
+        const hotkeys = this.getHotkeysForAction(actionName);
         const hotkeysHtml = hotkeys.length
-          ? `<div class="plugin-action-hotkeys">${hotkeys.map((hk) => `<span class="plugin-hotkey-chip">${this._escapeHtml(hk)}</span>`).join('')}</div>`
-          : `<div class="plugin-action-hotkeys plugin-action-hotkeys-empty">No hotkey assigned</div>`;
+          ? `<div class="plugin-action-hotkeys">${hotkeys.map((hk) => this._renderActionHotkeyBadge(pluginId, actionName, hk)).join('')}</div>`
+          : `<div class="plugin-action-hotkeys"><button type="button" class="app-btn plugin-hotkey-badge plugin-hotkey-badge-empty" data-hotkey-action="${this._escapeHtml(actionName)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Assign hotkey</button></div>`;
         html += `
-          <div class="plugin-action-item">
-            <div class="plugin-action-name">${this._escapeHtml(item.label || item.action || '')}</div>
+          <div class="plugin-action-item" data-plugin-id="${this._escapeHtml(pluginId || '')}" data-action-name="${this._escapeHtml(actionName)}">
+            <div class="plugin-action-head">
+              <div class="plugin-action-name">${this._escapeHtml(item.label || item.action || '')}</div>
+              ${hotkeysHtml}
+            </div>
             <div class="plugin-action-description">${this._escapeHtml(item.description || '')}</div>
-            ${hotkeysHtml}
           </div>
         `;
       });
@@ -455,6 +556,78 @@ class SettingsForm {
     html += '</div>';
 
     return html;
+  }
+
+  _renderActionHotkeyBadge(pluginId, actionName, hotkeyRaw) {
+    const readable = this._humanizeHotkey(hotkeyRaw);
+    return `
+      <button
+        type="button"
+        class="app-btn plugin-hotkey-badge"
+        data-hotkey-action="${this._escapeHtml(actionName)}"
+        data-hotkey-current="${this._escapeHtml(hotkeyRaw)}"
+        data-plugin-id="${this._escapeHtml(pluginId || '')}"
+        data-win-toggle="modal"
+        data-win-target="#HotkeyRecorderDialog"
+      >
+        <span class="plugin-hotkey-badge-label">${this._escapeHtml(readable || hotkeyRaw)}</span>
+        <span class="plugin-hotkey-badge-remove" data-action-hotkey-remove="${this._escapeHtml(hotkeyRaw)}">&times;</span>
+      </button>
+    `;
+  }
+
+  _extractActionName(actionText) {
+    const txt = `${actionText || ''}`.trim();
+    if (!txt) return '';
+    const idx = txt.indexOf('(');
+    return (idx === -1 ? txt : txt.slice(0, idx)).trim();
+  }
+
+  getHotkeysForAction(actionName) {
+    const wanted = `${actionName || ''}`.trim();
+    if (!wanted) return [];
+    return this._hotkeyEntries
+      .filter((entry) => this._extractActionName(entry.action) === wanted)
+      .map((entry) => entry.hotKey)
+      .filter(Boolean);
+  }
+
+  assignActionHotkey(actionName, newHotkeyRaw, replaceHotkeyRaw = '') {
+    const wanted = `${actionName || ''}`.trim();
+    const newRaw = `${newHotkeyRaw || ''}`.trim();
+    const replaceRaw = `${replaceHotkeyRaw || ''}`.trim();
+    if (!wanted || !newRaw) return;
+
+    this._hotkeyEntries = this._hotkeyEntries.filter((entry) => `${entry.hotKey || ''}`.trim() !== newRaw);
+
+    if (replaceRaw) {
+      let replaced = false;
+      this._hotkeyEntries = this._hotkeyEntries.map((entry) => {
+        if (`${entry.hotKey || ''}`.trim() === replaceRaw) {
+          replaced = true;
+          return { hotKey: newRaw, action: entry.action || wanted };
+        }
+        return entry;
+      });
+      if (!replaced) {
+        this._hotkeyEntries.push({ hotKey: newRaw, action: wanted });
+      }
+      return;
+    }
+
+    const existingForAction = this._hotkeyEntries.find((entry) => this._extractActionName(entry.action) === wanted);
+    if (existingForAction) {
+      existingForAction.hotKey = newRaw;
+      return;
+    }
+
+    this._hotkeyEntries.push({ hotKey: newRaw, action: wanted });
+  }
+
+  removeHotkeyByRaw(hotkeyRaw) {
+    const raw = `${hotkeyRaw || ''}`.trim();
+    if (!raw) return;
+    this._hotkeyEntries = this._hotkeyEntries.filter((entry) => `${entry.hotKey || ''}`.trim() !== raw);
   }
 
   // Render a single plugin field
@@ -476,15 +649,15 @@ class SettingsForm {
         break;
       
       case 'hotkey':
-        const hotkeyDisplayKey = `${pluginId}::${key}`;
+        const hotkeyFieldId = `pluginHotkey_${pluginId}_${key}`.replace(/[^A-Za-z0-9_\-]/g, '_');
+        const readable = this._humanizeHotkey(value);
         controlHtml = `
           <div class="field-with-actions">
-            <input type="hidden" class="plugin-field plugin-field-hotkey" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" data-display-for-plugin-hotkey="${this._escapeHtml(hotkeyDisplayKey)}" value="${this._escapeHtml(value)}" />
-            <input type="text" class="app-input-text hotkey-display-input" readonly value="${this._escapeHtml(value)}" data-plugin-hotkey-display="${this._escapeHtml(hotkeyDisplayKey)}" placeholder="Press Record" />
-            <div class="field-actions">
-              <button type="button" class="app-btn app-btn-subtle field-btn" data-hotkey-selector=".plugin-field-hotkey[data-plugin-id=&quot;${this._escapeHtml(pluginId)}&quot;][data-key=&quot;${this._escapeHtml(key)}&quot;]" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Record</button>
-              <button type="button" class="app-btn app-btn-subtle field-btn" data-reset-field="${this._escapeHtml(key)}" data-default="${this._escapeHtml(defaultValue)}">Reset</button>
-            </div>
+            <input type="hidden" id="${this._escapeHtml(hotkeyFieldId)}" class="plugin-field plugin-field-hotkey" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" value="${this._escapeHtml(value)}" />
+            <button type="button" class="app-btn hotkey-badge hotkey-badge-medium" data-hotkey-target="${this._escapeHtml(hotkeyFieldId)}" data-hotkey-display-for="${this._escapeHtml(hotkeyFieldId)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">
+              <span class="hotkey-badge-label">${this._escapeHtml(readable || 'Assign hotkey')}</span>
+              <span class="hotkey-badge-remove" data-hotkey-reset-field="${this._escapeHtml(hotkeyFieldId)}" data-default="${this._escapeHtml(defaultValue)}">&times;</span>
+            </button>
           </div>
         `;
         break;
@@ -517,9 +690,11 @@ class SettingsForm {
     }
 
     return `
-      <div class="setting-row">
-        <label class="field-label">${this._escapeHtml(label)}</label>
-        ${description ? `<p class="field-description">${this._escapeHtml(description)}</p>` : ''}
+      <div class="setting-row plugin-setting-row">
+        <div class="plugin-field-meta">
+          <label class="field-label">${this._escapeHtml(label)}</label>
+          ${description ? `<p class="field-description">${this._escapeHtml(description)}</p>` : ''}
+        </div>
         <div class="app-input-container">
           ${controlHtml}
         </div>
@@ -533,6 +708,9 @@ class SettingsForm {
     if (!section) return;
 
     section.querySelectorAll('[data-reset-field]').forEach(btn => {
+      btn.click();
+    });
+    section.querySelectorAll('[data-hotkey-reset-field]').forEach((btn) => {
       btn.click();
     });
   }
@@ -818,19 +996,21 @@ class ColorPickerController {
  * HotkeyRecorderController: Manages hotkey recording modal.
  */
 class HotkeyRecorderController {
-  constructor(dom) {
+  constructor(dom, onActionHotkeyApplied = null) {
     this.dom = dom;
+    this.onActionHotkeyApplied = onActionHotkeyApplied;
     this.recording = false;
     this.targetId = '';
     this.targetElement = null;
     this.targetDisplayElement = null;
     this.pendingRaw = '';
+    this.actionTarget = null;
     this.init();
   }
 
   init() {
     document.addEventListener('click', (ev) => {
-      const btn = ev.target.closest('[data-hotkey-target], [data-hotkey-selector]');
+      const btn = ev.target.closest('[data-hotkey-target], [data-hotkey-selector], [data-hotkey-action]');
       if (!btn) return;
       this._onRecordButtonClick(btn);
     });
@@ -839,11 +1019,52 @@ class HotkeyRecorderController {
   }
 
   _onRecordButtonClick(btn) {
+    const dialog = document.getElementById('HotkeyRecorderDialog');
+    if (dialog) {
+      dialog.classList.add('active');
+      dialog.style.display = 'flex';
+    }
+
+    const actionName = `${btn.getAttribute('data-hotkey-action') || ''}`.trim();
+    if (actionName) {
+      this.targetId = '';
+      this.targetElement = null;
+      this.targetDisplayElement = null;
+      this.actionTarget = {
+        actionName,
+        replaceHotkeyRaw: `${btn.getAttribute('data-hotkey-current') || ''}`.trim()
+      };
+      this.pendingRaw = this.actionTarget.replaceHotkeyRaw;
+
+      const optWildcard = document.getElementById('hotkeyOptWildcard');
+      const optPassthrough = document.getElementById('hotkeyOptPassthrough');
+      if (optWildcard) {
+        optWildcard.checked = this.pendingRaw.indexOf('*') !== -1;
+      }
+      if (optPassthrough) {
+        optPassthrough.checked = this.pendingRaw.indexOf('~') !== -1;
+      }
+
+      const statusEl = document.getElementById('hotkeyRecordStatus');
+      const valueEl = document.getElementById('hotkeyRecordReadable');
+      if (statusEl) {
+        statusEl.textContent = 'Recording... press a key combination.';
+      }
+      if (valueEl) {
+        valueEl.textContent = this.pendingRaw ? this._humanizeAhkHotkey(this.pendingRaw) : '(listening...)';
+      }
+
+      this._stopRecording();
+      this.recording = true;
+      return;
+    }
+
     const targetId = btn.getAttribute('data-hotkey-target');
     const selector = btn.getAttribute('data-hotkey-selector');
     const input = selector ? document.querySelector(selector) : this.dom.getField(targetId);
     if (!input) return;
 
+    this.actionTarget = null;
     this.targetId = targetId;
     this.targetElement = input;
     this.targetDisplayElement = this._resolveDisplayElement(input);
@@ -900,6 +1121,14 @@ class HotkeyRecorderController {
   }
 
   apply() {
+    if (this.actionTarget && this.pendingRaw) {
+      if (typeof this.onActionHotkeyApplied === 'function') {
+        this.onActionHotkeyApplied(this.actionTarget.actionName, this.pendingRaw, this.actionTarget.replaceHotkeyRaw || '');
+      }
+      this._stopRecording();
+      return;
+    }
+
     const input = this.targetElement || this.dom.getField(this.targetId);
     if (!input || !this.pendingRaw) return;
 
@@ -916,12 +1145,12 @@ class HotkeyRecorderController {
 
   updatePreview(inputId) {
     const input = this.dom.getField(inputId);
-    const display = this.dom.getField(inputId + 'Display');
+    const display = this._resolveDisplayElement(input) || this.dom.getField(inputId + 'Display');
     if (!input) return;
 
     const txt = (input.value || '').trim();
     const readable = txt ? this._humanizeAhkHotkey(txt) : '';
-    if (display) display.value = readable;
+    this._setDisplayText(display, readable);
   }
 
   updatePluginPreviews() {
@@ -933,14 +1162,35 @@ class HotkeyRecorderController {
   _resolveDisplayElement(input) {
     if (!input) return null;
     const displayKey = input.getAttribute('data-display-for-plugin-hotkey');
-    if (!displayKey) return null;
-    return document.querySelector(`[data-plugin-hotkey-display="${displayKey}"]`);
+    if (displayKey)
+      return document.querySelector(`[data-plugin-hotkey-display="${displayKey}"]`);
+
+    const id = input.id || '';
+    if (!id) return null;
+    return document.querySelector(`[data-hotkey-display-for="${id}"]`);
+  }
+
+  _setDisplayText(display, readable) {
+    if (!display) return;
+    const text = readable || 'Assign hotkey';
+    if (display instanceof HTMLInputElement || display instanceof HTMLTextAreaElement) {
+      display.value = readable || '';
+      return;
+    }
+
+    const label = display.querySelector('.hotkey-badge-label');
+    if (label) {
+      label.textContent = text;
+    } else {
+      display.textContent = text;
+    }
+    display.classList.toggle('is-empty', !readable);
   }
 
   _updateElementPreview(input, display) {
     if (!input || !display) return;
     const txt = (input.value || '').trim();
-    display.value = txt ? this._humanizeAhkHotkey(txt) : '';
+    this._setDisplayText(display, txt ? this._humanizeAhkHotkey(txt) : '');
   }
 
   _toAhkHotkey(ev, wildcard, passthrough) {
@@ -1024,7 +1274,9 @@ class SettingsPage {
     this.hostBridge = new AhkHostBridge();
     this.form = new SettingsForm(this.dom);
     this.colorPicker = new ColorPickerController(this.dom);
-    this.hotkeyRecorder = new HotkeyRecorderController(this.dom);
+    this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw));
+    this._isApplyingState = false;
+    this._autoSaveTimer = 0;
     this.init();
   }
 
@@ -1036,6 +1288,9 @@ class SettingsPage {
     this._bindHotkeyRecorderDialog();
     this._bindSliderRefresh();
     this._bindDevToolsButton();
+    this._bindAutoSave();
+    this._bindActionHotkeyRemoval();
+    this._bindHotkeyBadgeReset();
   }
 
   _bindActions() {
@@ -1069,30 +1324,49 @@ class SettingsPage {
     };
   }
 
+  _bindAutoSave() {
+    const contentRoot = document.querySelector('.settings-content');
+    if (!contentRoot) return;
+
+    const onChange = (ev) => {
+      if (this._isApplyingState) return;
+      const target = ev.target;
+      if (!target) return;
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement))
+        return;
+      this._scheduleAutoSave();
+    };
+
+    contentRoot.addEventListener('change', onChange);
+  }
+
   _bindNavigation() {
-    this.dom.getAllNavItems().forEach(item => {
-      item.addEventListener('click', (e) => {
-        const sectionName = item.getAttribute('data-section') || item.getAttribute('onclick')?.match(/'(\w+)'/)?.[1];
+    const navRoot = document.querySelector('.settings-nav');
+    if (navRoot) {
+      navRoot.addEventListener('click', (e) => {
+        const item = e.target.closest('.nav-item');
+        if (!item) return;
+        const sectionName = item.getAttribute('data-section') || item.getAttribute('onclick')?.match(/'([\w-]+)'/)?.[1];
         if (sectionName) {
           this._showSection(sectionName, item);
         }
       });
-    });
+    }
 
     // Fallback for inline onclick
     window.showSection = (name, navEl) => this._showSection(name, navEl);
   }
 
   _showSection(name, navEl) {
-    this.dom.getAllSections().forEach(section => {
+    document.querySelectorAll('.settings-content .settings-section').forEach(section => {
       section.classList.remove('active');
     });
 
-    this.dom.getAllNavItems().forEach(item => {
+    document.querySelectorAll('.settings-nav .nav-item').forEach(item => {
       item.classList.remove('active');
     });
 
-    const target = this.dom.getSection(name);
+    const target = document.getElementById(`section-${name}`);
     if (target) {
       target.classList.add('active');
     }
@@ -1156,9 +1430,19 @@ class SettingsPage {
     if (applyBtn) {
       applyBtn.addEventListener('click', () => {
         this.hotkeyRecorder.apply();
-        if (cancelBtn) cancelBtn.click();
+        this._closeDialog('HotkeyRecorderDialog');
       });
     }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => this._closeDialog('HotkeyRecorderDialog'));
+    }
+  }
+
+  _closeDialog(dialogId) {
+    const dialog = document.getElementById(dialogId);
+    if (!dialog) return;
+    dialog.classList.remove('active');
+    dialog.style.display = '';
   }
 
   _bindSliderRefresh() {
@@ -1178,9 +1462,86 @@ class SettingsPage {
     });
   }
 
+  _bindActionHotkeyRemoval() {
+    document.addEventListener('click', (ev) => {
+      const removeBtn = ev.target.closest('[data-action-hotkey-remove]');
+      if (!removeBtn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      const raw = `${removeBtn.getAttribute('data-action-hotkey-remove') || ''}`.trim();
+      if (!raw) return;
+      const actionItem = removeBtn.closest('.plugin-action-item');
+      const actionName = `${actionItem?.getAttribute('data-action-name') || ''}`.trim();
+
+      this.form.removeHotkeyByRaw(raw);
+      this._refreshActionHotkeys(actionName);
+      this.form._renderHotkeys(this.form._hotkeyEntries);
+      this._scheduleAutoSave();
+    });
+  }
+
+  _bindHotkeyBadgeReset() {
+    document.addEventListener('click', (ev) => {
+      const resetBtn = ev.target.closest('[data-hotkey-reset-field]');
+      if (!resetBtn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      const fieldId = `${resetBtn.getAttribute('data-hotkey-reset-field') || ''}`.trim();
+      const def = `${resetBtn.getAttribute('data-default') || ''}`;
+      if (!fieldId) return;
+
+      const field = document.getElementById(fieldId);
+      if (!field) return;
+
+      field.value = def;
+      field.dispatchEvent(new Event('input'));
+      field.dispatchEvent(new Event('change'));
+      this.hotkeyRecorder.updatePreview(fieldId);
+      this._scheduleAutoSave();
+    });
+  }
+
+  _applyActionHotkey(actionName, hotkeyRaw, replaceRaw) {
+    this.form.assignActionHotkey(actionName, hotkeyRaw, replaceRaw);
+    this._refreshActionHotkeys(actionName);
+    this.form._renderHotkeys(this.form._hotkeyEntries);
+    this._scheduleAutoSave();
+  }
+
+  _refreshActionHotkeys(actionName) {
+    const wanted = `${actionName || ''}`.trim();
+    if (!wanted) return;
+    document.querySelectorAll(`.plugin-action-item[data-action-name="${CSS.escape(wanted)}"]`).forEach((item) => {
+      const pluginId = `${item.getAttribute('data-plugin-id') || ''}`;
+      const hotkeys = this.form.getHotkeysForAction(wanted);
+      const host = item.querySelector('.plugin-action-hotkeys');
+      if (!host) return;
+
+      if (!hotkeys.length) {
+        host.innerHTML = `<button type="button" class="app-btn plugin-hotkey-badge plugin-hotkey-badge-empty" data-hotkey-action="${this.form._escapeHtml(wanted)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Assign hotkey</button>`;
+        return;
+      }
+
+      host.innerHTML = hotkeys.map((hk) => this.form._renderActionHotkeyBadge(pluginId, wanted, hk)).join('');
+    });
+  }
+
+  _scheduleAutoSave() {
+    if (this._autoSaveTimer) {
+      clearTimeout(this._autoSaveTimer);
+    }
+    this._autoSaveTimer = setTimeout(() => {
+      this._autoSaveTimer = 0;
+      this._saveSettings();
+    }, 350);
+  }
+
   _saveSettings() {
-    const payload = this.form.serialize();
-    this.hostBridge.saveSettings(payload);
+    const payloadObject = this.form.serializeObject();
+    const legacyPayload = this.form.serializeLegacy(payloadObject);
+    this.hostBridge.saveSettings(payloadObject, legacyPayload);
   }
 
   refreshUI() {
@@ -1191,8 +1552,10 @@ class SettingsPage {
    * Apply state from AHK (Phase 3).
    */
   applyState(state) {
+    this._isApplyingState = true;
     this.form.applyState(state);
     this.refreshUI();
+    this._isApplyingState = false;
   }
 }
 

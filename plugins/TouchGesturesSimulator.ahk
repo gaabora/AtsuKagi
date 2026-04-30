@@ -84,8 +84,68 @@ class TouchGesturesSimulator extends AKPlugin {
     ; this.BypassMouseButtonsWhenNotMoved := ["RButton", "MButton"]
   }
 
-  __ConfigHelp() {
-    return "TouchRadiusInPixels (default: 5): radius of each simulated touch point. MaxTouchPoints (default: 10): max simultaneous touch points. Not configurable via UI, edit config manually if needed."
+  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "TouchGesturesSimulator",
+        "title", "Touch Gestures Simulator",
+        "description", "Simulate touchpad input with mouse. Make touchpad gestures using mouse movement and buttons.",
+        "icon", "icons10-touch",
+        "category", "Input Management"
+      ),
+      "settingsPage", Map(
+        "description", "Configure touch input injection and gesture parameters.",
+        "icon", "icons10-touch"
+      ),
+      "config", [
+        Map(
+          "key", "TouchRadiusInPixels",
+          "label", "Touch radius in pixels",
+          "description", "Radius of each simulated touch point.",
+          "type", "integer",
+          "default", 5,
+          "section", "Touch Input",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "MaxTouchPoints",
+          "label", "Max touch points",
+          "description", "Maximum number of simultaneous touch points.",
+          "type", "integer",
+          "default", 10,
+          "section", "Touch Input",
+          "scope", "plugin"
+        )
+      ],
+      "actions", [
+        Map(
+          "action", "EnterGestureMode",
+          "label", "Enter gesture mode",
+          "description", "Simulate multitouch input with mouse. Drag to simulate touch points.",
+          "params", ["fingers", "movingThreshold", "runIfNoMove"],
+          "category", "Touch Gestures"
+        ),
+        Map(
+          "action", "SetPrecisionTouchpadRegistryConfig",
+          "label", "Set precision touchpad config",
+          "description", "Configure Windows precision touchpad settings (ThreeFingerSlideEnabled, ThreeFingerTapEnabled, FourFingerSlideEnabled, FourFingerTapEnabled).",
+          "params", ["key", "value"],
+          "category", "Touch Configuration"
+        )
+      ],
+      "hooks", []
+    )
+  }
+
+  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
+  ; These are now derived from __DescribePlugin() by the base class
+  _processBlocklistConfig() {
+  }
+
+  _processPluginConfig() {
+    ; Apply descriptor defaults
+    this.__ApplyDefaultConfig()
   }
 
   _init() {
@@ -111,17 +171,6 @@ class TouchGesturesSimulator extends AKPlugin {
       return true
     this.outputDebugLine("TouchGesturesSimulator unavailable: " this._touchInitError, 1)
     return false
-  }
-
-  __UsageHelp() {
-    return "Simulates touchpad input with mouse, make touchpad gestures using mouse"
-  }
-
-  __ActionsHelp() {
-    texts := Map()
-    texts["EnterGestureMode"] := "EnterGestureMode(fingers:=1)"
-    texts["SetPrecisionTouchpadRegistryConfig"] := "SetPrecisionTouchpadRegistryConfig(key, value) set current user's PrecisionTouchPad settings for ThreeFingerSlideEnabled, ThreeFingerTapEnabled, FourFingerSlideEnabled, FourFingerTapEnabled"
-    return texts
   }
 
   EnterGestureMode(fingers:=1, movingThreshold:=0, runIfNoMove:="") { ;;;

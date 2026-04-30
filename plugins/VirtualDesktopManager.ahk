@@ -5,6 +5,61 @@ class VirtualDesktopManager extends AKPlugin {
   _isReady := false
   _initError := ""
   
+  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "VirtualDesktopManager",
+        "title", "Virtual Desktop Manager",
+        "description", "Manage Windows 10+ virtual desktops: switch between desktops, move windows, create/remove/rename desktops. Uses VirtualDesktopAccessor.dll https://github.com/Ciantic/VirtualDesktopAccessor/releases. Requires Windows 10 or later",
+        "icon", "icons10-square",
+        "category", "Window Management"
+      ),
+      "settingsPage", Map(
+        "description", "Configure virtual desktop management and navigation.",
+        "icon", "icons10-square"
+      ),
+      "config", [],
+      "actions", [
+        Map("action", "GetDesktopName", "label", "Get desktop name", "description", "Get the name of a specified desktop.", "params", ["desktopNumber"], "category", "Desktop Info"),
+        Map("action", "SetDesktopName", "label", "Set desktop name", "description", "Set the name of a specified desktop.", "params", ["desktopNumber", "name"], "category", "Desktop Management"),
+        Map("action", "CreateDesktop", "label", "Create desktop", "description", "Create a new virtual desktop.", "params", [], "category", "Desktop Management"),
+        Map("action", "RemoveDesktop", "label", "Remove desktop", "description", "Remove a virtual desktop.", "params", ["RemoveDesktopNumber", "FallbackDesktopNumber"], "category", "Desktop Management"),
+        Map("action", "GetCurrentDesktopNumber", "label", "Get current desktop number", "description", "Get the index of the currently active desktop.", "params", [], "category", "Desktop Info"),
+        Map("action", "GetDesktopCount", "label", "Get desktop count", "description", "Get the total number of virtual desktops.", "params", [], "category", "Desktop Info"),
+        Map("action", "GetPrevDesktopNumber", "label", "Get previous desktop number", "description", "Get the index of the previous desktop.", "params", [], "category", "Desktop Navigation"),
+        Map("action", "GetNextDesktopNumber", "label", "Get next desktop number", "description", "Get the index of the next desktop.", "params", [], "category", "Desktop Navigation"),
+        Map("action", "GoToDesktop", "label", "Go to desktop", "description", "Switch to a specified desktop.", "params", ["desktopNumber"], "category", "Desktop Navigation"),
+        Map("action", "GoToRecentDesktop", "label", "Go to recent desktop", "description", "Switch to the most recently used desktop.", "params", [], "category", "Desktop Navigation"),
+        Map("action", "GoToPrevDesktop", "label", "Go to previous desktop", "description", "Switch to the previous desktop.", "params", [], "category", "Desktop Navigation"),
+        Map("action", "GoToNextDesktop", "label", "Go to next desktop", "description", "Switch to the next desktop.", "params", [], "category", "Desktop Navigation"),
+        Map("action", "MoveWindowToDesktop", "label", "Move window to desktop", "description", "Move a window to a specified desktop.", "params", ["desktopNumber", "hwnd"], "category", "Window Management"),
+        Map("action", "MoveWindowToPrevDesktop", "label", "Move window to previous desktop", "description", "Move the current window to the previous desktop.", "params", ["hwnd"], "category", "Window Management"),
+        Map("action", "MoveWindowToNextDesktop", "label", "Move window to next desktop", "description", "Move the current window to the next desktop.", "params", ["hwnd"], "category", "Window Management"),
+        Map("action", "MoveHoveredWindowToDesktop", "label", "Move hovered window to desktop", "description", "Move the window at cursor to a specified desktop.", "params", ["desktopNumber"], "category", "Window Management"),
+        Map("action", "MoveHoveredWindowToPrevDesktop", "label", "Move hovered window to previous desktop", "description", "Move the window at cursor to the previous desktop.", "params", [], "category", "Window Management"),
+        Map("action", "MoveHoveredWindowToNextDesktop", "label", "Move hovered window to next desktop", "description", "Move the window at cursor to the next desktop.", "params", [], "category", "Window Management"),
+        Map("action", "GoWithWindowToDesktop", "label", "Go with window to desktop", "description", "Move a window to a desktop and switch to it.", "params", ["desktopNumber", "hwnd"], "category", "Window Management"),
+        Map("action", "GoWithWindowToPrevDesktop", "label", "Go with window to previous desktop", "description", "Move current window to previous desktop and switch to it.", "params", [], "category", "Window Management"),
+        Map("action", "GoWithWindowToNextDesktop", "label", "Go with window to next desktop", "description", "Move current window to next desktop and switch to it.", "params", [], "category", "Window Management"),
+        Map("action", "GoWithHoveredWindowToDesktop", "label", "Go with hovered window to desktop", "description", "Move hovered window to a desktop and switch to it.", "params", ["desktopNumber"], "category", "Window Management"),
+        Map("action", "GoWithHoveredWindowToPrevDesktop", "label", "Go with hovered window to previous desktop", "description", "Move hovered window to previous desktop and switch to it.", "params", [], "category", "Window Management"),
+        Map("action", "GoWithHoveredWindowToNextDesktop", "label", "Go with hovered window to next desktop", "description", "Move hovered window to next desktop and switch to it.", "params", [], "category", "Window Management")
+      ],
+      "hooks", []
+    )
+  }
+
+  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
+  ; These are now derived from __DescribePlugin() by the base class
+  _processBlocklistConfig() {
+  }
+
+  _processPluginConfig() {
+    ; Apply descriptor defaults, then any additional processing if needed
+    this.__ApplyDefaultConfig()
+  }
+  
   _init(dllPath:=0, loopFirtAndLast:=0) {
     this.dllPath := (dllPath) ? dllPath : A_ScriptDir . this.dllPathDefault
 
@@ -55,45 +110,6 @@ class VirtualDesktopManager extends AKPlugin {
   __Delete() {
     ; TODO UnregisterPostMessageHookProc somehow
       DllCall("FreeLibrary", "Ptr", this.hVirtualDesktopAccessor)
-  }
-
-  __ConfigHelp() {
-    return "Requires: VirtualDesktopAccessor.dll in script directory. Download from https://github.com/Ciantic/VirtualDesktopAccessor/releases. No config keys required."
-  }
-
-  __UsageHelp() {
-    return "Switch between virtual desktops, move windows to desktops, create/remove desktops, rename desktops. Uses native Windows 10+ Virtual Desktop API via DLL. Disable if DLL not available."
-  }
-
-  __ActionsHelp() {
-    if (!this._isReady)
-      return Map()
-    texts := Map()
-    texts["GetDesktopName"] := "GetDesktopName(desktopNumber)"
-    texts["SetDesktopName"] := "SetDesktopName(desktopNumber, name)"
-    texts["CreateDesktop"] := "CreateDesktop()"
-    texts["RemoveDesktop"] := "RemoveDesktop(RemoveDesktopNumber, FallbackDesktopNumber)"
-    texts["GetCurrentDesktopNumber"] := "GetCurrentDesktopNumber()"
-    texts["GetDesktopCount"] := "GetDesktopCount()"
-    texts["GetPrevDesktopNumber"] := "GetPrevDesktopNumber()"
-    texts["GetNextDesktopNumber"] := "GetNextDesktopNumber()"
-    texts["GoToDesktop"] := "GoToDesktop(desktopNumber)"
-    texts["GoToRecentDesktop"] := "GoToRecentDesktop()"
-    texts["GoToPrevDesktop"] := "GoToPrevDesktop()"
-    texts["GoToNextDesktop"] := "GoToNextDesktop()"
-    texts["MoveWindowToDesktop"] := "MoveWindowToDesktop(desktopNumber, hwnd:=0)"
-    texts["MoveWindowToPrevDesktop"] := "MoveWindowToPrevDesktop(hwnd:=0)"
-    texts["MoveWindowToNextDesktop"] := "MoveWindowToNextDesktop(hwnd:=0)"
-    texts["MoveHoveredWindowToDesktop"] := "MoveHoveredWindowToDesktop(desktopNumber)"
-    texts["MoveHoveredWindowToPrevDesktop"] := "MoveHoveredWindowToPrevDesktop()"
-    texts["MoveHoveredWindowToNextDesktop"] := "MoveHoveredWindowToNextDesktop()"
-    texts["GoWithWindowToDesktop"] := "GoWithWindowToDesktop(desktopNumber, hwnd:=0)"
-    texts["GoWithWindowToPrevDesktop"] := "GoWithWindowToPrevDesktop()"
-    texts["GoWithWindowToNextDesktop"] := "GoWithWindowToNextDesktop()"
-    texts["GoWithHoveredWindowToDesktop"] := "GoWithHoveredWindowToDesktop(desktopNumber)"
-    texts["GoWithHoveredWindowToPrevDesktop"] := "GoWithHoveredWindowToPrevDesktop()"
-    texts["GoWithHoveredWindowToNextDesktop"] := "GoWithHoveredWindowToNextDesktop()"
-    return texts
   }
 
   GetDesktopName(desktopNumber) { ;;;

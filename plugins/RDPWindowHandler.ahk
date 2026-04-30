@@ -53,22 +53,69 @@ if (WinActive("ahk_class TscShellContainerClass")) {
 
 
 class RDPWindowHandler extends AKPlugin { ; FIXME: UNTESTED
-  __ConfigHelp() {
-    return "No config keys. Handles RDP client window focus and keyboard hook conflicts. Status: untested, use with caution."
+  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "RDPWindowHandler",
+        "title", "RDP Window Handler",
+        "description", "Manage RDP client windows: minimize, restore, loop through sessions, switch to next connection. Handles keyboard hook conflicts.",
+        "icon", "icons10-monitor",
+        "category", "Window Management"
+      ),
+      "settingsPage", Map(
+        "description", "Configure RDP window management actions.",
+        "icon", "icons10-monitor"
+      ),
+      "config", [],
+      "actions", [
+        Map(
+          "action", "IsRDPClientWindowActive",
+          "label", "Check RDP window active",
+          "description", "Check if an RDP client window is currently active.",
+          "params", [],
+          "category", "RDP Sessions"
+        ),
+        Map(
+          "action", "MinimizeRestoreRDPClientWindows",
+          "label", "Minimize/restore RDP windows",
+          "description", "Toggle minimize/restore state of RDP client windows.",
+          "params", [],
+          "category", "RDP Sessions"
+        ),
+        Map(
+          "action", "RestoreFullscreenRDPClientWindow",
+          "label", "Restore fullscreen RDP window",
+          "description", "Restore a fullscreen RDP client window to windowed mode.",
+          "params", [],
+          "category", "RDP Sessions"
+        ),
+        Map(
+          "action", "LoopRDPClientWindows",
+          "label", "Loop through RDP windows",
+          "description", "Cycle through open RDP client windows.",
+          "params", [],
+          "category", "RDP Sessions"
+        ),
+        Map(
+          "action", "SwitchToNextRDPClientWindow",
+          "label", "Switch to next RDP window",
+          "description", "Switch to the next RDP client window or connection.",
+          "params", [],
+          "category", "RDP Sessions"
+        )
+      ],
+      "hooks", []
+    )
   }
 
-  __UsageHelp() {
-    return "RDP-specific actions: minimize/restore RDP sessions, loop through RDP windows, switch to next RDP connection. Based on RDP-Key v1.0. Status: untested."
+  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
+  ; These are now derived from __DescribePlugin() by the base class
+  _processBlocklistConfig() {
   }
 
-  __ActionsHelp() {
-    texts := Map()
-    texts["IsRDPClientWindowActive"]          := "IsRDPClientWindowActive()"
-    texts["MinimizeRestoreRDPClientWindows"]  := "MinimizeRestoreRDPClientWindows()"
-    texts["RestoreFullscreenRDPClientWindow"] := "RestoreFullscreenRDPClientWindow()"
-    texts["LoopRDPClientWindows"]             := "LoopRDPClientWindows()"
-    texts["SwitchToNextRDPClientWindow"]      := "SwitchToNextRDPClientWindow()"
-    return texts
+  _processPluginConfig() {
+    ; No plugin-specific config to apply
   }
 
 

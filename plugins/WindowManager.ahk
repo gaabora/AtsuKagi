@@ -22,55 +22,69 @@ class WindowManager extends AKPlugin {
   static WS_VISIBLE          := 0x10000000 ; 	Creates a window that is initially visible.
   static WS_CHILD            := 0x40000000 ; 	Creates a child window. A window with this style cannot have a menu bar. This style cannot be used with the WS_POPUP style.
   
-  __ConfigHelp() {
-    return "WindowTitlebarAreaHeight (default: 32): height in pixels of titlebar area for detecting clicks"
-  }
-
-  __UsageHelp() {
-    return "Manage windows: move, resize, minimize, toggle transparency (alpha), maximize, fullscreen. Detect mouse position over titlebar/borders for quick drag operations. Use KDEMoverSizer plugin for enhanced moving/resizing with visual frame guides."
-  }
-
-  __ActionsHelp() {
-    texts := Map()
-    texts["ShowWindowList"]                    := "ShowWindowList()"
-    texts["ShowHoveredWindowInfo"]             := "ShowHoveredWindowInfo()"
-    texts["ShowWindowInfo"]                    := "ShowWindowInfo()"
-    texts["ShowResizeWindowDialog"]            := "ShowResizeWindowDialog(hwnd:=0)"
-    texts["MinimizeWindow"]                    := "MinimizeWindow(hwnd:=0)"
-    texts["MinimizeHoveredWindow"]             := "MinimizeHoveredWindow()"
-    texts["CloseWindow"]                       := "CloseWindow(hwnd:=0)"
-    texts["CloseHoveredWindow"]                := "CloseHoveredWindow()"
-    texts["ToggleWindowMaximized"]             := "ToggleWindowMaximized(hwnd:=0)"
-    texts["ToggleHoveredWindowMaximized"]      := "ToggleHoveredWindowMaximized()"
-    texts["ToggleHoveredWindowOnTop"]          := "ToggleHoveredWindowOnTop(BorderColor:=-1)"
-    texts["ToggleWindowOnTop"]                 := "ToggleWindowOnTop(BorderColor:=-1, hwnd:=0)"
-    texts["ToggleWindowFullScreen"]            := "ToggleWindowFullScreen(hwnd:=0)"
-    texts["ToggleHoveredWindowFullScreen"]     := "ToggleHoveredWindowFullScreen()"
-    texts["ToggleWindowFrame"]                 := "ToggleWindowFrame(hwnd:=0)"
-    texts["ToggleHoveredWindowFrame"]          := "ToggleHoveredWindowFrame()"
-    texts["ToggleWindowTransparency"]          := "ToggleWindowTransparency(TransparencyValue:=128, hwnd:=0)"
-    texts["ToggleHoveredWindowTransparency"]   := "ToggleHoveredWindowTransparency(TransparencyValue:=128)"
-    texts["IncreaseWindowTransparency"]        := "IncreaseWindowTransparency(ByValue:=32, hwnd:=0)"
-    texts["IncreaseHoveredWindowTransparency"] := "IncreaseHoveredWindowTransparency(ByValue:=32)"
-    texts["DecreaseWindowTransparency"]        := "DecreaseWindowTransparency(ByValue:=32, hwnd:=0)"
-    texts["DecreaseHoveredWindowTransparency"] := "DecreaseHoveredWindowTransparency(ByValue:=32)"
-    texts["SetWindowBorderColor"]              := "SetWindowBorderColor(color:=-1, hwnd:=0)"
-
-    texts["ToggleTaskView"]                    := "ToggleTaskView()"
-    texts["IsMouseOverTaskbar"]                := "IsMouseOverTaskbar()"
-    texts["IsMouseOverWindowTitlebar"]         := "IsMouseOverWindowTitlebar()"
-    texts["IsMouseOverWindowAnyBorder"]        := "IsMouseOverWindowAnyBorder()"
-    texts["IsMouseOverWindowResizableBorder"]  := "IsMouseOverWindowResizableBorder()"
-    
-    return texts
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "WindowManager",
+        "title", "Window Manager",
+        "description", "Manage windows: move, resize, minimize, transparency, maximize, fullscreen, and top-most behavior.",
+        "icon", "icons10-window",
+        "category", "Window Management"
+      ),
+      "settingsPage", Map(
+        "description", "Configure window-management behavior and action-related settings.",
+        "icon", "icons10-window"
+      ),
+      "config", [
+        Map(
+          "key", "WindowTitlebarAreaHeight",
+          "label", "Titlebar area height",
+          "description", "Height in pixels used to detect titlebar hover area.",
+          "type", "integer",
+          "default", 32,
+          "section", "Detection",
+          "scope", "plugin"
+        )
+      ],
+      "actions", [
+        Map("action", "ShowWindowList", "label", "Show window list", "description", "List current windows with class and state.", "category", "Info"),
+        Map("action", "ShowHoveredWindowInfo", "label", "Show hovered window info", "description", "Show diagnostics for the window under cursor.", "category", "Info"),
+        Map("action", "ShowWindowInfo", "label", "Show active window info", "description", "Show diagnostics for a specific or active window.", "category", "Info", "params", [Map("name", "hwnd", "default", 0)]),
+        Map("action", "ShowResizeWindowDialog", "label", "Open resize dialog", "description", "Open interactive resize dialog for a specific or active window.", "category", "Resize", "params", [Map("name", "hwnd", "default", 0)]),
+        Map("action", "MinimizeWindow", "label", "Minimize window", "description", "Minimize a specific or active window.", "category", "State", "params", [Map("name", "hwnd", "default", 0)]),
+        Map("action", "MinimizeHoveredWindow", "label", "Minimize hovered window", "description", "Minimize the window currently under cursor.", "category", "State"),
+        Map("action", "CloseWindow", "label", "Close window", "description", "Close a specific or active window.", "category", "State", "params", [Map("name", "hwnd", "default", 0)]),
+        Map("action", "CloseHoveredWindow", "label", "Close hovered window", "description", "Close the window currently under cursor.", "category", "State"),
+        Map("action", "ToggleWindowMaximized", "label", "Toggle maximize", "description", "Toggle maximized state for a specific or active window.", "category", "State", "params", [Map("name", "hwnd", "default", 0)]),
+        Map("action", "ToggleHoveredWindowMaximized", "label", "Toggle maximize (hovered)", "description", "Toggle maximized state for hovered window.", "category", "State"),
+        Map("action", "ToggleHoveredWindowOnTop", "label", "Toggle always on top (hovered)", "description", "Toggle top-most state for hovered window.", "category", "On Top", "params", [Map("name", "BorderColor", "default", -1)]),
+        Map("action", "ToggleWindowOnTop", "label", "Toggle always on top", "description", "Toggle top-most state for a specific or active window.", "category", "On Top", "params", [Map("name", "BorderColor", "default", -1), Map("name", "hwnd", "default", 0)]),
+        Map("action", "ToggleWindowFullScreen", "label", "Toggle fullscreen", "description", "Toggle fullscreen mode for a specific or active window.", "category", "State", "params", [Map("name", "hwnd", "default", 0)]),
+        Map("action", "ToggleHoveredWindowFullScreen", "label", "Toggle fullscreen (hovered)", "description", "Toggle fullscreen mode for hovered window.", "category", "State"),
+        Map("action", "ToggleWindowFrame", "label", "Toggle frame", "description", "Toggle window frame for a specific or active window.", "category", "Frame", "params", [Map("name", "hwnd", "default", 0)]),
+        Map("action", "ToggleHoveredWindowFrame", "label", "Toggle frame (hovered)", "description", "Toggle window frame for hovered window.", "category", "Frame"),
+        Map("action", "ToggleWindowTransparency", "label", "Toggle transparency", "description", "Toggle transparency for a specific or active window.", "category", "Transparency", "params", [Map("name", "TransparencyValue", "default", 128), Map("name", "hwnd", "default", 0)]),
+        Map("action", "ToggleHoveredWindowTransparency", "label", "Toggle transparency (hovered)", "description", "Toggle transparency for hovered window.", "category", "Transparency", "params", [Map("name", "TransparencyValue", "default", 128)]),
+        Map("action", "IncreaseWindowTransparency", "label", "Increase transparency", "description", "Increase transparency level for a specific or active window.", "category", "Transparency", "params", [Map("name", "ByValue", "default", 32), Map("name", "hwnd", "default", 0)]),
+        Map("action", "IncreaseHoveredWindowTransparency", "label", "Increase transparency (hovered)", "description", "Increase transparency level for hovered window.", "category", "Transparency", "params", [Map("name", "ByValue", "default", 32)]),
+        Map("action", "DecreaseWindowTransparency", "label", "Decrease transparency", "description", "Decrease transparency level for a specific or active window.", "category", "Transparency", "params", [Map("name", "ByValue", "default", 32), Map("name", "hwnd", "default", 0)]),
+        Map("action", "DecreaseHoveredWindowTransparency", "label", "Decrease transparency (hovered)", "description", "Decrease transparency level for hovered window.", "category", "Transparency", "params", [Map("name", "ByValue", "default", 32)]),
+        Map("action", "SetWindowBorderColor", "label", "Set border color", "description", "Apply border color to a specific or active window.", "category", "Frame", "params", [Map("name", "color", "default", -1), Map("name", "hwnd", "default", 0)]),
+        Map("action", "ToggleTaskView", "label", "Toggle task view", "description", "Open or close Windows Task View.", "category", "System"),
+        Map("action", "IsMouseOverTaskbar", "label", "Is mouse over taskbar", "description", "Check whether cursor is over taskbar region.", "category", "Detection"),
+        Map("action", "IsMouseOverWindowTitlebar", "label", "Is mouse over titlebar", "description", "Check whether cursor is over a window titlebar region.", "category", "Detection"),
+        Map("action", "IsMouseOverWindowAnyBorder", "label", "Is mouse over any border", "description", "Check whether cursor is over any window border.", "category", "Detection"),
+        Map("action", "IsMouseOverWindowResizableBorder", "label", "Is mouse over resizable border", "description", "Check whether cursor is over a resizable border region.", "category", "Detection")
+      ],
+      "hooks", []
+    )
   }
 
   _processBlocklistConfig() {
   }
 
   _processPluginConfig() {
-    if (!this.Config.Has("WindowTitlebarAreaHeight"))
-      this.Config.WindowTitlebarAreaHeight := 32
+    this.__ApplyDefaultConfig()
   }
 
   ShowHoveredWindowInfo() { ;;;

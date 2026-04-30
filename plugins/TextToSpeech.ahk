@@ -1,21 +1,37 @@
 class TextToSpeech extends AKPlugin { ; TODO: not yet implemented
   _textToSpeechObj := ComObject("SAPI.SpVoice")
+  
+  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "TextToSpeech",
+        "title", "Text-to-Speech",
+        "description", "Convert text to speech using Windows SAPI (Speech API) service. Experimental implementation.",
+        "icon", "icons10-audio",
+        "category", "Accessibility"
+      ),
+      "settingsPage", Map(
+        "description", "Configure text-to-speech service and voice settings.",
+        "icon", "icons10-audio"
+      ),
+      "config", [],
+      "actions", [],
+      "hooks", []
+    )
+  }
+
+  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
+  ; These are now derived from __DescribePlugin() by the base class
+  _processBlocklistConfig() {
+  }
+
+  _processPluginConfig() {
+    ; No plugin-specific config to apply
+  }
+
   Speak(text) {
     this._textToSpeechObj.Speak(text)
-  }
-
-
-  __ConfigHelp() {
-    return "No config keys. Uses Windows SAPI (Speech API) TTS service if available. Status: experimental, disabled by default."
-  }
-
-  __UsageHelp() {
-    return "Text-to-speech placeholder. Currently stub implementation using Windows SAPI. Not implemented for hotkey actions. Status: experimental/disabled."
-  }
-
-  __ActionsHelp() {
-    texts := Map()
-    return texts
   }
 
 

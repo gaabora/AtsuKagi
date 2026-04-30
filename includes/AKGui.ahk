@@ -57,6 +57,7 @@ class AKGui {
 
     ; Register JS → AHK callbacks
     nw.AddCallbackToScript("SettingsSave", (wv, args*) => this._saveSettings(args*))
+    nw.AddCallbackToScript("SettingsSaveV2", (wv, generalEncoded:="", disabledPlugins:="", pluginConfigEncoded:="", hotkeysEncoded:="") => this._saveSettingsV2(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded))
     nw.AddCallbackToScript("SettingsCancel", (wv, *) => this._closeSettings())
     nw.AddCallbackToScript("BrowseForFile", (wv, currentPath:="") => this._browseForFile(currentPath))
     nw.AddCallbackToScript("OpenDevTools", (wv, *) => this._openDevTools())
@@ -325,6 +326,117 @@ class AKGui {
     }
   }
 
+  ; Structured V2 save path: general lines + disabled plugin CSV + plugin config lines + hotkeys lines
+  _saveSettingsV2(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded:="") {
+    cfg := this.App.Config
+    oldDisabledPlugins := cfg.GENERAL.DisabledPlugins
+
+    this._applyEncodedGeneralConfig("" generalEncoded)
+    cfg.GENERAL.DisabledPlugins := "" disabledPlugins
+    this._applyEncodedPluginConfig("" pluginConfigEncoded)
+    this._applyEncodedHotkeysConfig("" hotkeysEncoded)
+
+    cfg.Save()
+    this.App.ApplySettings(oldDisabledPlugins)
+    if (this._settingsGui != 0) {
+      this._populateSettingsPage(this._settingsGui)
+    }
+  }
+
+  _applyEncodedHotkeysConfig(encoded) {
+    if (Trim(encoded) = "")
+      return
+
+    if (!this.App.Config.Has("HOTKEYS"))
+      this.App.Config.HOTKEYS := Map()
+
+    parsed := Map()
+    for line in StrSplit(encoded, "`n", "`r") {
+      if (line = "")
+        continue
+
+      parts := StrSplit(line, "`t")
+      if (parts.Length < 2)
+        continue
+
+      hk := this._decodeEscapedLinePart(parts[1])
+      rawAction := ""
+      for idx, part in parts {
+        if (idx < 2)
+          continue
+        if (idx > 2)
+          rawAction .= "`t"
+        rawAction .= part
+      }
+      actionText := this._decodeEscapedLinePart(rawAction)
+
+      hk := Trim(hk)
+      actionText := Trim(actionText)
+      if (!hk || !actionText)
+        continue
+
+      parsed[hk] := actionText
+    }
+
+    this.App.Config.HOTKEYS := parsed
+  }
+
+  _applyEncodedGeneralConfig(encoded) {
+    if (Trim(encoded) = "")
+      return
+
+    cfg := this.App.Config
+    if (!cfg.Has("GENERAL"))
+      cfg.GENERAL := {}
+
+    for line in StrSplit(encoded, "`n", "`r") {
+      if (line = "")
+        continue
+
+      parts := StrSplit(line, "`t")
+      if (parts.Length < 2)
+        continue
+
+      key := this._decodeEscapedLinePart(parts[1])
+      rawValue := ""
+      for idx, part in parts {
+        if (idx < 2)
+          continue
+        if (idx > 2)
+          rawValue .= "`t"
+        rawValue .= part
+      }
+      value := this._decodeEscapedLinePart(rawValue)
+
+      switch key {
+        case "WelcomeMessage":
+          cfg.GENERAL.WelcomeMessage := value
+        case "DarkTheme":
+          cfg.GENERAL.DarkTheme := value
+        case "DebugLevel":
+          cfg.GENERAL.DebugLevel := value
+        case "ToolTipTimeoutMs":
+          cfg.GENERAL.ToolTipTimeoutMs := value
+        case "WindowTransparencyValue":
+          cfg.GENERAL.WindowTransparencyValue := value
+        case "WindowOnTopBorderColor":
+          cfg.GENERAL.WindowOnTopBorderColor := value
+        case "StartupSound":
+          cfg.GENERAL.StartupSound := value
+        case "NotificationSound":
+          cfg.GENERAL.NotificationSound := value
+        case "ReloadAppHotkey":
+          cfg.GENERAL.ReloadAppHotkey := value
+        case "SuspendAppHotkey":
+          cfg.GENERAL.SuspendAppHotkey := value
+        case "SwapMouseXButtons":
+          cfg.GENERAL.SwapMouseXButtons := (value = "1" || value = "true") ? 1 : 0
+        default:
+          ; Ignore unknown keys in V2 payload for forward compatibility.
+      }
+    }
+  }
+
   ; Parse UI plugin settings payload lines: pluginId`tkey`tvalue
   _applyEncodedPluginConfig(encoded) {
     if (Trim(encoded) = "")
@@ -357,9 +469,17 @@ class AKGui {
       if (parts.Length < 3)
         continue
 
-      pluginId := parts[1]
-      key := parts[2]
-      value := parts[3]
+      pluginId := this._decodeEscapedLinePart(parts[1])
+      key := this._decodeEscapedLinePart(parts[2])
+      rawValue := ""
+      for idx, part in parts {
+        if (idx < 3)
+          continue
+        if (idx > 3)
+          rawValue .= "`t"
+        rawValue .= part
+      }
+      value := this._decodeEscapedLinePart(rawValue)
 
       if (!this.App.Config.Has(pluginId))
         this.App.Config[pluginId] := {}
@@ -371,13 +491,56 @@ class AKGui {
       if (valueType = "boolean") {
         this.App.Config[pluginId][key] := (value = "1" || value = "true") ? true : false
       } else if (valueType = "integer") {
-        this.App.Config[pluginId][key] := Integer(value)
+        try this.App.Config[pluginId][key] := Integer(value)
+        catch {
+          this.App.Config[pluginId][key] := value
+        }
       } else if (valueType = "number") {
-        this.App.Config[pluginId][key] := Number(value)
+        try this.App.Config[pluginId][key] := Number(value)
+        catch {
+          this.App.Config[pluginId][key] := value
+        }
       } else {
         this.App.Config[pluginId][key] := value
       }
     }
+  }
+
+  _decodeEscapedLinePart(value) {
+    text := "" value
+    out := ""
+    i := 1
+    len := StrLen(text)
+    while (i <= len) {
+      ch := SubStr(text, i, 1)
+      if (ch = "\\" && i < len) {
+        nxt := SubStr(text, i + 1, 1)
+        if (nxt = "n") {
+          out .= "`n"
+          i += 2
+          continue
+        }
+        if (nxt = "r") {
+          out .= "`r"
+          i += 2
+          continue
+        }
+        if (nxt = "t") {
+          out .= "`t"
+          i += 2
+          continue
+        }
+        if (nxt = "\\") {
+          out .= "\\"
+          i += 2
+          continue
+        }
+      }
+
+      out .= ch
+      i += 1
+    }
+    return out
   }
 
   _openDevTools() {

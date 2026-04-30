@@ -1,19 +1,36 @@
 class TimerHandlers extends AKPlugin { ; TODO: not yet fully implemented, needs better naming for actions, like 'cron' is not a right part of name 
   ScheduledTasks := Map()
   
+  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "TimerHandlers",
+        "title", "Timer Handlers",
+        "description", "Cron-like scheduled tasks and system event handling based on time and idle state triggers.",
+        "icon", "icons10-clock",
+        "category", "System Events"
+      ),
+      "settingsPage", Map(
+        "description", "Configure scheduled tasks and system monitoring triggers.",
+        "icon", "icons10-clock"
+      ),
+      "config", [],
+      "actions", [],
+      "hooks", []
+    )
+  }
+
+  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
+  ; These are now derived from __DescribePlugin() by the base class
+  _processBlocklistConfig() {
+  }
+
+  _processPluginConfig() {
+    ; No plugin-specific config to apply
+  }
+
   ; this._setTimer("_processScheduledTasks", 1000)
-  __ConfigHelp() {
-    return "Currently unused. Planned for future use: cron-like scheduled tasks and system monitoring (battery level, sleep/idle triggers)."
-  }
-
-  __UsageHelp() {
-    return "Placeholder for timer-based actions and system event handling. Not yet fully implemented. Status: experimental."
-  }
-
-  __ActionsHelp() {
-    texts := Map()
-    return texts
-  }
 
   AddCronJob(CronString) { ;;;
     ; jobDetails := this._parseCronString(CronString)

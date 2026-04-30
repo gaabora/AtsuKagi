@@ -38,26 +38,49 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
 
   eventListeners := Map("WindowCreated", [], "WindowActivated", [], "WindowDestroyed", [])
 
+  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "ShellMessageHook",
+        "title", "Shell Message Hook",
+        "description", "Internal hook system for window creation/destruction/activation events. Plugins can register listeners via AddEventListener().",
+        "icon", "icons10-window",
+        "category", "Window Management"
+      ),
+      "settingsPage", Map(
+        "description", "Configure shell hook event monitoring.",
+        "icon", "icons10-window"
+      ),
+      "config", [],
+      "actions", [],
+      "hooks", [
+        Map(
+          "hook", "AddEventListener",
+          "label", "Add event listener",
+          "description", "Register a callback for window events (WindowCreated, WindowActivated, WindowDestroyed).",
+          "params", ["eventName", "callbackFn"],
+          "category", "Window Events"
+        )
+      ]
+    )
+  }
+
+  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
+  ; These are now derived from __DescribePlugin() by the base class
+  _processBlocklistConfig() {
+  }
+
+  _processPluginConfig() {
+    ; No plugin-specific config to apply
+  }
+
   __New(App) {
     super.__New(App)
     DllCall('RegisterShellHookWindow', 'UInt', A_ScriptHwnd)
     MsgNum := DllCall("RegisterWindowMessage", "Str", "SHELLHOOK")
     onShellMessageFn := this.onShellMessage.bind(this)
     OnMessage(MsgNum, onShellMessageFn)
-  }
-
-  __ConfigHelp() {
-    return "No config keys. Use RegisterHook() or AddEventListener() from other plugins to listen to window events."
-  }
-
-  __UsageHelp() {
-    return "Internal hook system for window creation/destruction/activation events. Plugins can register listeners via AddEventListener(). Status: experimental, use with caution."
-  }
-
-  __HooksHelp() {
-    texts := Map()
-    texts["AddEventListener"] := "AddEventListener(eventName, callbackFn)"
-    return texts
   }
 
   ; TODO: RemoveEventListener support?
