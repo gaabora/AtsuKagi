@@ -1553,6 +1553,8 @@ class SettingsPage {
    */
   applyState(state) {
     this._isApplyingState = true;
+    // Keep exact incoming AHK payload for DevTools export/import replay.
+    this._lastAppliedState = state ? JSON.parse(JSON.stringify(state)) : null;
     this.form.applyState(state);
     this.refreshUI();
     this._isApplyingState = false;

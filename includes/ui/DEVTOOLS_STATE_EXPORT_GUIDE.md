@@ -1,122 +1,38 @@
-# DevTools State Export/Import Guide
+# DevTools AHK State Replay
 
-Quick reference for exporting and importing AHK settings state for debugging across browsers.
+This exports and imports the full AHK-provided UI state (including dynamic plugin pages), not just form values.
 
-## Setup
+## Commands
 
-1. Include the utility script in `settings.html`:
-```html
-<script src="devtools-state-export.js"></script>
-```
-
-2. Open DevTools Console (F12 → Console tab)
-
-## Export State
-
-### Option 1: Export to Console (manual copy)
 ```javascript
-exportAhkState()
+expAhk()
+impAhk(payload)
 ```
-- Logs JSON to console
-- Right-click → Copy
-- Paste in another browser
 
-### Option 2: Export to Clipboard (automatic)
+## Source Browser (opened by AHK/WebView)
+
+Run this in DevTools console:
+
 ```javascript
-exportAhkStateToClipboard()
+expAhk()
 ```
-- Copies state directly to clipboard
-- Paste using `Ctrl+V` in target console
 
-## Import State
+It prints one plain one-line command like:
 
-### Option 1: From JSON string
 ```javascript
-importAhkState('{"general":{"DebugLevel":"1"},...}')
+impAhk("{...full_state_json...}")
 ```
 
-### Option 2: From clipboard
-```javascript
-navigator.clipboard.readText().then(importAhkState)
-```
-Then paste the copied state.
+Copy that exact line.
 
-### Option 3: From variable
-```javascript
-let state = exportAhkState();
-// ... do something ...
-importAhkState(state)
-```
+## Target Browser (plain browser)
 
-## Compare States
+1. Open the same settings page with scripts loaded.
+2. Paste the copied line and run it.
 
-Check what changed between two exports:
-```javascript
-let before = exportAhkState();
-// ... make changes ...
-let after = exportAhkState();
-compareAhkStates(before, after)
-```
+This recreates missing dynamic content (plugins/pages/actions) and applies full state.
 
-Outputs a table showing differences in a structured format.
+## Notes
 
-## Workflow Example
-
-1. **Browser A (Source):**
-   ```javascript
-   exportAhkStateToClipboard()
-   ```
-
-2. **Browser B (Target):**
-   ```javascript
-   // Paste and import
-   importAhkState(`<paste here>`)
-   ```
-
-3. **Verify:**
-   ```javascript
-   compareAhkStates(stateA, stateB)
-   ```
-
-## Troubleshooting
-
-- **"Settings form not available"** → Settings dialog not fully loaded yet
-- **Parse error on import** → JSON is malformed; check quote escaping
-- **Fields not updating** → Reload page after import, or manually trigger field change events
-
-## Available Functions
-
-| Function | Purpose |
-|----------|---------|
-| `exportAhkState()` | Export state as JSON, return object |
-| `importAhkState(json)` | Import and apply state from JSON string |
-| `exportAhkStateToClipboard()` | Export directly to browser clipboard |
-| `compareAhkStates(s1, s2)` | Show diff table between two states |
-
-## State Structure
-
-Exported state follows this schema:
-```json
-{
-  "general": {
-    "DebugLevel": "value",
-    "WelcomeMessage": "value",
-    ...
-  },
-  "disabledPlugins": ["PluginA", "PluginB"],
-  "pluginConfigs": {
-    "PluginName": {
-      "configKey": "value",
-      ...
-    }
-  },
-  "hotkeys": [
-    {
-      "action": "HotkeyName",
-      "value": "Hotkey sequence",
-      "target": "field_id",
-      "isPluginAction": false
-    }
-  ]
-}
-```
+- `expAhk()` requires that state was previously applied from AHK at least once.
+- If state is not captured yet, reopen settings from AHK first.
