@@ -1,0 +1,283 @@
+class SettingsPage {
+  constructor() {
+    this.dom = new SettingsDom();
+    this.hostBridge = new AhkHostBridge();
+    this.form = new SettingsForm(this.dom);
+    this.colorPicker = new ColorPickerController(this.dom);
+    this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw));
+    this._isApplyingState = false;
+    this._autoSaveTimer = 0;
+    this.init();
+  }
+
+  init() {
+    this._bindActions();
+    this._bindNavigation();
+    this._bindFilePickers();
+    this._bindColorPickerDialog();
+    this._bindHotkeyRecorderDialog();
+    this._bindSliderRefresh();
+    this._bindDevToolsButton();
+    this._bindAutoSave();
+    this._bindActionHotkeyRemoval();
+    this._bindHotkeyBadgeReset();
+  }
+
+  _bindActions() {
+    // Toolbar buttons
+    const saveBtn = document.querySelector('[data-action="save-settings"]');
+    const cancelBtn = document.querySelector('[data-action="close-settings"]');
+    const minimizeBtn = document.querySelector('[data-action="minimize-window"]');
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => this._saveSettings());
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => this.hostBridge.closeSettings());
+    }
+    if (minimizeBtn) {
+      minimizeBtn.addEventListener('click', () => this.hostBridge.minimize());
+    }
+
+    // Fallback for inline onclick (Phase 2 will remove these)
+    window.ahk = {
+      SettingsSave: () => this._saveSettings(),
+      CloseSettings: () => this.hostBridge.closeSettings(),
+      BrowseForFile: (path) => this.hostBridge.browseForFile(path),
+      gui: {
+        Minimize: () => this.hostBridge.minimize()
+      }
+    };
+
+    window.SettingsUiBridge = {
+      refreshFromConfig: () => this.refreshUI()
+    };
+  }
+
+  _bindAutoSave() {
+    const contentRoot = document.querySelector('.settings-content');
+    if (!contentRoot) return;
+
+    const onChange = (ev) => {
+      if (this._isApplyingState) return;
+      const target = ev.target;
+      if (!target) return;
+      if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement))
+        return;
+      this._scheduleAutoSave();
+    };
+
+    contentRoot.addEventListener('change', onChange);
+  }
+
+  _bindNavigation() {
+    const navRoot = document.querySelector('.settings-nav');
+    if (navRoot) {
+      navRoot.addEventListener('click', (e) => {
+        const item = e.target.closest('.nav-item');
+        if (!item) return;
+        const sectionName = item.getAttribute('data-section') || item.getAttribute('onclick')?.match(/'([\w-]+)'/)?.[1];
+        if (sectionName) {
+          this._showSection(sectionName, item);
+        }
+      });
+    }
+
+    // Fallback for inline onclick
+    window.showSection = (name, navEl) => this._showSection(name, navEl);
+  }
+
+  _showSection(name, navEl) {
+    document.querySelectorAll('.settings-content .settings-section').forEach(section => {
+      section.classList.remove('active');
+    });
+
+    document.querySelectorAll('.settings-nav .nav-item').forEach(item => {
+      item.classList.remove('active');
+    });
+
+    const target = document.getElementById(`section-${name}`);
+    if (target) {
+      target.classList.add('active');
+    }
+    if (navEl) {
+      navEl.classList.add('active');
+    }
+  }
+
+  _bindFilePickers() {
+    this._wireFilePicker('StartupSound', 'browseStartupSound', 'StartupSoundFile');
+    this._wireFilePicker('NotificationSound', 'browseNotificationSound', 'NotificationSoundFile');
+  }
+
+  _wireFilePicker(textInputId, browseBtnId, fileInputId) {
+    const txt = document.getElementById(textInputId);
+    const btn = document.getElementById(browseBtnId);
+    const picker = document.getElementById(fileInputId);
+    if (!txt || !btn || !picker) return;
+
+    btn.addEventListener('click', () => {
+      const selected = this.hostBridge.browseForFile(txt.value || '');
+      if (selected) {
+        txt.value = selected;
+        txt.title = selected;
+      }
+    });
+
+    picker.addEventListener('change', () => {
+      if (picker.files && picker.files.length > 0) {
+        txt.value = picker.files[0].name;
+        txt.title = picker.files[0].name;
+      }
+    });
+  }
+
+  _bindColorPickerDialog() {
+    const toggleBtn = document.getElementById('toggleBorderColorPicker');
+    const applyBtn = document.getElementById('applyColorPicker');
+    const cancelBtn = document.getElementById('cancelColorPicker');
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => this.colorPicker.syncFromForm());
+    }
+    document.addEventListener('click', (ev) => {
+      const trigger = ev.target.closest('[data-color-selector]');
+      if (!trigger) return;
+      this.colorPicker.beginForTrigger(trigger);
+    });
+    if (applyBtn) {
+      applyBtn.addEventListener('click', () => {
+        this.colorPicker.apply();
+        if (cancelBtn) cancelBtn.click();
+      });
+    }
+  }
+
+  _bindHotkeyRecorderDialog() {
+    const applyBtn = document.getElementById('applyHotkeyRecord');
+
+    if (applyBtn) {
+      applyBtn.addEventListener('click', () => {
+        this.hotkeyRecorder.apply();
+      });
+    }
+
+  }
+
+
+  _bindSliderRefresh() {
+    const slider = this.dom.getField('WindowTransparencyValue');
+    if (slider) {
+      slider.addEventListener('input', () => this.form._updateTransparencyUI());
+      slider.addEventListener('change', () => this.form._updateTransparencyUI());
+    }
+  }
+
+  _bindDevToolsButton() {
+    const openDevToolsBtn = document.getElementById('openDevTools');
+    if (!openDevToolsBtn) return;
+
+    openDevToolsBtn.addEventListener('click', () => {
+      this.hostBridge.openDevTools();
+    });
+  }
+
+  _bindActionHotkeyRemoval() {
+    document.addEventListener('click', (ev) => {
+      const removeBtn = ev.target.closest('[data-action-hotkey-remove]');
+      if (!removeBtn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      const raw = `${removeBtn.getAttribute('data-action-hotkey-remove') || ''}`.trim();
+      if (!raw) return;
+      const actionItem = removeBtn.closest('.plugin-action-item');
+      const actionName = `${actionItem?.getAttribute('data-action-name') || ''}`.trim();
+
+      this.form.removeHotkeyByRaw(raw);
+      this._refreshActionHotkeys(actionName);
+      this.form._renderHotkeys(this.form._hotkeyEntries);
+      this._scheduleAutoSave();
+    });
+  }
+
+  _bindHotkeyBadgeReset() {
+    document.addEventListener('click', (ev) => {
+      const resetBtn = ev.target.closest('[data-hotkey-reset-field]');
+      if (!resetBtn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      const fieldId = `${resetBtn.getAttribute('data-hotkey-reset-field') || ''}`.trim();
+      const def = `${resetBtn.getAttribute('data-default') || ''}`;
+      if (!fieldId) return;
+
+      const field = document.getElementById(fieldId);
+      if (!field) return;
+
+      field.value = def;
+      field.dispatchEvent(new Event('input'));
+      field.dispatchEvent(new Event('change'));
+      this.hotkeyRecorder.updatePreview(fieldId);
+      this._scheduleAutoSave();
+    });
+  }
+
+  _applyActionHotkey(actionName, hotkeyRaw, replaceRaw) {
+    this.form.assignActionHotkey(actionName, hotkeyRaw, replaceRaw);
+    this._refreshActionHotkeys(actionName);
+    this.form._renderHotkeys(this.form._hotkeyEntries);
+    this._scheduleAutoSave();
+  }
+
+  _refreshActionHotkeys(actionName) {
+    const wanted = `${actionName || ''}`.trim();
+    if (!wanted) return;
+    document.querySelectorAll(`.plugin-action-item[data-action-name="${CSS.escape(wanted)}"]`).forEach((item) => {
+      const pluginId = `${item.getAttribute('data-plugin-id') || ''}`;
+      const hotkeys = this.form.getHotkeysForAction(wanted);
+      const host = item.querySelector('.plugin-action-hotkeys');
+      if (!host) return;
+
+      if (!hotkeys.length) {
+        host.innerHTML = `<button type="button" class="app-btn plugin-hotkey-badge plugin-hotkey-badge-empty" data-hotkey-action="${this.form._escapeHtml(wanted)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Assign hotkey</button>`;
+        return;
+      }
+
+      host.innerHTML = hotkeys.map((hk) => this.form._renderActionHotkeyBadge(pluginId, wanted, hk)).join('');
+    });
+  }
+
+  _scheduleAutoSave() {
+    if (this._autoSaveTimer) {
+      clearTimeout(this._autoSaveTimer);
+    }
+    this._autoSaveTimer = setTimeout(() => {
+      this._autoSaveTimer = 0;
+      this._saveSettings();
+    }, 350);
+  }
+
+  _saveSettings() {
+    const payloadObject = this.form.serializeObject();
+    const legacyPayload = this.form.serializeLegacy(payloadObject);
+    console.log('Saving settings...', {payloadObject, legacyPayload});
+    this.hostBridge.saveSettings(payloadObject, legacyPayload);
+  }
+
+  refreshUI() {
+    this.form.refreshUI(this.colorPicker, this.hotkeyRecorder);
+  }
+
+  /**
+   * Apply state from AHK
+   */
+  applyState(state) {
+    this._isApplyingState = true;
+    // Keep exact incoming AHK payload for DevTools export/import replay.
+    this._lastAppliedState = state ? JSON.parse(JSON.stringify(state)) : null;
+    this.form.applyState(state);
+    this.refreshUI();
+    this._isApplyingState = false;
+  }
+}

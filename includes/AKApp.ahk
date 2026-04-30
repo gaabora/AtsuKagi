@@ -672,6 +672,8 @@ class AKApp extends AKBase {
 
   _initGUI() {
     this.GUI :=  AKGui(this)
+    if (this.Config.GENERAL.DebugLevel >= 4)
+      this.GUI.ShowSettings()
   }
 
   _bindControlHotkeys() {

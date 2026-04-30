@@ -1,4 +1,4 @@
-class AKGui {
+class AKGui extends AKBase {
   static PREFERRED_APP_MODE := { Default: 0, AllowDark: 1, ForceDark: 2, ForceLight: 3, Max: 4 }
   static QUOTE_CHAR := Chr(34)
   _settingsGui := 0
@@ -56,9 +56,8 @@ class AKGui {
     this._settingsGui := nw
 
     ; Register JS → AHK callbacks
-    nw.AddCallbackToScript("SettingsSave", (wv, args*) => this._saveSettings(args*))
-    nw.AddCallbackToScript("SettingsSaveV2", (wv, generalEncoded:="", disabledPlugins:="", pluginConfigEncoded:="", hotkeysEncoded:="") => this._saveSettingsV2(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded))
-    nw.AddCallbackToScript("SettingsCancel", (wv, *) => this._closeSettings())
+    nw.AddCallbackToScript("SaveSettings", (wv, generalEncoded:="", disabledPlugins:="", pluginConfigEncoded:="", hotkeysEncoded:="") => this._saveSettings(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded))
+    nw.AddCallbackToScript("CloseSettings", (wv, *) => this._closeSettings())
     nw.AddCallbackToScript("BrowseForFile", (wv, currentPath:="") => this._browseForFile(currentPath))
     nw.AddCallbackToScript("OpenDevTools", (wv, *) => this._openDevTools())
 
@@ -68,6 +67,8 @@ class AKGui {
     nw.OnEvent("Close", (*) => (this._settingsGui := 0))
     nw.Navigate("includes/ui/settings.html")
     nw.Show("w820 h560")
+    if (this.App.Config.GENERAL.DebugLevel >= 4)
+      this._openDevTools()
   }
 
   _getWebViewSettings() {
@@ -297,37 +298,8 @@ class AKGui {
     return result
   }
 
-  _saveSettings(args*) {
-    cfg := this.App.Config
-    oldDisabledPlugins := cfg.GENERAL.DisabledPlugins
-    ; args order comes from SettingsSave(...) bridge call
-    cfg.GENERAL.WelcomeMessage          := args.Length >= 1  ? ("" args[1]) : cfg.GENERAL.WelcomeMessage
-    cfg.GENERAL.DarkTheme               := args.Length >= 2  ? ("" args[2]) : cfg.GENERAL.DarkTheme
-    cfg.GENERAL.DebugLevel              := args.Length >= 3  ? ("" args[3]) : cfg.GENERAL.DebugLevel
-    cfg.GENERAL.ToolTipTimeoutMs        := args.Length >= 4  ? ("" args[4]) : cfg.GENERAL.ToolTipTimeoutMs
-    cfg.GENERAL.WindowTransparencyValue := args.Length >= 5  ? ("" args[5]) : cfg.GENERAL.WindowTransparencyValue
-    cfg.GENERAL.WindowOnTopBorderColor  := args.Length >= 6  ? ("" args[6]) : cfg.GENERAL.WindowOnTopBorderColor
-    cfg.GENERAL.StartupSound            := args.Length >= 7  ? ("" args[7]) : cfg.GENERAL.StartupSound
-    cfg.GENERAL.NotificationSound       := args.Length >= 8  ? ("" args[8]) : cfg.GENERAL.NotificationSound
-    cfg.GENERAL.ReloadAppHotkey         := args.Length >= 9  ? ("" args[9]) : cfg.GENERAL.ReloadAppHotkey
-    cfg.GENERAL.SuspendAppHotkey        := args.Length >= 10 ? ("" args[10]) : cfg.GENERAL.SuspendAppHotkey
-    if (args.Length >= 11)
-      cfg.GENERAL.SwapMouseXButtons := (("" args[11]) = "true" || args[11] = 1) ? 1 : 0
-    if (args.Length >= 12)
-      cfg.GENERAL.DisabledPlugins := ("" args[12])
-    if (args.Length >= 13)
-      this._applyEncodedPluginConfig("" args[13])
 
-    ; ── Persist & reload ──────────────────────────────────────────────────────
-    cfg.Save()
-    this.App.ApplySettings(oldDisabledPlugins)
-    if (this._settingsGui != 0) {
-      this._populateSettingsPage(this._settingsGui)
-    }
-  }
-
-  ; Structured V2 save path: general lines + disabled plugin CSV + plugin config lines + hotkeys lines
-  _saveSettingsV2(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded:="") {
+  _saveSettings(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded:="") {
     cfg := this.App.Config
     oldDisabledPlugins := cfg.GENERAL.DisabledPlugins
 
@@ -377,7 +349,6 @@ class AKGui {
 
       parsed[hk] := actionText
     }
-
     this.App.Config.HOTKEYS := parsed
   }
 
@@ -432,7 +403,7 @@ class AKGui {
         case "SwapMouseXButtons":
           cfg.GENERAL.SwapMouseXButtons := (value = "1" || value = "true") ? 1 : 0
         default:
-          ; Ignore unknown keys in V2 payload for forward compatibility.
+          this.outputDebugLine("Unknown [GENERAL] config key: " . key, 1)
       }
     }
   }
@@ -546,36 +517,27 @@ class AKGui {
   _openDevTools() {
     if (this._settingsGui = 0)
       return false
-
     this._settingsGui.AreDevToolsEnabled := true
     this._settingsGui.OpenDevToolsWindow()
     return true
   }
 
-  _browseForFile(currentPath:="") {
+  _browseForFile(currentPath:="", filter:="Audio Files (*.wav; *.mp3; *.ogg; *.flac)") {
     initialDir := A_ScriptDir
     pathText := Trim("" currentPath)
     if (pathText != "") {
       candidate := pathText
       if (!RegExMatch(candidate, "i)^[A-Z]:\\") && !RegExMatch(candidate, "^(\\\\|/)") )
         candidate := A_ScriptDir "\\" candidate
-
-      if (FileExist(candidate)) {
-        if (InStr(FileExist(candidate), "D"))
-          initialDir := candidate
-        else
-          initialDir := RegExReplace(candidate, "\\[^\\]*$")
-      }
+      if (FileExist(candidate))
+        initialDir := (InStr(FileExist(candidate), "D")) ? candidate : RegExReplace(candidate, "\\[^\\]*$")
     }
 
-    selectedPath := FileSelect("1", initialDir, "Select audio file", "Audio Files (*.wav; *.mp3; *.ogg; *.flac)")
+    selectedPath := FileSelect("1", initialDir, "Select file", filter)
     if (selectedPath = "")
       return ""
-
-    ; Keep config portable when selecting files under the app directory.
-    scriptRoot := RTrim(A_ScriptDir, "\\/")
-    if (InStr(StrLower(selectedPath), StrLower(scriptRoot "\\")) = 1)
-      return SubStr(selectedPath, StrLen(scriptRoot) + 2)
+    if (InStr(StrLower(selectedPath), StrLower(A_ScriptDir "\\")) = 1)
+      return SubStr(selectedPath, StrLen(A_ScriptDir) + 2)
 
     return selectedPath
   }
