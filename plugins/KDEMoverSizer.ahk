@@ -3,7 +3,6 @@ class KDEMoverSizer extends AKPlugin {
   _drawGridGUIOptions := "+Border"
   _drawGridColor := "White"
 
-  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
   __DescribePlugin() {
     return Map(
       "plugin", Map(

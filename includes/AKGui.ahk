@@ -109,6 +109,8 @@ class AKGui extends AKBase {
       pluginList.Push(pluginName)
     }
 
+    generalPage := this.App.GetGeneralSettingsPage()
+
     ; Escape values for JavaScript
     welcomeMsg := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WelcomeMessage)
     darkTheme := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.DarkTheme)
@@ -144,6 +146,7 @@ class AKGui extends AKBase {
     js .= "      SuspendAppHotkey: " AKGui.QUOTE_CHAR suspendHotkey AKGui.QUOTE_CHAR ",`n"
     js .= "      SwapMouseXButtons: " swapXButtons "`n"
     js .= "    },`n"
+    js .= "    generalPage: " this._AhkGeneralPageToJs(generalPage) ",`n"
     js .= "    plugins: {`n"
     js .= "      available: " this._AhkArrayToJs(pluginList) ",`n"
     js .= "      disabled: " this._AhkArrayToJs(disabledPlugins) ",`n"
@@ -161,6 +164,24 @@ class AKGui extends AKBase {
     js .= "})();`n"
 
     nw.ExecuteScriptAsync(js)
+  }
+
+  ; Phase 1+: Convert general settings page descriptor to JavaScript
+  _AhkGeneralPageToJs(page) {
+    if (!IsObject(page))
+      return "null"
+
+    result := "{"
+    result .= "id: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "general") AKGui.QUOTE_CHAR ","
+    result .= "title: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "General") AKGui.QUOTE_CHAR ","
+    result .= "description: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "") AKGui.QUOTE_CHAR ","
+    result .= "icon: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "icons10-settings") AKGui.QUOTE_CHAR ","
+    result .= "navOrder: " (page.Has("navOrder") ? page["navOrder"] : 0) ","
+    result .= "enableDynamicRender: " (page.Has("enableDynamicRender") && page["enableDynamicRender"] ? "true" : "false") ","
+    result .= "sections: " this._AhkPluginSectionsToJs(page.Has("sections") ? page["sections"] : []) ","
+    result .= "actions: " this._AhkPluginActionsToJs(page.Has("actions") ? page["actions"] : [])
+    result .= "}"
+    return result
   }
 
   _AhkArrayToJs(arr) {

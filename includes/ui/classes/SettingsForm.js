@@ -167,7 +167,14 @@ class SettingsForm {
   applyState(state) {
     if (!state) return;
 
-    const gen = state.general || {};
+    if (state.generalPage && state.generalPage.enableDynamicRender) {
+      this.renderGeneralPage(state.generalPage);
+      if (this.dom && typeof this.dom.cache === 'function') {
+        this.dom.cache();
+      }
+    }
+
+    const gen = this._mergeGeneralState(state.general || {}, state.generalPage || null);
     this.setFieldValue('WelcomeMessage', gen.WelcomeMessage || '');
     this.setFieldValue('DarkTheme', gen.DarkTheme || '-1');
     this.setFieldValue('DebugLevel', gen.DebugLevel || '0');
@@ -219,6 +226,204 @@ class SettingsForm {
       const titleEl = this.dom.getField('titleText');
       if (titleEl) titleEl.innerText = state.title;
     }
+  }
+
+  _mergeGeneralState(general, generalPage) {
+    const merged = { ...(general || {}) };
+    if (!generalPage || !Array.isArray(generalPage.sections)) {
+      return merged;
+    }
+
+    generalPage.sections.forEach((section) => {
+      (section?.fields || []).forEach((field) => {
+        const key = `${field?.key || ''}`;
+        if (!key || merged[key] !== undefined) return;
+        if (field && Object.prototype.hasOwnProperty.call(field, 'value')) {
+          merged[key] = field.value;
+        }
+      });
+    });
+
+    return merged;
+  }
+
+  renderGeneralPage(page) {
+    const container = document.getElementById('section-general');
+    if (!container || !Array.isArray(page?.sections)) return;
+
+    let html = '';
+    page.sections.forEach((section) => {
+      html += `<div class="setting-group"><h2>${this._escapeHtml(section?.title || section?.id || 'General')}</h2>`;
+      (section?.fields || []).forEach((field) => {
+        html += this._renderGeneralField(field || {});
+      });
+      html += '</div>';
+    });
+
+    container.innerHTML = html;
+  }
+
+  _renderGeneralField(field) { //FIXME: _renderPluginField is very similar, consider merging into single more generic method.
+    const key = `${field?.key || ''}`;
+    const label = `${field?.label || key}`;
+    const description = `${field?.description || ''}`;
+    const control = `${field?.control || 'text'}`;
+    const value = field?.value ?? '';
+    const defaultValue = field?.default ?? '';
+    const type = `${field?.type || 'string'}`;
+    const min = field?.validation?.min;
+    const max = field?.validation?.max;
+
+    let controlHtml = '';
+
+    switch (control) {
+      case 'switch': {
+        const checked = (value === true || value === 1 || value === '1' || value === 'true') ? ' checked' : '';
+        controlHtml = `
+          <label class="app-switch">
+            <input type="checkbox" class="general-field" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}"${checked} />
+            <div class="app-switch-view"></div>
+            <span class="app-switch-label" data-on="On" data-off="Off"></span>
+          </label>
+        `;
+        break;
+      }
+      case 'hotkey': {
+        const readable = this._humanizeHotkey(`${value || ''}`) || 'Assign hotkey';
+        controlHtml = `
+          <div class="field-with-actions">
+            <input type="hidden" class="general-field" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}" />
+            <button type="button" class="app-btn hotkey-badge hotkey-badge-large" data-hotkey-target="${this._escapeHtml(key)}" data-hotkey-display-for="${this._escapeHtml(key)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">
+              <span class="hotkey-badge-label">${this._escapeHtml(readable)}</span>
+            </button>
+          </div>
+        `;
+        break;
+      }
+      case 'color': {
+        controlHtml = `
+          <div class="field-with-actions">
+            <input class="app-input-text general-field" type="text" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}" placeholder="${this._escapeHtml(`${defaultValue || ''}`)}" />
+            <div class="field-actions">
+              <button id="toggleBorderColorPicker" type="button" class="app-btn app-btn-subtle field-btn" data-win-toggle="modal" data-win-target="#ColorPickerDialog">
+                <span id="BorderColorSwatch" class="color-swatch-small" aria-hidden="true"></span>
+                <span>Pick</span>
+              </button>
+            </div>
+          </div>
+        `;
+        break;
+      }
+      case 'path': {
+        const browseMeta = this._getGeneralPathBrowseMeta(key);
+        const pickerHtml = browseMeta
+          ? `<input type="file" id="${this._escapeHtml(browseMeta.fileInputId)}" accept="audio/*,.wav,.mp3,.ogg,.flac" hidden />`
+          : '';
+        const browseBtnHtml = browseMeta
+          ? `<button id="${this._escapeHtml(browseMeta.buttonId)}" type="button" class="app-btn app-btn-subtle field-btn"><span>Browse</span></button>`
+          : '';
+        controlHtml = `
+          <div class="field-with-actions">
+            <input class="app-input-text general-field" type="text" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}" />
+            <div class="field-actions">${browseBtnHtml}</div>
+          </div>
+          ${pickerHtml}
+        `;
+        break;
+      }
+      case 'range': {
+        const minAttr = Number.isFinite(Number(min)) ? ` min="${Number(min)}"` : ' min="0"';
+        const maxAttr = Number.isFinite(Number(max)) ? ` max="${Number(max)}"` : ' max="255"';
+        const sliderValue = `${value ?? defaultValue ?? 128}`;
+        controlHtml = `
+          <div class="app-range-slider">
+            <input type="range" class="general-field" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}"${minAttr}${maxAttr} step="1" value="${this._escapeHtml(sliderValue)}" />
+            <span id="WindowTransparencyLabel">${this._escapeHtml(sliderValue)}</span>
+          </div>
+        `;
+        break;
+      }
+      case 'number': {
+        const minAttr = Number.isFinite(Number(min)) ? ` min="${Number(min)}"` : '';
+        const maxAttr = Number.isFinite(Number(max)) ? ` max="${Number(max)}"` : '';
+        controlHtml = `
+          <input class="app-input-text general-field" type="number" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}"${minAttr}${maxAttr} />
+        `;
+        break;
+      }
+      case 'select': {
+        const options = this._getGeneralSelectOptions(field);
+        const selected = `${value ?? defaultValue ?? ''}`;
+        const optionsHtml = options.map((opt) => {
+          const v = `${opt?.value ?? ''}`;
+          const text = `${opt?.label ?? v}`;
+          const isSelected = v === selected ? ' selected' : '';
+          return `<option value="${this._escapeHtml(v)}"${isSelected}>${this._escapeHtml(text)}</option>`;
+        }).join('');
+        controlHtml = `
+          <div class="app-select-menu">
+            <select class="general-field" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}">${optionsHtml}</select>
+          </div>
+        `;
+        break;
+      }
+      default: {
+        controlHtml = `
+          <input class="app-input-text general-field" type="text" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}" />
+        `;
+      }
+    }
+
+    const maybeDevTools = key === 'DebugLevel'
+      ? '<div class="field-actions"><button type="button" id="openDevTools" class="app-btn app-btn-subtle field-btn"><span>Open DevTools</span></button></div>'
+      : '';
+
+    return `
+      <div class="setting-row">
+        <label class="field-label" for="${this._escapeHtml(key)}">${this._escapeHtml(label)}</label>
+        <div class="app-input-container">
+          ${description ? `<p class="field-description">${this._escapeHtml(description)}</p>` : ''}
+          ${maybeDevTools ? `<div class="field-with-actions">${controlHtml}${maybeDevTools}</div>` : controlHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  _getGeneralPathBrowseMeta(key) {
+    if (key === 'StartupSound') {
+      return { buttonId: 'browseStartupSound', fileInputId: 'StartupSoundFile' };
+    }
+    if (key === 'NotificationSound') {
+      return { buttonId: 'browseNotificationSound', fileInputId: 'NotificationSoundFile' };
+    }
+    return null;
+  }
+
+  _getGeneralSelectOptions(field) {
+    const key = `${field?.key || ''}`;
+    if (key === 'DarkTheme') {
+      return [
+        { value: '-1', label: 'Auto (follow system)' },
+        { value: '0', label: 'Light' },
+        { value: '1', label: 'Dark' },
+      ];
+    }
+    if (key === 'DebugLevel') {
+      return [
+        { value: '0', label: '0 - Error' },
+        { value: '1', label: '1 - Warning' },
+        { value: '2', label: '2 - Notice' },
+        { value: '3', label: '3 - Info' },
+        { value: '4', label: '4 - Debug' },
+        { value: '5', label: '5 - Verbose' },
+      ];
+    }
+
+    if (Array.isArray(field?.options) && field.options.length) {
+      return field.options;
+    }
+
+    return [{ value: `${field?.value ?? field?.default ?? ''}`, label: `${field?.value ?? field?.default ?? ''}` }];
   }
 
   _renderPlugins(plugins) {

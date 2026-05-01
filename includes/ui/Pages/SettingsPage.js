@@ -115,6 +115,8 @@ class SettingsPage {
     const btn = document.getElementById(browseBtnId);
     const picker = document.getElementById(fileInputId);
     if (!txt || !btn || !picker) return;
+    if (btn.dataset.boundFilePicker === '1') return;
+    btn.dataset.boundFilePicker = '1';
 
     btn.addEventListener('click', () => {
       const selected = this.hostBridge.browseForFile(txt.value || '');
@@ -137,15 +139,20 @@ class SettingsPage {
     const applyBtn = document.getElementById('applyColorPicker');
     const cancelBtn = document.getElementById('cancelColorPicker');
 
-    if (toggleBtn) {
+    if (toggleBtn && toggleBtn.dataset.boundColorToggle !== '1') {
+      toggleBtn.dataset.boundColorToggle = '1';
       toggleBtn.addEventListener('click', () => this.colorPicker.syncFromForm());
     }
-    document.addEventListener('click', (ev) => {
-      const trigger = ev.target.closest('[data-color-selector]');
-      if (!trigger) return;
-      this.colorPicker.beginForTrigger(trigger);
-    });
-    if (applyBtn) {
+    if (!this._isColorSelectorDelegated) {
+      this._isColorSelectorDelegated = true;
+      document.addEventListener('click', (ev) => {
+        const trigger = ev.target.closest('[data-color-selector]');
+        if (!trigger) return;
+        this.colorPicker.beginForTrigger(trigger);
+      });
+    }
+    if (applyBtn && applyBtn.dataset.boundColorApply !== '1') {
+      applyBtn.dataset.boundColorApply = '1';
       applyBtn.addEventListener('click', () => {
         this.colorPicker.apply();
         if (cancelBtn) cancelBtn.click();
@@ -168,6 +175,8 @@ class SettingsPage {
   _bindSliderRefresh() {
     const slider = this.dom.getField('WindowTransparencyValue');
     if (slider) {
+      if (slider.dataset.boundTransparencySlider === '1') return;
+      slider.dataset.boundTransparencySlider = '1';
       slider.addEventListener('input', () => this.form._updateTransparencyUI());
       slider.addEventListener('change', () => this.form._updateTransparencyUI());
     }
@@ -176,10 +185,19 @@ class SettingsPage {
   _bindDevToolsButton() {
     const openDevToolsBtn = document.getElementById('openDevTools');
     if (!openDevToolsBtn) return;
+    if (openDevToolsBtn.dataset.boundDevTools === '1') return;
+    openDevToolsBtn.dataset.boundDevTools = '1';
 
     openDevToolsBtn.addEventListener('click', () => {
       this.hostBridge.openDevTools();
     });
+  }
+
+  _bindDynamicGeneralControls() {
+    this._bindFilePickers();
+    this._bindColorPickerDialog();
+    this._bindSliderRefresh();
+    this._bindDevToolsButton();
   }
 
   _bindActionHotkeyRemoval() {
@@ -277,6 +295,7 @@ class SettingsPage {
     // Keep exact incoming AHK payload for DevTools export/import replay.
     this._lastAppliedState = state ? JSON.parse(JSON.stringify(state)) : null;
     this.form.applyState(state);
+    this._bindDynamicGeneralControls();
     this.refreshUI();
     this._isApplyingState = false;
   }

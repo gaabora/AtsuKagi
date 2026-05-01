@@ -11,6 +11,10 @@ class SettingsDom {
   }
 
   cache() {
+    this.sections.clear();
+    this.navItems.clear();
+    this.fields.clear();
+
     document.querySelectorAll('.settings-section').forEach(el => {
       const id = el.id;
       if (!id) return console.error('Found settings section without id:', el);

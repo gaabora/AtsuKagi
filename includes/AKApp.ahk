@@ -184,6 +184,114 @@ class AKApp extends AKBase {
     FileAppend(fileContent, outputFile)
   }
 
+  ; ── Phase 1+: General Settings Metadata Helpers ───────────────────────────────
+  ; Descriptor-style source of truth (mirrors plugin __DescribePlugin() pattern)
+  __DescribeGeneralSettings() {
+    return Map(
+      "page", Map(
+        "id", "general",
+        "title", "General",
+        "description", "Core application settings.",
+        "icon", "icons10-settings",
+        "navOrder", 0,
+        "enableDynamicRender", false
+      ),
+      "fields", [
+        Map("key", "WelcomeMessage", "label", "Welcome Message", "description", "Message shown on app startup.", "type", "string", "control", "text", "default", "Haribol!", "section", "General"),
+        Map("key", "DarkTheme", "label", "Theme", "description", "-1 = Auto, 0 = Light, 1 = Dark.", "type", "integer", "control", "select", "default", -1, "section", "General"),
+        Map("key", "DebugLevel", "label", "Debug Level", "description", "0 = Error .. 5 = Verbose.", "type", "integer", "control", "select", "default", A_IsCompiled ? 0 : 5, "section", "General"),
+        Map("key", "ToolTipTimeoutMs", "label", "Tooltip Timeout (ms)", "description", "Timeout for tooltip auto-hide.", "type", "integer", "control", "number", "default", 1000, "section", "General", "validation", Map("min", 100, "max", 30000)),
+        Map("key", "WindowTransparencyValue", "label", "Window Transparency", "description", "Transparency for on-top overlays.", "type", "integer", "control", "range", "default", 128, "section", "General", "validation", Map("min", 0, "max", 255)),
+        Map("key", "WindowOnTopBorderColor", "label", "On-Top Border Color", "description", "Border color for always-on-top window highlight.", "type", "color", "control", "color", "default", "0xAACCFF", "section", "General"),
+        Map("key", "StartupSound", "label", "Startup Sound", "description", "Sound file played when app starts.", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
+        Map("key", "NotificationSound", "label", "Notification Sound", "description", "Sound file used for notifications.", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
+        Map("key", "ReloadAppHotkey", "label", "Reload App", "description", "Global hotkey to reload the app.", "type", "hotkey", "control", "hotkey", "default", "^#!Backspace", "section", "App Hotkeys"),
+        Map("key", "SuspendAppHotkey", "label", "Suspend App", "description", "Global hotkey to suspend the app.", "type", "hotkey", "control", "hotkey", "default", "^#!Esc", "section", "App Hotkeys"),
+        Map("key", "SwapMouseXButtons", "label", "Swap Mouse XButtons", "description", "Swap XButton1 and XButton2 behavior.", "type", "boolean", "control", "switch", "default", 0, "section", "Misc")
+      ]
+    )
+  }
+
+  GetGeneralConfigSchema() {
+    descriptor := this.__DescribeGeneralSettings()
+    return descriptor.Has("fields") ? descriptor["fields"] : []
+  }
+
+  GetGeneralConfigValues() {
+    cfg := this.Config.Has("GENERAL") ? this.Config.GENERAL : Map()
+    schema := this.GetGeneralConfigSchema()
+    values := []
+
+    for fieldDesc in schema {
+      field := Map()
+      for k, v in fieldDesc {
+        field[k] := v
+      }
+
+      key := field.Has("key") ? field["key"] : ""
+      if (key && cfg.Has(key)) {
+        field["value"] := cfg[key]
+      } else if (field.Has("default")) {
+        field["value"] := field["default"]
+      } else {
+        field["value"] := ""
+      }
+
+      if (!field.Has("scope"))
+        field["scope"] := "general"
+      if (!field.Has("pluginId"))
+        field["pluginId"] := "GENERAL"
+
+      values.Push(field)
+    }
+
+    return values
+  }
+
+  GetGeneralSettingsPage() {
+    descriptor := this.__DescribeGeneralSettings()
+    pageDesc := descriptor.Has("page") ? descriptor["page"] : Map()
+
+    page := Map(
+      "id", pageDesc.Has("id") ? pageDesc["id"] : "general",
+      "title", pageDesc.Has("title") ? pageDesc["title"] : "General",
+      "description", pageDesc.Has("description") ? pageDesc["description"] : "",
+      "icon", pageDesc.Has("icon") ? pageDesc["icon"] : "icons10-settings",
+      "navOrder", pageDesc.Has("navOrder") ? pageDesc["navOrder"] : 0,
+      "enableDynamicRender", pageDesc.Has("enableDynamicRender") ? pageDesc["enableDynamicRender"] : false,
+      "enabled", true,
+      "sections", this._buildGeneralSections(this.GetGeneralConfigValues()),
+      "actions", []
+    )
+
+    return page
+  }
+
+  _buildGeneralSections(fields) {
+    sections := []
+    sectionMap := Map()
+    sectionOrder := []
+
+    for field in fields {
+      sectionId := field.Has("section") ? field["section"] : "General"
+      if (!sectionMap.Has(sectionId)) {
+        sectionMap[sectionId] := []
+        sectionOrder.Push(sectionId)
+      }
+      sectionMap[sectionId].Push(field)
+    }
+
+    for sectionId in sectionOrder {
+      sections.Push(Map(
+        "id", sectionId,
+        "title", sectionId,
+        "fields", sectionMap[sectionId]
+      ))
+    }
+
+    return sections
+  }
+
   ; ── Phase 1+: Plugin Settings Metadata Helpers ─────────────────────────────────
   ; Get all plugin pages (descriptors with settings pages) for the UI
   GetPluginSettingsPages() {
