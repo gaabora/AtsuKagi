@@ -60,11 +60,6 @@ class SettingsDom {
     applyState: (state) => window.settingsPage.applyState(state),
     refresh: () => window.settingsPage.refreshUI()
   };
-
-  // Refresh after a small delay to ensure DOM is ready
-  if (window.SettingsUiBridge && typeof window.SettingsUiBridge.refreshFromConfig === 'function') {
-    window.SettingsUiBridge.refreshFromConfig();
-  }
 })();
 
 window.chrome.webview.addEventListener('message', ahkWebMessage);

@@ -10,7 +10,7 @@ class AKPlugin extends AKBase {
     this.Config := App.Config[className]
   }
 
-  ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
+  ; ── Descriptor API ─────────────────────────────────────────────────────────────
   ; Override in plugin to return structured metadata. This is the new source of truth.
   __DescribePlugin() {
     return Map() ; Empty by default; plugins override to provide descriptor
@@ -114,13 +114,11 @@ class AKPlugin extends AKBase {
     return true
   }
 
-  ; ── Legacy Help Methods (Phase 1-5: TODO: remove after Phase 5) ────────────────
-  ; These derive from descriptor when available, for backward compatibility
-  __ConfigHelp() {
-    ; TODO: remove after Phase 5
+  __ConfigHelp() { ; TODO: obsolete, remove everywhere
+    
     descriptor := this.__GetPluginDescriptor()
     if (!descriptor || descriptor.Count = 0)
-      return "" ; Fallback
+      return ""
     
     schema := this.__GetConfigSchema()
     result := ""
@@ -137,8 +135,7 @@ class AKPlugin extends AKBase {
     return result
   }
 
-  __UsageHelp() {
-    ; TODO: remove after Phase 5
+  __UsageHelp() { ; TODO: obsolete, remove everywhere
     descriptor := this.__GetPluginDescriptor()
     if (descriptor && descriptor.Has("plugin")) {
       plugin := descriptor["plugin"]
@@ -148,8 +145,7 @@ class AKPlugin extends AKBase {
     return "write help message for the plugin"
   }
 
-  __ActionsHelp() {
-    ; TODO: remove after Phase 5
+  __ActionsHelp() { ; TODO: obsolete, remove everywhere
     results := Map()
     descriptor := this.__GetPluginDescriptor()
     if (!descriptor || descriptor.Count = 0)
@@ -184,17 +180,14 @@ class AKPlugin extends AKBase {
     return results
   }
 
-  __HooksHelp() {
-    ; TODO: remove after Phase 5
+  __HooksHelp() { ; TODO: obsolete, remove everywhere
     descriptor := this.__GetPluginDescriptor()
     if (descriptor && descriptor.Has("hooks"))
       return descriptor["hooks"]
     return []
   }
 
-  ; ── Former legacy methods (kept for reference) ─────────────────────────────────
-  ; These are deprecated. New plugins should use __DescribePlugin() instead.
-  _processPluginConfig() {
+  _processPluginConfig() {  ; TODO: obsolete, remove everywhere
   }
   _processBlocklistConfig() {
   }

@@ -12,18 +12,7 @@ class SettingsForm {
    * Serialize form state into save payload.
    */
   serializeObject() {
-    const welcomeMsg = this.getFieldValue('WelcomeMessage');
-    const darkTheme = this.getFieldValue('DarkTheme');
-    const debugLevel = this.getFieldValue('DebugLevel');
-    const tooltipMs = this.getFieldValue('ToolTipTimeoutMs');
-    const transparency = this.getFieldValue('WindowTransparencyValue');
-    const borderColor = this.getFieldValue('WindowOnTopBorderColor');
-    const startupSound = this.getFieldValue('StartupSound');
-    const notificationSound = this.getFieldValue('NotificationSound');
-    const reloadHotkey = this.getFieldValue('ReloadAppHotkey');
-    const suspendHotkey = this.getFieldValue('SuspendAppHotkey');
-
-    const isSwapped = this.getFieldChecked('SwapMouseXButtons') ? 'true' : 'false';
+    const general = this._readGeneralFields();
 
     const disabledPlugins = [];
     this.dom.getPluginCheckboxes().forEach(cb => {
@@ -52,46 +41,11 @@ class SettingsForm {
     });
 
     return {
-      general: {
-        WelcomeMessage: welcomeMsg,
-        DarkTheme: darkTheme,
-        DebugLevel: debugLevel,
-        ToolTipTimeoutMs: tooltipMs,
-        WindowTransparencyValue: transparency,
-        WindowOnTopBorderColor: borderColor,
-        StartupSound: startupSound,
-        NotificationSound: notificationSound,
-        ReloadAppHotkey: reloadHotkey,
-        SuspendAppHotkey: suspendHotkey,
-        SwapMouseXButtons: this.getFieldChecked('SwapMouseXButtons')
-      },
+      general,
       disabledPlugins,
       pluginConfigs,
       hotkeys: [...this._hotkeyEntries]
     };
-  }
-
-  serializeLegacy(payloadObject) {
-    const obj = payloadObject || this.serializeObject();
-    const gen = obj.general || {};
-    const disabled = Array.isArray(obj.disabledPlugins) ? obj.disabledPlugins : [];
-    const pluginConfigEncoded = SettingsForm.encodePluginConfigLines(obj.pluginConfigs || {});
-
-    return [
-      gen.WelcomeMessage || '',
-      gen.DarkTheme || '',
-      gen.DebugLevel || '',
-      gen.ToolTipTimeoutMs || '',
-      gen.WindowTransparencyValue || '',
-      gen.WindowOnTopBorderColor || '',
-      gen.StartupSound || '',
-      gen.NotificationSound || '',
-      gen.ReloadAppHotkey || '',
-      gen.SuspendAppHotkey || '',
-      gen.SwapMouseXButtons ? 'true' : 'false',
-      disabled.join(','),
-      pluginConfigEncoded
-    ];
   }
 
   static encodePluginConfigLines(pluginConfigs) {
@@ -136,56 +90,19 @@ class SettingsForm {
       .replace(/\t/g, '\\t');
   }
 
-  serialize() {
-    const payloadObject = this.serializeObject();
-    return this.serializeLegacy(payloadObject);
-  }
-
-  getFieldValue(id) {
-    const el = this.dom.getField(id);
-    return el ? (el.value || '') : '';
-  }
-
-  getFieldChecked(id) {
-    const el = this.dom.getField(id);
-    return !!(el && el.checked);
-  }
-
-  setFieldValue(id, value) {
-    const el = this.dom.getField(id);
-    if (el) el.value = value;
-  }
-
-  setFieldChecked(id, checked) {
-    const el = this.dom.getField(id);
-    if (el) el.checked = checked;
-  }
-
   /**
    * Apply incoming state from AHK to form DOM.
    */
   applyState(state) {
     if (!state) return;
 
-    if (state.generalPage && state.generalPage.enableDynamicRender) {
+    if (state.generalPage) {
       this.renderGeneralPage(state.generalPage);
       if (this.dom && typeof this.dom.cache === 'function') {
         this.dom.cache();
       }
+      this._applyGeneralFieldValues(state.generalPage);
     }
-
-    const gen = this._mergeGeneralState(state.general || {}, state.generalPage || null);
-    this.setFieldValue('WelcomeMessage', gen.WelcomeMessage || '');
-    this.setFieldValue('DarkTheme', gen.DarkTheme || '-1');
-    this.setFieldValue('DebugLevel', gen.DebugLevel || '0');
-    this.setFieldValue('ToolTipTimeoutMs', gen.ToolTipTimeoutMs || '');
-    this.setFieldValue('WindowTransparencyValue', gen.WindowTransparencyValue || '128');
-    this.setFieldValue('WindowOnTopBorderColor', gen.WindowOnTopBorderColor || '');
-    this.setFieldValue('StartupSound', gen.StartupSound || '');
-    this.setFieldValue('NotificationSound', gen.NotificationSound || '');
-    this.setFieldValue('ReloadAppHotkey', gen.ReloadAppHotkey || '');
-    this.setFieldValue('SuspendAppHotkey', gen.SuspendAppHotkey || '');
-    this.setFieldChecked('SwapMouseXButtons', gen.SwapMouseXButtons === true || gen.SwapMouseXButtons === 1 || gen.SwapMouseXButtons === '1');
 
     this._hotkeyEntries = Array.isArray(state.hotkeys)
       ? state.hotkeys
@@ -228,23 +145,47 @@ class SettingsForm {
     }
   }
 
-  _mergeGeneralState(general, generalPage) {
-    const merged = { ...(general || {}) };
-    if (!generalPage || !Array.isArray(generalPage.sections)) {
-      return merged;
-    }
+  _readGeneralFields() {
+    const general = {};
+    document.querySelectorAll('.general-field[data-key][data-type]').forEach((el) => {
+      const key = `${el.getAttribute('data-key') || ''}`.trim();
+      const valueType = `${el.getAttribute('data-type') || 'string'}`.trim();
+      if (!key) return;
+
+      let value;
+      if (el.type === 'checkbox') {
+        value = !!el.checked;
+      } else {
+        value = `${el.value ?? ''}`;
+      }
+
+      if (valueType === 'boolean') {
+        general[key] = !!value;
+      } else {
+        general[key] = value;
+      }
+    });
+    return general;
+  }
+
+  _applyGeneralFieldValues(generalPage) {
+    if (!Array.isArray(generalPage?.sections)) return;
 
     generalPage.sections.forEach((section) => {
       (section?.fields || []).forEach((field) => {
-        const key = `${field?.key || ''}`;
-        if (!key || merged[key] !== undefined) return;
-        if (field && Object.prototype.hasOwnProperty.call(field, 'value')) {
-          merged[key] = field.value;
+        const key = `${field?.key || ''}`.trim();
+        if (!key) return;
+        const value = field && Object.prototype.hasOwnProperty.call(field, 'value') ? field.value : '';
+        const target = document.querySelector(`.general-field[data-key="${CSS.escape(key)}"]`);
+        if (!target) return;
+
+        if (target.type === 'checkbox') {
+          target.checked = (value === true || value === 1 || value === '1' || value === 'true');
+        } else {
+          target.value = `${value ?? ''}`;
         }
       });
     });
-
-    return merged;
   }
 
   renderGeneralPage(page) {
@@ -400,25 +341,6 @@ class SettingsForm {
   }
 
   _getGeneralSelectOptions(field) {
-    const key = `${field?.key || ''}`;
-    if (key === 'DarkTheme') {
-      return [
-        { value: '-1', label: 'Auto (follow system)' },
-        { value: '0', label: 'Light' },
-        { value: '1', label: 'Dark' },
-      ];
-    }
-    if (key === 'DebugLevel') {
-      return [
-        { value: '0', label: '0 - Error' },
-        { value: '1', label: '1 - Warning' },
-        { value: '2', label: '2 - Notice' },
-        { value: '3', label: '3 - Info' },
-        { value: '4', label: '4 - Debug' },
-        { value: '5', label: '5 - Verbose' },
-      ];
-    }
-
     if (Array.isArray(field?.options) && field.options.length) {
       return field.options;
     }

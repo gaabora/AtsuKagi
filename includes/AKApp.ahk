@@ -19,7 +19,7 @@ class AKApp extends AKBase {
   _warnedActionCollisions := Map()
   _warnedActionNaming := Map()
   
-  ; Phase 1+: Plugin metadata registries
+  ; Plugin metadata registries
   _pluginRegistry := Map()        ; pluginId -> descriptor
   _actionRegistry := Map()        ; actionName -> actionDescriptor
   _pluginConfigRegistry := Map()  ; pluginId -> configSchema[]
@@ -184,7 +184,7 @@ class AKApp extends AKBase {
     FileAppend(fileContent, outputFile)
   }
 
-  ; ── Phase 1+: General Settings Metadata Helpers ───────────────────────────────
+  ; ── General Settings Metadata Helpers ─────────────────────────────────────────
   ; Descriptor-style source of truth (mirrors plugin __DescribePlugin() pattern)
   __DescribeGeneralSettings() {
     return Map(
@@ -194,12 +194,12 @@ class AKApp extends AKBase {
         "description", "Core application settings.",
         "icon", "icons10-settings",
         "navOrder", 0,
-        "enableDynamicRender", false
+        "enableDynamicRender", true
       ),
       "fields", [
         Map("key", "WelcomeMessage", "label", "Welcome Message", "description", "Message shown on app startup.", "type", "string", "control", "text", "default", "Haribol!", "section", "General"),
-        Map("key", "DarkTheme", "label", "Theme", "description", "-1 = Auto, 0 = Light, 1 = Dark.", "type", "integer", "control", "select", "default", -1, "section", "General"),
-        Map("key", "DebugLevel", "label", "Debug Level", "description", "0 = Error .. 5 = Verbose.", "type", "integer", "control", "select", "default", A_IsCompiled ? 0 : 5, "section", "General"),
+        Map("key", "DarkTheme", "label", "Theme", "description", "-1 = Auto, 0 = Light, 1 = Dark.", "type", "integer", "control", "select", "default", -1, "section", "General", "options", [Map("value", -1, "label", "Auto (follow system)"), Map("value", 0, "label", "Light"), Map("value", 1, "label", "Dark")]),
+        Map("key", "DebugLevel", "label", "Debug Level", "description", "0 = Error .. 5 = Verbose.", "type", "integer", "control", "select", "default", A_IsCompiled ? 0 : 5, "section", "General", "options", [Map("value", 0, "label", "0 - Error"), Map("value", 1, "label", "1 - Warning"), Map("value", 2, "label", "2 - Notice"), Map("value", 3, "label", "3 - Info"), Map("value", 4, "label", "4 - Debug"), Map("value", 5, "label", "5 - Verbose")]),
         Map("key", "ToolTipTimeoutMs", "label", "Tooltip Timeout (ms)", "description", "Timeout for tooltip auto-hide.", "type", "integer", "control", "number", "default", 1000, "section", "General", "validation", Map("min", 100, "max", 30000)),
         Map("key", "WindowTransparencyValue", "label", "Window Transparency", "description", "Transparency for on-top overlays.", "type", "integer", "control", "range", "default", 128, "section", "General", "validation", Map("min", 0, "max", 255)),
         Map("key", "WindowOnTopBorderColor", "label", "On-Top Border Color", "description", "Border color for always-on-top window highlight.", "type", "color", "control", "color", "default", "0xAACCFF", "section", "General"),
@@ -292,7 +292,7 @@ class AKApp extends AKBase {
     return sections
   }
 
-  ; ── Phase 1+: Plugin Settings Metadata Helpers ─────────────────────────────────
+  ; ── Plugin Settings Metadata Helpers ───────────────────────────────────────────
   ; Get all plugin pages (descriptors with settings pages) for the UI
   GetPluginSettingsPages() {
     pages := []
@@ -499,7 +499,7 @@ class AKApp extends AKBase {
     libObj._init()
     this._addedLibs[className] := libObj
     
-    ; Phase 1+: Register plugin descriptor metadata
+    ; Register plugin descriptor metadata
     descriptor := libObj.__GetPluginDescriptor()
     if (descriptor && descriptor.Count > 0) {
       pluginId := descriptor.Has("plugin") && descriptor["plugin"].Has("id") ? descriptor["plugin"]["id"] : className

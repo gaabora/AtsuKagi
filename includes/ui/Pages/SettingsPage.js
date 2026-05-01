@@ -38,20 +38,6 @@ class SettingsPage {
     if (minimizeBtn) {
       minimizeBtn.addEventListener('click', () => this.hostBridge.minimize());
     }
-
-    // Fallback for inline onclick (Phase 2 will remove these)
-    window.ahk = {
-      SettingsSave: () => this._saveSettings(),
-      CloseSettings: () => this.hostBridge.closeSettings(),
-      BrowseForFile: (path) => this.hostBridge.browseForFile(path),
-      gui: {
-        Minimize: () => this.hostBridge.minimize()
-      }
-    };
-
-    window.SettingsUiBridge = {
-      refreshFromConfig: () => this.refreshUI()
-    };
   }
 
   _bindAutoSave() {
@@ -82,9 +68,6 @@ class SettingsPage {
         }
       });
     }
-
-    // Fallback for inline onclick
-    window.showSection = (name, navEl) => this._showSection(name, navEl);
   }
 
   _showSection(name, navEl) {
@@ -278,9 +261,8 @@ class SettingsPage {
 
   _saveSettings() {
     const payloadObject = this.form.serializeObject();
-    const legacyPayload = this.form.serializeLegacy(payloadObject);
-    console.log('Saving settings...', {payloadObject, legacyPayload});
-    this.hostBridge.saveSettings(payloadObject, legacyPayload);
+    console.log('Saving settings...', { payloadObject });
+    this.hostBridge.saveSettings(payloadObject);
   }
 
   refreshUI() {

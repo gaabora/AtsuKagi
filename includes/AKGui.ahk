@@ -89,7 +89,7 @@ class AKGui extends AKBase {
     ;   }
     ; }
 
-    ; Script mode fallback: use bundled library loader path.
+    ; Script mode: use bundled library loader path.
     localDll := A_ScriptDir "\\lib\\WebViewToo-main\\Lib\\" dllRelPath
     if (FileExist(localDll)) {
       settings.DllPath := localDll
@@ -97,6 +97,9 @@ class AKGui extends AKBase {
     return settings
   }
 
+  _wrapQuotes(text) {
+    return AKGui.QUOTE_CHAR text AKGui.QUOTE_CHAR
+  }
   _populateSettingsPage(nw) {
     cfg := this.App.Config
 
@@ -111,19 +114,6 @@ class AKGui extends AKBase {
 
     generalPage := this.App.GetGeneralSettingsPage()
 
-    ; Escape values for JavaScript
-    welcomeMsg := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WelcomeMessage)
-    darkTheme := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.DarkTheme)
-    debugLevel := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.DebugLevel)
-    tooltipMs := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ToolTipTimeoutMs)
-    transparency := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowTransparencyValue)
-    borderColor := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.WindowOnTopBorderColor)
-    startupSound := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.StartupSound)
-    notificationSound := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.NotificationSound)
-    reloadHotkey := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.ReloadAppHotkey)
-    suspendHotkey := WebViewCtrl.EscapeJavaScript("" cfg.GENERAL.SuspendAppHotkey)
-    swapXButtons := cfg.GENERAL.SwapMouseXButtons = 1 ? "true" : "false"
-
     logsText := WebViewCtrl.EscapeJavaScript(AKBase.GetUiLogsText())
     problemsText := WebViewCtrl.EscapeJavaScript(AKBase.GetUiProblemsText())
     title := WebViewCtrl.EscapeJavaScript(this.App.ScriptName " — Settings")
@@ -132,20 +122,7 @@ class AKGui extends AKBase {
 
     ; Build JavaScript to populate page state
     js := "(() => {`n"
-    js .= "  const state = {`n"
-    js .= "    general: {`n"
-    js .= "      WelcomeMessage: " AKGui.QUOTE_CHAR welcomeMsg AKGui.QUOTE_CHAR ",`n"
-    js .= "      DarkTheme: " AKGui.QUOTE_CHAR darkTheme AKGui.QUOTE_CHAR ",`n"
-    js .= "      DebugLevel: " AKGui.QUOTE_CHAR debugLevel AKGui.QUOTE_CHAR ",`n"
-    js .= "      ToolTipTimeoutMs: " AKGui.QUOTE_CHAR tooltipMs AKGui.QUOTE_CHAR ",`n"
-    js .= "      WindowTransparencyValue: " AKGui.QUOTE_CHAR transparency AKGui.QUOTE_CHAR ",`n"
-    js .= "      WindowOnTopBorderColor: " AKGui.QUOTE_CHAR borderColor AKGui.QUOTE_CHAR ",`n"
-    js .= "      StartupSound: " AKGui.QUOTE_CHAR startupSound AKGui.QUOTE_CHAR ",`n"
-    js .= "      NotificationSound: " AKGui.QUOTE_CHAR notificationSound AKGui.QUOTE_CHAR ",`n"
-    js .= "      ReloadAppHotkey: " AKGui.QUOTE_CHAR reloadHotkey AKGui.QUOTE_CHAR ",`n"
-    js .= "      SuspendAppHotkey: " AKGui.QUOTE_CHAR suspendHotkey AKGui.QUOTE_CHAR ",`n"
-    js .= "      SwapMouseXButtons: " swapXButtons "`n"
-    js .= "    },`n"
+    js .= "  window.state = {`n"
     js .= "    generalPage: " this._AhkGeneralPageToJs(generalPage) ",`n"
     js .= "    plugins: {`n"
     js .= "      available: " this._AhkArrayToJs(pluginList) ",`n"
@@ -153,29 +130,30 @@ class AKGui extends AKBase {
     js .= "      pages: " this._AhkPluginPagesToJs(this.App.GetPluginSettingsPages()) "`n"
     js .= "    },`n"
     js .= "    hotkeys: " this._AhkHotkeysToJs(cfg.HOTKEYS) ",`n"
-    js .= "    logsText: " AKGui.QUOTE_CHAR logsText AKGui.QUOTE_CHAR ",`n"
-    js .= "    problemsText: " AKGui.QUOTE_CHAR problemsText AKGui.QUOTE_CHAR ",`n"
-    js .= "    theme: " AKGui.QUOTE_CHAR theme AKGui.QUOTE_CHAR ",`n"
-    js .= "    title: " AKGui.QUOTE_CHAR title AKGui.QUOTE_CHAR ",`n"
+    js .= "    logsText: " this._wrapQuotes(logsText) ",`n"
+    js .= "    problemsText: " this._wrapQuotes(problemsText) ",`n"
+    js .= "    theme: " this._wrapQuotes(theme) ",`n"
+    js .= "    title: " this._wrapQuotes(title) ",`n"
     js .= "  };`n"
+    js .= "  setTimeout(() => console.log(window.state), 5000);`n"
     js .= "  if (window.SettingsPageBridge && typeof window.SettingsPageBridge.applyState === 'function') {`n"
-    js .= "    window.SettingsPageBridge.applyState(state);`n"
+    js .= "    window.SettingsPageBridge.applyState(window.state);`n"
     js .= "  }`n"
     js .= "})();`n"
 
     nw.ExecuteScriptAsync(js)
   }
 
-  ; Phase 1+: Convert general settings page descriptor to JavaScript
+  ; Convert general settings page descriptor to JavaScript
   _AhkGeneralPageToJs(page) {
     if (!IsObject(page))
       return "null"
 
     result := "{"
-    result .= "id: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "general") AKGui.QUOTE_CHAR ","
-    result .= "title: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "General") AKGui.QUOTE_CHAR ","
-    result .= "description: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "") AKGui.QUOTE_CHAR ","
-    result .= "icon: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "icons10-settings") AKGui.QUOTE_CHAR ","
+    result .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "general")) ","
+    result .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "General")) ","
+    result .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "")) ","
+    result .= "icon: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "icons10-settings")) ","
     result .= "navOrder: " (page.Has("navOrder") ? page["navOrder"] : 0) ","
     result .= "enableDynamicRender: " (page.Has("enableDynamicRender") && page["enableDynamicRender"] ? "true" : "false") ","
     result .= "sections: " this._AhkPluginSectionsToJs(page.Has("sections") ? page["sections"] : []) ","
@@ -189,7 +167,7 @@ class AKGui extends AKBase {
     first := true
     for item in arr {
       if (!first) result .= ","
-      result .= AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript("" item) AKGui.QUOTE_CHAR
+      result .= this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" item))
       first := false
     }
     result .= "]"
@@ -204,7 +182,7 @@ class AKGui extends AKBase {
         if (!first) result .= ","
         hotKey := WebViewCtrl.EscapeJavaScript(k)
         action := WebViewCtrl.EscapeJavaScript(v)
-        result .= "{ hotKey: " AKGui.QUOTE_CHAR hotKey AKGui.QUOTE_CHAR ", action: " AKGui.QUOTE_CHAR action AKGui.QUOTE_CHAR " }"
+        result .= "{ hotKey: " this._wrapQuotes(hotKey) ", action: " this._wrapQuotes(action) " }"
         first := false
       }
     }
@@ -212,7 +190,7 @@ class AKGui extends AKBase {
     return result
   }
 
-  ; Phase 1+: Convert plugin pages to JavaScript
+  ; Convert plugin pages to JavaScript
   _AhkPluginPagesToJs(pages) {
     result := "["
     first := true
@@ -224,16 +202,16 @@ class AKGui extends AKBase {
       result .= "{"
       
       ; ID
-      result .= "id: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "") AKGui.QUOTE_CHAR ","
+      result .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "")) ","
       
       ; Title
-      result .= "title: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "") AKGui.QUOTE_CHAR ","
+      result .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "")) ","
       
       ; Description
-      result .= "description: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "") AKGui.QUOTE_CHAR ","
+      result .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "")) ","
       
       ; Icon
-      result .= "icon: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "") AKGui.QUOTE_CHAR ","
+      result .= "icon: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "")) ","
       
       ; Enabled
       result .= "enabled: " (page.Has("enabled") && page["enabled"] ? "true" : "false") ","
@@ -261,8 +239,8 @@ class AKGui extends AKBase {
       first := false
       
       result .= "{"
-      result .= "id: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(section.Has("id") ? section["id"] : "") AKGui.QUOTE_CHAR ","
-      result .= "title: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(section.Has("title") ? section["title"] : "") AKGui.QUOTE_CHAR ","
+      result .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(section.Has("id") ? section["id"] : "")) ","
+      result .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(section.Has("title") ? section["title"] : "")) ","
       result .= "fields: " this._AhkPluginFieldsToJs(section.Has("fields") ? section["fields"] : [])
       result .= "}"
     }
@@ -281,18 +259,49 @@ class AKGui extends AKBase {
       first := false
       
       result .= "{"
-      result .= "pluginId: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("pluginId") ? field["pluginId"] : "") AKGui.QUOTE_CHAR ","
-      result .= "key: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("key") ? field["key"] : "") AKGui.QUOTE_CHAR ","
-      result .= "label: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("label") ? field["label"] : "") AKGui.QUOTE_CHAR ","
-      result .= "description: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("description") ? field["description"] : "") AKGui.QUOTE_CHAR ","
-      result .= "type: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("type") ? field["type"] : "string") AKGui.QUOTE_CHAR ","
-      result .= "control: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("control") ? field["control"] : "text") AKGui.QUOTE_CHAR ","
-      result .= "default: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript("" (field.Has("default") ? field["default"] : "")) AKGui.QUOTE_CHAR ","
-      result .= "value: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript("" (field.Has("value") ? field["value"] : "")) AKGui.QUOTE_CHAR ","
-      result .= "scope: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(field.Has("scope") ? field["scope"] : "plugin") AKGui.QUOTE_CHAR
+      result .= "pluginId: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("pluginId") ? field["pluginId"] : "")) ","
+      result .= "key: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("key") ? field["key"] : "")) ","
+      result .= "label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("label") ? field["label"] : "")) ","
+      result .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("description") ? field["description"] : "")) ","
+      result .= "type: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("type") ? field["type"] : "string")) ","
+      result .= "control: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("control") ? field["control"] : "text")) ","
+      result .= "default: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("default") ? field["default"] : "")) ","
+      result .= "value: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("value") ? field["value"] : "")) ","
+      result .= "scope: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("scope") ? field["scope"] : "plugin")) ","
+      result .= "validation: " this._AhkValidationToJs(field.Has("validation") ? field["validation"] : 0) ","
+      result .= "options: " this._AhkFieldOptionsToJs(field.Has("options") ? field["options"] : [])
       result .= "}"
     }
     
+    result .= "]"
+    return result
+  }
+
+  _AhkValidationToJs(validation) {
+    if (!IsObject(validation))
+      return "{}"
+
+    result := "{"
+    first := true
+    for key, value in validation {
+      if (!first) result .= ","
+      first := false
+      result .= this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" key)) ": " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" value))
+    }
+    result .= "}"
+    return result
+  }
+
+  _AhkFieldOptionsToJs(options) {
+    result := "["
+    first := true
+    for opt in options {
+      if (!first) result .= ","
+      first := false
+      optValue := IsObject(opt) && opt.Has("value") ? opt["value"] : ""
+      optLabel := IsObject(opt) && opt.Has("label") ? opt["label"] : optValue
+      result .= "{ value: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" optValue)) ", label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" optLabel)) " }"
+    }
     result .= "]"
     return result
   }
@@ -307,10 +316,10 @@ class AKGui extends AKBase {
       first := false
       
       result .= "{"
-      result .= "action: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("action") ? action["action"] : "") AKGui.QUOTE_CHAR ","
-      result .= "label: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("label") ? action["label"] : "") AKGui.QUOTE_CHAR ","
-      result .= "description: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("description") ? action["description"] : "") AKGui.QUOTE_CHAR ","
-      result .= "category: " AKGui.QUOTE_CHAR WebViewCtrl.EscapeJavaScript(action.Has("category") ? action["category"] : "") AKGui.QUOTE_CHAR ","
+      result .= "action: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("action") ? action["action"] : "")) ","
+      result .= "label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("label") ? action["label"] : "")) ","
+      result .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("description") ? action["description"] : "")) ","
+      result .= "category: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("category") ? action["category"] : "")) ","
       result .= "hotkeys: " this._AhkArrayToJs(action.Has("hotkeys") ? action["hotkeys"] : [])
       result .= "}"
     }
@@ -381,6 +390,14 @@ class AKGui extends AKBase {
     if (!cfg.Has("GENERAL"))
       cfg.GENERAL := {}
 
+    typeIndex := Map()
+    for fieldDesc in this.App.GetGeneralConfigSchema() {
+      if (!fieldDesc.Has("key"))
+        continue
+      fieldType := fieldDesc.Has("type") ? fieldDesc["type"] : "string"
+      typeIndex[fieldDesc["key"]] := fieldType
+    }
+
     for line in StrSplit(encoded, "`n", "`r") {
       if (line = "")
         continue
@@ -400,31 +417,26 @@ class AKGui extends AKBase {
       }
       value := this._decodeEscapedLinePart(rawValue)
 
-      switch key {
-        case "WelcomeMessage":
-          cfg.GENERAL.WelcomeMessage := value
-        case "DarkTheme":
-          cfg.GENERAL.DarkTheme := value
-        case "DebugLevel":
-          cfg.GENERAL.DebugLevel := value
-        case "ToolTipTimeoutMs":
-          cfg.GENERAL.ToolTipTimeoutMs := value
-        case "WindowTransparencyValue":
-          cfg.GENERAL.WindowTransparencyValue := value
-        case "WindowOnTopBorderColor":
-          cfg.GENERAL.WindowOnTopBorderColor := value
-        case "StartupSound":
-          cfg.GENERAL.StartupSound := value
-        case "NotificationSound":
-          cfg.GENERAL.NotificationSound := value
-        case "ReloadAppHotkey":
-          cfg.GENERAL.ReloadAppHotkey := value
-        case "SuspendAppHotkey":
-          cfg.GENERAL.SuspendAppHotkey := value
-        case "SwapMouseXButtons":
-          cfg.GENERAL.SwapMouseXButtons := (value = "1" || value = "true") ? 1 : 0
-        default:
-          this.outputDebugLine("Unknown [GENERAL] config key: " . key, 1)
+      if (!typeIndex.Has(key)) {
+        this.outputDebugLine("Unknown [GENERAL] config key: " . key, 1)
+        continue
+      }
+
+      valueType := typeIndex[key]
+      if (valueType = "boolean") {
+        cfg.GENERAL.%key% := (value = "1" || value = "true") ? 1 : 0
+      } else if (valueType = "integer") {
+        try cfg.GENERAL.%key% := Integer(value)
+        catch {
+          cfg.GENERAL.%key% := value
+        }
+      } else if (valueType = "number") {
+        try cfg.GENERAL.%key% := Number(value)
+        catch {
+          cfg.GENERAL.%key% := value
+        }
+      } else {
+        cfg.GENERAL.%key% := value
       }
     }
   }

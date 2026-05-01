@@ -16,7 +16,7 @@ class AhkHostBridge {
 
   _checkHostFunction(funcName) { if (!this.host || typeof this.host[funcName] !== 'function') throw new Error(`${funcName} is not available on host object`); }
 
-  saveSettings(payloadObject, legacyPayload) {
+  saveSettings(payloadObject) {
     this._checkHostFunction('SaveSettings');
     const obj = payloadObject || {};
     const generalEncoded = SettingsForm.encodeGeneralLines(obj.general || {});
