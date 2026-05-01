@@ -135,12 +135,13 @@ class AKGui extends AKBase {
     js .= "    theme: " this._wrapQuotes(theme) ",`n"
     js .= "    title: " this._wrapQuotes(title) ",`n"
     js .= "  };`n"
-    js .= "  setTimeout(() => console.log(window.state), 5000);`n"
     js .= "  if (window.SettingsPageBridge && typeof window.SettingsPageBridge.applyState === 'function') {`n"
-    js .= "    window.SettingsPageBridge.applyState(window.state);`n"
+    js .= "    try { window.SettingsPageBridge.applyState(window.state); } catch (error) { console.error('Failed to apply settings state', error); }`n"
     js .= "  }`n"
     js .= "})();`n"
 
+    if (this.App.Config.GENERAL.DebugLevel >= 4)
+      FileOpen(A_ScriptDir "\ak_settings_debug.js", "w", "UTF-8").Write(js)
     nw.ExecuteScriptAsync(js)
   }
 
@@ -163,169 +164,113 @@ class AKGui extends AKBase {
   }
 
   _AhkArrayToJs(arr) {
-    result := "["
-    first := true
+    result := ""
     for item in arr {
-      if (!first) result .= ","
-      result .= this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" item))
-      first := false
+      result .= this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" item)) ","
     }
-    result .= "]"
-    return result
+    return "[" RTrim(result, ",") "]"
   }
 
   _AhkHotkeysToJs(hotkeys) {
-    result := "["
-    first := true
+    result := ""
     if (hotkeys) {
       for k, v in hotkeys {
-        if (!first) result .= ","
         hotKey := WebViewCtrl.EscapeJavaScript(k)
         action := WebViewCtrl.EscapeJavaScript(v)
-        result .= "{ hotKey: " this._wrapQuotes(hotKey) ", action: " this._wrapQuotes(action) " }"
-        first := false
+        result .= "{ hotKey: " this._wrapQuotes(hotKey) ", action: " this._wrapQuotes(action) " },"
       }
     }
-    result .= "]"
-    return result
+    return "[" RTrim(result, ",") "]"
   }
 
   ; Convert plugin pages to JavaScript
   _AhkPluginPagesToJs(pages) {
-    result := "["
-    first := true
-    
+    parts := ""
     for page in pages {
-      if (!first) result .= ","
-      first := false
-      
-      result .= "{"
-      
-      ; ID
-      result .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "")) ","
-      
-      ; Title
-      result .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "")) ","
-      
-      ; Description
-      result .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "")) ","
-      
-      ; Icon
-      result .= "icon: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "")) ","
-      
-      ; Enabled
-      result .= "enabled: " (page.Has("enabled") && page["enabled"] ? "true" : "false") ","
-      
-      ; Sections (with fields)
-      result .= "sections: " this._AhkPluginSectionsToJs(page.Has("sections") ? page["sections"] : []) ","
-      
-      ; Actions
-      result .= "actions: " this._AhkPluginActionsToJs(page.Has("actions") ? page["actions"] : [])
-      
-      result .= "}"
+      item := "{"
+      item .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "")) ","
+      item .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "")) ","
+      item .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "")) ","
+      item .= "icon: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "")) ","
+      item .= "enabled: " (page.Has("enabled") && page["enabled"] ? "true" : "false") ","
+      item .= "sections: " this._AhkPluginSectionsToJs(page.Has("sections") ? page["sections"] : []) ","
+      item .= "actions: " this._AhkPluginActionsToJs(page.Has("actions") ? page["actions"] : [])
+      item .= "}"
+      parts .= item ","
     }
-    
-    result .= "]"
-    return result
+    return "[" RTrim(parts, ",") "]"
   }
 
   ; Convert plugin sections to JavaScript
   _AhkPluginSectionsToJs(sections) {
-    result := "["
-    first := true
-    
+    parts := ""
     for section in sections {
-      if (!first) result .= ","
-      first := false
-      
-      result .= "{"
-      result .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(section.Has("id") ? section["id"] : "")) ","
-      result .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(section.Has("title") ? section["title"] : "")) ","
-      result .= "fields: " this._AhkPluginFieldsToJs(section.Has("fields") ? section["fields"] : [])
-      result .= "}"
+      item := "{"
+      item .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(section.Has("id") ? section["id"] : "")) ","
+      item .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(section.Has("title") ? section["title"] : "")) ","
+      item .= "fields: " this._AhkPluginFieldsToJs(section.Has("fields") ? section["fields"] : [])
+      item .= "}"
+      parts .= item ","
     }
-    
-    result .= "]"
-    return result
+    return "[" RTrim(parts, ",") "]"
   }
 
   ; Convert plugin fields to JavaScript
   _AhkPluginFieldsToJs(fields) {
-    result := "["
-    first := true
-    
+    parts := ""
     for field in fields {
-      if (!first) result .= ","
-      first := false
-      
-      result .= "{"
-      result .= "pluginId: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("pluginId") ? field["pluginId"] : "")) ","
-      result .= "key: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("key") ? field["key"] : "")) ","
-      result .= "label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("label") ? field["label"] : "")) ","
-      result .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("description") ? field["description"] : "")) ","
-      result .= "type: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("type") ? field["type"] : "string")) ","
-      result .= "control: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("control") ? field["control"] : "text")) ","
-      result .= "default: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("default") ? field["default"] : "")) ","
-      result .= "value: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("value") ? field["value"] : "")) ","
-      result .= "scope: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("scope") ? field["scope"] : "plugin")) ","
-      result .= "validation: " this._AhkValidationToJs(field.Has("validation") ? field["validation"] : 0) ","
-      result .= "options: " this._AhkFieldOptionsToJs(field.Has("options") ? field["options"] : [])
-      result .= "}"
+      item := "{"
+      item .= "pluginId: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("pluginId") ? field["pluginId"] : "")) ","
+      item .= "key: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("key") ? field["key"] : "")) ","
+      item .= "label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("label") ? field["label"] : "")) ","
+      item .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("description") ? field["description"] : "")) ","
+      item .= "type: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("type") ? field["type"] : "string")) ","
+      item .= "control: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("control") ? field["control"] : "text")) ","
+      item .= "default: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("default") ? field["default"] : "")) ","
+      item .= "value: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("value") ? field["value"] : "")) ","
+      item .= "scope: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("scope") ? field["scope"] : "plugin")) ","
+      item .= "validation: " this._AhkValidationToJs(field.Has("validation") ? field["validation"] : 0) ","
+      item .= "options: " this._AhkFieldOptionsToJs(field.Has("options") ? field["options"] : [])
+      item .= "}"
+      parts .= item ","
     }
-    
-    result .= "]"
-    return result
+    return "[" RTrim(parts, ",") "]"
   }
 
   _AhkValidationToJs(validation) {
     if (!IsObject(validation))
       return "{}"
-
-    result := "{"
-    first := true
+    parts := ""
     for key, value in validation {
-      if (!first) result .= ","
-      first := false
-      result .= this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" key)) ": " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" value))
+      parts .= this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" key)) ": " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" value)) ","
     }
-    result .= "}"
-    return result
+    return "{" RTrim(parts, ",") "}"
   }
 
   _AhkFieldOptionsToJs(options) {
-    result := "["
-    first := true
+    parts := ""
     for opt in options {
-      if (!first) result .= ","
-      first := false
       optValue := IsObject(opt) && opt.Has("value") ? opt["value"] : ""
       optLabel := IsObject(opt) && opt.Has("label") ? opt["label"] : optValue
-      result .= "{ value: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" optValue)) ", label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" optLabel)) " }"
+      parts .= "{ value: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" optValue)) ", label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" optLabel)) " },"
     }
-    result .= "]"
-    return result
+    return "[" RTrim(parts, ",") "]"
   }
 
   ; Convert plugin actions to JavaScript
   _AhkPluginActionsToJs(actions) {
-    result := "["
-    first := true
-    
+    parts := ""
     for action in actions {
-      if (!first) result .= ","
-      first := false
-      
-      result .= "{"
-      result .= "action: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("action") ? action["action"] : "")) ","
-      result .= "label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("label") ? action["label"] : "")) ","
-      result .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("description") ? action["description"] : "")) ","
-      result .= "category: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("category") ? action["category"] : "")) ","
-      result .= "hotkeys: " this._AhkArrayToJs(action.Has("hotkeys") ? action["hotkeys"] : [])
-      result .= "}"
+      item := "{"
+      item .= "action: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("action") ? action["action"] : "")) ","
+      item .= "label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("label") ? action["label"] : "")) ","
+      item .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("description") ? action["description"] : "")) ","
+      item .= "category: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("category") ? action["category"] : "")) ","
+      item .= "hotkeys: " this._AhkArrayToJs(action.Has("hotkeys") ? action["hotkeys"] : [])
+      item .= "}"
+      parts .= item ","
     }
-    
-    result .= "]"
-    return result
+    return "[" RTrim(parts, ",") "]"
   }
 
 

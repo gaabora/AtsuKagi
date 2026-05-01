@@ -118,22 +118,33 @@ class SettingsPage {
   }
 
   _bindColorPickerDialog() {
-    const toggleBtn = document.getElementById('toggleBorderColorPicker');
     const applyBtn = document.getElementById('applyColorPicker');
     const cancelBtn = document.getElementById('cancelColorPicker');
 
-    if (toggleBtn && toggleBtn.dataset.boundColorToggle !== '1') {
-      toggleBtn.dataset.boundColorToggle = '1';
-      toggleBtn.addEventListener('click', () => this.colorPicker.syncFromForm());
-    }
-    if (!this._isColorSelectorDelegated) {
-      this._isColorSelectorDelegated = true;
+    // Delegate: listen for clicks on any color picker button
+    if (!this._isColorPickerDelegated) {
+      this._isColorPickerDelegated = true;
       document.addEventListener('click', (ev) => {
-        const trigger = ev.target.closest('[data-color-selector]');
+        const trigger = ev.target.closest('[data-color-input-id], [data-color-selector]');
         if (!trigger) return;
-        this.colorPicker.beginForTrigger(trigger);
+        
+        // New unified style: data-color-input-id and data-color-swatch-id
+        if (trigger.dataset.colorInputId) {
+          const inputId = trigger.getAttribute('data-color-input-id');
+          const swatchId = trigger.getAttribute('data-color-swatch-id');
+          const input = inputId ? document.getElementById(inputId) : null;
+          const swatch = swatchId ? document.getElementById(swatchId) : null;
+          
+          this.colorPicker.targetInput = input;
+          this.colorPicker.targetSwatch = swatch;
+          this.colorPicker.syncFromTarget();
+        } else if (trigger.dataset.colorSelector) {
+          // Legacy plugin style: data-color-selector
+          this.colorPicker.beginForTrigger(trigger);
+        }
       });
     }
+
     if (applyBtn && applyBtn.dataset.boundColorApply !== '1') {
       applyBtn.dataset.boundColorApply = '1';
       applyBtn.addEventListener('click', () => {
@@ -274,9 +285,10 @@ class SettingsPage {
    */
   applyState(state) {
     this._isApplyingState = true;
+    const prevState = this._lastAppliedState || null;
+    this.form.applyState(state, prevState);
     // Keep exact incoming AHK payload for DevTools export/import replay.
     this._lastAppliedState = state ? JSON.parse(JSON.stringify(state)) : null;
-    this.form.applyState(state);
     this._bindDynamicGeneralControls();
     this.refreshUI();
     this._isApplyingState = false;

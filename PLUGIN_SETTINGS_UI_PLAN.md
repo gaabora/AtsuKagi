@@ -2,7 +2,7 @@
 
 ## Status
 
-**Phase 5 In Progress** — All plugins have been migrated to descriptor-based metadata. Descriptor API is now the source of truth for plugin configuration, actions, and UI generation. Legacy help methods marked for removal.
+**Implemented** — Plugins are migrated to descriptor-based metadata and descriptor APIs are the source of truth for plugin configuration, actions, and UI generation.
 
 ## Problem Summary
 
@@ -67,7 +67,7 @@ For migration, `AKPlugin` will keep legacy methods as compatibility wrappers dur
 3. `__ActionsHelp()` — derives from descriptor
 4. `__HooksHelp()` — derives from descriptor
 
-**Migration note:** These legacy methods will be marked with `// TODO: remove after Phase 5` so they can be deleted once all active plugins have migrated to `__DescribePlugin()`.
+**Current note:** These legacy methods remain as compatibility wrappers and may be removed in a dedicated cleanup if no callers require them.
 
 ### 2. Descriptor Sections
 

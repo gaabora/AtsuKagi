@@ -1,5 +1,9 @@
 # app.js Rewrite Plan
 
+## Status
+
+Implemented. This file is kept as a historical planning reference; current-state details are tracked in [APP_JS_REWRITE_IMPLEMENTATION_SUMMARY.md](APP_JS_REWRITE_IMPLEMENTATION_SUMMARY.md).
+
 ## Scope
 
 Rewrite the settings page client code in [includes/ui/app.js](includes/ui/app.js) using modern JavaScript, class-based structure, and stricter separation of concerns, while preserving compatibility with [includes/ui/settings.html](includes/ui/settings.html) and the WebView2 bridge in [includes/AKGui.ahk](includes/AKGui.ahk).

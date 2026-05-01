@@ -1,26 +1,29 @@
 # General Settings Schema Refactor Plan
 
+## Status
+
+Implemented.
+
+General settings are now descriptor-driven with no fallback path.
+
 ## Objective
 
 Refactor General settings so they are generated from structured schema metadata, matching the plugin-settings model.
 
 Current behavior:
-- General settings UI is mostly static and hardcoded in [includes/ui/settings.html](includes/ui/settings.html#L58)
-- General serialization is hardcoded key-by-key in [includes/ui/classes/SettingsForm.js](includes/ui/classes/SettingsForm.js#L11)
-- General AHK parsing is hardcoded with switch/case in [includes/AKGui.ahk](includes/AKGui.ahk#L363)
+- General settings schema is centralized in [includes/AKApp.ahk](includes/AKApp.ahk#L189)
+- Settings page receives `generalPage` only in the bootstrap payload from [includes/AKGui.ahk](includes/AKGui.ahk#L121)
+- General UI is fully rendered from schema in [includes/ui/classes/SettingsForm.js](includes/ui/classes/SettingsForm.js#L213)
+- General save/apply uses schema-driven key+type processing in [includes/ui/classes/SettingsForm.js](includes/ui/classes/SettingsForm.js#L14) and [includes/AKGui.ahk](includes/AKGui.ahk#L381)
 
 Target behavior:
-- General fields are declared in one schema source
-- AHK sends schema + values in state payload
-- JS renders General fields dynamically from schema
-- Save/apply path for General is schema-driven (typed), not key-specific code branches
+- Completed in current codebase.
 
 ## Scope
 
 In scope:
 - General settings section model, rendering, serialization, and apply logic
 - AHK and JS bridge updates for General schema payload
-- Backward-compatible migration path
 
 Out of scope:
 - Visual redesign
@@ -35,14 +38,12 @@ Out of scope:
 4. Existing General keys keep current persisted values and behavior.
 5. Plugin pages remain unaffected.
 
-## Current State Summary
+## Implementation Summary
 
-### Hardcoded points to remove
-
-1. Static General form markup in [includes/ui/settings.html](includes/ui/settings.html#L58)
-2. Explicit General field reads in [includes/ui/classes/SettingsForm.js](includes/ui/classes/SettingsForm.js#L11)
-3. Explicit General field writes in [includes/ui/classes/SettingsForm.js](includes/ui/classes/SettingsForm.js#L169)
-4. Switch-based General config apply in [includes/AKGui.ahk](includes/AKGui.ahk#L363)
+1. Static General markup removed; section is dynamic container in [includes/ui/settings.html](includes/ui/settings.html#L56)
+2. JS General serialization is field-driven via `.general-field[data-key][data-type]` in [includes/ui/classes/SettingsForm.js](includes/ui/classes/SettingsForm.js#L147)
+3. JS General apply is field-driven via `generalPage.sections[].fields[]` in [includes/ui/classes/SettingsForm.js](includes/ui/classes/SettingsForm.js#L170)
+4. AHK General apply is schema-driven with typed coercion in [includes/AKGui.ahk](includes/AKGui.ahk#L381)
 
 ### Existing reusable dynamic patterns
 
@@ -84,8 +85,7 @@ Schema field contract (aligned with plugin fields):
 ## 2) AHK State Payload
 
 Extend settings bootstrap payload in [includes/AKGui.ahk](includes/AKGui.ahk#L100):
-1. Add `generalPage` metadata and schema-driven sections/fields
-2. Keep existing `general` object during migration for compatibility
+1. `generalPage` metadata and schema-driven sections/fields are sent as the General payload contract
 
 Bridge call remains:
 - `window.SettingsPageBridge.applyState(state)`
@@ -108,8 +108,8 @@ In [includes/ui/classes/SettingsForm.js](includes/ui/classes/SettingsForm.js#L11
 2. Serialize all `.general-field[data-key][data-type]`
 3. Convert checkbox/switch controls to booleans consistently
 
-Output payload remains compatible:
-1. `general` object (same keys)
+Output payload:
+1. `general` object built from rendered schema fields
 2. encoded lines via `SettingsForm.encodeGeneralLines(...)`
 
 ## 5) AHK Schema-Driven Apply
@@ -119,61 +119,14 @@ In [includes/AKGui.ahk](includes/AKGui.ahk#L363):
 2. Use type coercion rules from schema (`boolean`, `integer`, `number`, string fallback)
 3. Keep unknown-key diagnostics, but keyed by schema lookup
 
-## Migration Phases
+## Delivered Milestones
 
-## Phase 0: Safety Net
-
-1. Add debug logs around incoming/outgoing General payload.
-2. Keep existing hardcoded path untouched.
-3. Add side-by-side snapshot comparison helper (optional debug mode).
-
-Done when:
-- Dev build can print General payload before and after save.
-
-## Phase 1: Schema introduction only
-
-1. Implement General schema provider in AHK.
-2. Send `generalPage` in state payload.
-3. Do not change UI rendering yet.
-
-Done when:
-- DevTools state export includes valid `generalPage` descriptor and values.
-
-## Phase 2: Dynamic General render (dual mode)
-
-1. Add dynamic renderer in JS.
-2. Gate with feature flag (e.g. `generalPage.enableDynamicRender`).
-3. Keep static HTML fallback until parity proven.
-
-Done when:
-- Dynamic and static render produce equivalent visible fields/values.
-
-## Phase 3: Dynamic serialization/apply
-
-1. Switch JS serialize/apply to schema-driven.
-2. Switch AHK general apply to schema-driven type coercion.
-3. Keep fallback parsing branch one release cycle.
-
-Done when:
-- Save/reopen roundtrip preserves all General values exactly.
-
-## Phase 4: Remove hardcoded legacy
-
-1. Remove static General rows from HTML.
-2. Remove hardcoded JS key list reads/writes.
-3. Remove AHK switch/case branch.
-
-Done when:
-- New General fields can be added by schema only.
-
-## Phase 5: Cleanup + docs
-
-1. Update architecture docs and README sections.
-2. Add developer note for adding new General fields.
-3. Remove temporary feature flag.
-
-Done when:
-- No migration-only code paths remain.
+1. Descriptor-based General schema implemented in [includes/AKApp.ahk](includes/AKApp.ahk#L189)
+2. Dynamic General rendering enabled in [includes/AKApp.ahk](includes/AKApp.ahk#L197)
+3. General payload cut over to `generalPage` in [includes/AKGui.ahk](includes/AKGui.ahk#L121)
+4. JS General apply/serialize cut over to schema-driven flow in [includes/ui/classes/SettingsForm.js](includes/ui/classes/SettingsForm.js#L14)
+5. AHK General parser cut over to schema-driven typing in [includes/AKGui.ahk](includes/AKGui.ahk#L381)
+6. Static General markup removed from [includes/ui/settings.html](includes/ui/settings.html#L56)
 
 ## Field Migration Matrix
 
@@ -214,11 +167,8 @@ Persist format decision:
 
 ## Compatibility Strategy
 
-1. JS continues sending legacy-compatible encoded General lines.
-2. AHK accepts schema-driven keys and ignores unknown keys with warning.
-3. During migration, preserve both:
-   - existing `state.general`
-   - new `state.generalPage`
+1. No fallback path retained for General UI contract.
+2. Unknown General keys are still ignored with warning in AHK apply path.
 
 ## Test Plan
 
@@ -251,9 +201,8 @@ Suggested automated test follow-up:
 ## Rollback Plan
 
 If issues appear:
-1. Keep feature flag to force static General rendering.
-2. Keep AHK legacy switch-based parser for one cycle.
-3. Log schema mismatches at debug level >= 3 for diagnosis.
+1. Revert to prior commit where static General contract existed.
+2. Use typed schema logs at debug level >= 3 to identify invalid field payloads.
 
 ## Ownership Notes
 

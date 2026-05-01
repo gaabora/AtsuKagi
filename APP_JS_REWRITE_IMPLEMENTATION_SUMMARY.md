@@ -12,7 +12,7 @@
 - **HotkeyRecorderController**: Owns hotkey recording lifecycle, keyboard capture, and preview updates
 - **SettingsPage**: Composition root that wires all controllers and event listeners, exposes public bridge
 
-**Backward Compatible**: The `window.ahk` global and `window.SettingsUiBridge` are maintained for any inline handlers that are still using them.
+**Current State**: Inline handler fallbacks were removed; all UI interaction is wired through `SettingsPage` event bindings.
 
 ### Phase 2: Removed Inline Handlers from settings.html ✓
 Updated all toolbar buttons and nav items to use `data-action` and `data-section` attributes instead of `onclick`:
@@ -36,7 +36,7 @@ window.SettingsPageBridge.applyState(state)
 ```
 
 Instead of executing many DOM statements. The state payload includes:
-- `general`: all general settings
+- `generalPage`: descriptor-driven General settings schema + values
 - `plugins`: { available: [...], disabled: [...] }
 - `hotkeys`: array of { hotKey, action }
 - `logsText`, `problemsText`, `theme`, `title`
@@ -72,10 +72,7 @@ Helper methods added:
 **window.settingsPage** (internal reference for debugging):
 - Direct access to page controller instance
 
-**Fallback globals** (for backward compatibility):
-- `window.ahk`: SettingsSave, SettingsCancel, BrowseForFile, gui.Minimize
-- `window.SettingsUiBridge`: refreshFromConfig
-- `window.showSection(name, navEl)`: navigation fallback
+No fallback globals are required for current settings UI operation.
 
 ## What Stayed the Same
 
@@ -127,7 +124,7 @@ All identified issues should be fixable by:
 ## Code Quality
 
 - ESLint-ready (no anti-patterns)
-- No global namespace pollution (only `SettingsPageBridge`, `settingsPage`, and compatibility globals)
+- No global namespace pollution beyond intended page bridges (`SettingsPageBridge`, `settingsPage`)
 - Early returns for guard clauses
 - Consistent method naming (private methods prefixed with `_`)
 - Clear separation between data and rendering

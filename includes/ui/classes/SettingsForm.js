@@ -93,56 +93,248 @@ class SettingsForm {
   /**
    * Apply incoming state from AHK to form DOM.
    */
-  applyState(state) {
+  applyState(state, prevState = null) {
     if (!state) return;
 
-    if (state.generalPage) {
-      this.renderGeneralPage(state.generalPage);
-      if (this.dom && typeof this.dom.cache === 'function') {
-        this.dom.cache();
+    const currentSig = this._buildStateSignatures(state);
+    const previousSig = this._buildStateSignatures(prevState || null);
+
+    const generalSchemaChanged = currentSig.generalSchema !== previousSig.generalSchema;
+    const generalValuesChanged = currentSig.generalValues !== previousSig.generalValues;
+    const pluginListChanged = currentSig.pluginList !== previousSig.pluginList;
+    const pluginPagesSchemaChanged = currentSig.pluginPagesSchema !== previousSig.pluginPagesSchema;
+    const pluginFieldValuesChanged = currentSig.pluginFieldValues !== previousSig.pluginFieldValues;
+    const hotkeysChanged = currentSig.hotkeys !== previousSig.hotkeys;
+
+    try {
+      if (state.generalPage && generalSchemaChanged) {
+        this.renderGeneralPage(state.generalPage);
+        if (this.dom && typeof this.dom.cache === 'function') {
+          this.dom.cache();
+        }
       }
-      this._applyGeneralFieldValues(state.generalPage);
-    }
-
-    this._hotkeyEntries = Array.isArray(state.hotkeys)
-      ? state.hotkeys
-          .map((hk) => ({ hotKey: `${hk?.hotKey || ''}`, action: `${hk?.action || ''}` }))
-          .filter((hk) => hk.hotKey && hk.action)
-      : [];
-
-    if (state.plugins) {
-      this._renderPlugins(state.plugins);
-      if (state.plugins.pages) {
-        this._renderPluginSettingsPages(state.plugins.pages);
+      if (state.generalPage && (generalSchemaChanged || generalValuesChanged)) {
+        this._applyGeneralFieldValues(state.generalPage);
       }
+    } catch (error) {
+      console.error('General settings render failed', error);
     }
 
-    if (state.hotkeys) {
-      this._renderHotkeys(state.hotkeys);
+    try {
+      if (hotkeysChanged) {
+        this._hotkeyEntries = Array.isArray(state.hotkeys)
+          ? state.hotkeys
+              .map((hk) => ({ hotKey: `${hk?.hotKey || ''}`, action: `${hk?.action || ''}` }))
+              .filter((hk) => hk.hotKey && hk.action)
+          : [];
+      }
+    } catch (error) {
+      console.error('Hotkeys state parse failed', error);
+      this._hotkeyEntries = [];
     }
 
-    if (state.logsText !== undefined) {
-      const logsEl = this.dom.getField('logs-content');
-      if (logsEl) logsEl.textContent = state.logsText || 'No logs yet.';
+    try {
+      if (state.plugins) {
+        if (pluginListChanged) {
+          this._renderPlugins(state.plugins);
+        }
+        if (pluginPagesSchemaChanged) {
+          if (state.plugins.pages) {
+            this._renderPluginSettingsPages(state.plugins.pages);
+          }
+        } else if (pluginFieldValuesChanged && state.plugins.pages) {
+          this._applyPluginFieldValues(state.plugins.pages);
+        }
+      }
+    } catch (error) {
+      console.error('Plugin settings render failed', error);
     }
 
-    if (state.problemsText !== undefined) {
-      const problemsEl = this.dom.getField('problems-content');
-      if (problemsEl) problemsEl.textContent = state.problemsText || 'No problems detected.';
+    try {
+      if (hotkeysChanged && state.hotkeys) {
+        this._renderHotkeys(state.hotkeys);
+        if (!pluginPagesSchemaChanged) {
+          this._syncPluginActionHotkeys();
+        }
+      }
+    } catch (error) {
+      console.error('Hotkeys table render failed', error);
     }
 
-    if (state.theme === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.body.classList.add('dark-theme');
-    } else if (state.theme === 'light') {
-      document.documentElement.setAttribute('data-theme', 'light');
-      document.body.classList.remove('dark-theme');
+    try {
+      if (currentSig.logsText !== previousSig.logsText) {
+        const logsEl = this.dom.getField('logs-content');
+        if (logsEl) logsEl.textContent = state.logsText || 'No logs yet.';
+      }
+
+      if (currentSig.problemsText !== previousSig.problemsText) {
+        const problemsEl = this.dom.getField('problems-content');
+        if (problemsEl) problemsEl.textContent = state.problemsText || 'No problems detected.';
+      }
+    } catch (error) {
+      console.error('Logs/problems render failed', error);
     }
 
-    if (state.title) {
-      const titleEl = this.dom.getField('titleText');
-      if (titleEl) titleEl.innerText = state.title;
+    try {
+      if (currentSig.theme !== previousSig.theme) {
+        if (state.theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.body.classList.add('dark-theme');
+        } else if (state.theme === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+          document.body.classList.remove('dark-theme');
+        }
+      }
+    } catch (error) {
+      console.error('Theme apply failed', error);
     }
+
+    try {
+      if (currentSig.title !== previousSig.title && state.title) {
+        const titleEl = this.dom.getField('titleText');
+        if (titleEl) titleEl.innerText = state.title;
+      }
+    } catch (error) {
+      console.error('Title apply failed', error);
+    }
+  }
+
+  _buildStateSignatures(state) {
+    if (!state) {
+      return {
+        generalSchema: '',
+        generalValues: '',
+        pluginList: '',
+        pluginPagesSchema: '',
+        pluginFieldValues: '',
+        hotkeys: '',
+        logsText: '',
+        problemsText: '',
+        theme: '',
+        title: ''
+      };
+    }
+
+    return {
+      generalSchema: this._signature(this._stripGeneralValues(state.generalPage)),
+      generalValues: this._signature(this._extractGeneralValues(state.generalPage)),
+      pluginList: this._signature({
+        available: state?.plugins?.available || [],
+        disabled: state?.plugins?.disabled || []
+      }),
+      pluginPagesSchema: this._signature(this._stripPluginPageValues(state?.plugins?.pages || [])),
+      pluginFieldValues: this._signature(this._extractPluginFieldValues(state?.plugins?.pages || [])),
+      hotkeys: this._signature(state.hotkeys || []),
+      logsText: `${state.logsText ?? ''}`,
+      problemsText: `${state.problemsText ?? ''}`,
+      theme: `${state.theme ?? ''}`,
+      title: `${state.title ?? ''}`
+    };
+  }
+
+  _signature(value) {
+    return JSON.stringify(this._toStableValue(value));
+  }
+
+  _toStableValue(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => this._toStableValue(item));
+    }
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const out = {};
+    Object.keys(value).sort().forEach((key) => {
+      out[key] = this._toStableValue(value[key]);
+    });
+    return out;
+  }
+
+  _stripGeneralValues(page) {
+    if (!page) return null;
+    return {
+      id: page.id || '',
+      title: page.title || '',
+      description: page.description || '',
+      icon: page.icon || '',
+      navOrder: page.navOrder || 0,
+      enableDynamicRender: !!page.enableDynamicRender,
+      sections: (page.sections || []).map((section) => ({
+        id: section?.id || '',
+        title: section?.title || '',
+        fields: (section?.fields || []).map((field) => ({
+          key: field?.key || '',
+          pluginId: field?.pluginId || '',
+          label: field?.label || '',
+          description: field?.description || '',
+          type: field?.type || '',
+          control: field?.control || '',
+          default: field?.default ?? '',
+          scope: field?.scope || '',
+          validation: field?.validation || {},
+          options: field?.options || []
+        }))
+      }))
+    };
+  }
+
+  _extractGeneralValues(page) {
+    const out = {};
+    if (!Array.isArray(page?.sections)) return out;
+    page.sections.forEach((section) => {
+      (section?.fields || []).forEach((field) => {
+        const key = `${field?.key || ''}`.trim();
+        if (!key) return;
+        out[key] = field && Object.prototype.hasOwnProperty.call(field, 'value') ? field.value : '';
+      });
+    });
+    return out;
+  }
+
+  _stripPluginPageValues(pages) {
+    return (pages || []).map((page) => ({
+      id: page?.id || '',
+      title: page?.title || '',
+      description: page?.description || '',
+      icon: page?.icon || '',
+      enabled: !!page?.enabled,
+      navOrder: page?.navOrder || 0,
+      sections: (page?.sections || []).map((section) => ({
+        id: section?.id || '',
+        title: section?.title || '',
+        fields: (section?.fields || []).map((field) => ({
+          key: field?.key || '',
+          pluginId: field?.pluginId || '',
+          label: field?.label || '',
+          description: field?.description || '',
+          type: field?.type || '',
+          control: field?.control || '',
+          default: field?.default ?? '',
+          scope: field?.scope || '',
+          validation: field?.validation || {},
+          options: field?.options || []
+        }))
+      })),
+      actions: page?.actions || []
+    }));
+  }
+
+  _extractPluginFieldValues(pages) {
+    const out = {};
+    (pages || []).forEach((page) => {
+      const pageId = `${page?.id || ''}`;
+      if (!pageId) return;
+      out[pageId] = {};
+      (page?.sections || []).forEach((section) => {
+        (section?.fields || []).forEach((field) => {
+          const key = `${field?.key || ''}`.trim();
+          if (!key) return;
+          out[pageId][key] = field && Object.prototype.hasOwnProperty.call(field, 'value') ? field.value : '';
+        });
+      });
+    });
+    return out;
   }
 
   _readGeneralFields() {
@@ -188,6 +380,34 @@ class SettingsForm {
     });
   }
 
+  _applyPluginFieldValues(pages) {
+    (pages || []).forEach((page) => {
+      const pageId = `${page?.id || ''}`;
+      if (!pageId) return;
+
+      (page?.sections || []).forEach((section) => {
+        (section?.fields || []).forEach((field) => {
+          const key = `${field?.key || ''}`.trim();
+          if (!key) return;
+
+          const value = field && Object.prototype.hasOwnProperty.call(field, 'value') ? field.value : '';
+          const selector = `.plugin-field[data-plugin-id="${CSS.escape(pageId)}"][data-key="${CSS.escape(key)}"]`;
+          const target = document.querySelector(selector);
+          if (!target) return;
+
+          if (target.type === 'checkbox') {
+            target.checked = (value === true || value === 1 || value === '1' || value === 'true');
+          } else {
+            target.value = `${value ?? ''}`;
+          }
+
+          target.dispatchEvent(new Event('input'));
+          target.dispatchEvent(new Event('change'));
+        });
+      });
+    });
+  }
+
   renderGeneralPage(page) {
     const container = document.getElementById('section-general');
     if (!container || !Array.isArray(page?.sections)) return;
@@ -196,7 +416,7 @@ class SettingsForm {
     page.sections.forEach((section) => {
       html += `<div class="setting-group"><h2>${this._escapeHtml(section?.title || section?.id || 'General')}</h2>`;
       (section?.fields || []).forEach((field) => {
-        html += this._renderGeneralField(field || {});
+        html += this._renderField(field || {}, 'general');
       });
       html += '</div>';
     });
@@ -204,7 +424,7 @@ class SettingsForm {
     container.innerHTML = html;
   }
 
-  _renderGeneralField(field) { //FIXME: _renderPluginField is very similar, consider merging into single more generic method.
+  _renderField(field, scope = 'general', pluginId = null) {
     const key = `${field?.key || ''}`;
     const label = `${field?.label || key}`;
     const description = `${field?.description || ''}`;
@@ -214,6 +434,14 @@ class SettingsForm {
     const type = `${field?.type || 'string'}`;
     const min = field?.validation?.min;
     const max = field?.validation?.max;
+    const isGeneral = scope === 'general';
+    const fieldClass = isGeneral ? 'general-field' : 'plugin-field';
+    const fieldAttrs = isGeneral
+      ? `data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}"`
+      : `data-plugin-id="${this._escapeHtml(pluginId || '')}" data-key="${this._escapeHtml(key)}"`;
+    const inputIdBase = isGeneral
+      ? key
+      : `${pluginId || 'plugin'}_${key}`.replace(/[^A-Za-z0-9_\-]/g, '_');
 
     let controlHtml = '';
 
@@ -222,7 +450,7 @@ class SettingsForm {
         const checked = (value === true || value === 1 || value === '1' || value === 'true') ? ' checked' : '';
         controlHtml = `
           <label class="app-switch">
-            <input type="checkbox" class="general-field" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}"${checked} />
+            <input type="checkbox" class="${fieldClass}" id="${this._escapeHtml(inputIdBase)}" ${fieldAttrs}${checked} />
             <div class="app-switch-view"></div>
             <span class="app-switch-label" data-on="On" data-off="Off"></span>
           </label>
@@ -231,10 +459,12 @@ class SettingsForm {
       }
       case 'hotkey': {
         const readable = this._humanizeHotkey(`${value || ''}`) || 'Assign hotkey';
+        const hotkeyFieldId = isGeneral ? key : `pluginHotkey_${pluginId || 'plugin'}_${key}`.replace(/[^A-Za-z0-9_\-]/g, '_');
+        const hotkeyBadgeClass = isGeneral ? 'hotkey-badge-large' : 'hotkey-badge-medium';
         controlHtml = `
           <div class="field-with-actions">
-            <input type="hidden" class="general-field" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}" />
-            <button type="button" class="app-btn hotkey-badge hotkey-badge-large" data-hotkey-target="${this._escapeHtml(key)}" data-hotkey-display-for="${this._escapeHtml(key)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">
+            <input type="hidden" class="${fieldClass}" id="${this._escapeHtml(hotkeyFieldId)}" ${fieldAttrs} value="${this._escapeHtml(`${value || ''}`)}" />
+            <button type="button" class="app-btn hotkey-badge ${hotkeyBadgeClass}" data-hotkey-target="${this._escapeHtml(hotkeyFieldId)}" data-hotkey-display-for="${this._escapeHtml(hotkeyFieldId)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">
               <span class="hotkey-badge-label">${this._escapeHtml(readable)}</span>
             </button>
           </div>
@@ -242,12 +472,15 @@ class SettingsForm {
         break;
       }
       case 'color': {
+        const colorInputId = `colorInput_${scope}_${pluginId || 'general'}_${key}`.replace(/[^A-Za-z0-9_]/g, '_');
+        const colorBtnId = `colorPickBtn_${scope}_${pluginId || 'general'}_${key}`.replace(/[^A-Za-z0-9_]/g, '_');
+        const colorSwatchId = `colorSwatch_${scope}_${pluginId || 'general'}_${key}`.replace(/[^A-Za-z0-9_]/g, '_');
         controlHtml = `
           <div class="field-with-actions">
-            <input class="app-input-text general-field" type="text" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}" placeholder="${this._escapeHtml(`${defaultValue || ''}`)}" />
+            <input class="app-input-text ${fieldClass}" type="text" id="${this._escapeHtml(colorInputId)}" ${fieldAttrs} data-color-swatch-id="${this._escapeHtml(colorSwatchId)}" value="${this._escapeHtml(`${value || ''}`)}" placeholder="${this._escapeHtml(`${defaultValue || ''}`)}" />
             <div class="field-actions">
-              <button id="toggleBorderColorPicker" type="button" class="app-btn app-btn-subtle field-btn" data-win-toggle="modal" data-win-target="#ColorPickerDialog">
-                <span id="BorderColorSwatch" class="color-swatch-small" aria-hidden="true"></span>
+              <button id="${this._escapeHtml(colorBtnId)}" type="button" class="app-btn app-btn-subtle field-btn" data-color-input-id="${this._escapeHtml(colorInputId)}" data-color-swatch-id="${this._escapeHtml(colorSwatchId)}" data-win-toggle="modal" data-win-target="#ColorPickerDialog">
+                <span id="${this._escapeHtml(colorSwatchId)}" class="color-swatch-small" aria-hidden="true"></span>
                 <span>Pick</span>
               </button>
             </div>
@@ -256,7 +489,7 @@ class SettingsForm {
         break;
       }
       case 'path': {
-        const browseMeta = this._getGeneralPathBrowseMeta(key);
+        const browseMeta = isGeneral ? this._getGeneralPathBrowseMeta(key) : null;
         const pickerHtml = browseMeta
           ? `<input type="file" id="${this._escapeHtml(browseMeta.fileInputId)}" accept="audio/*,.wav,.mp3,.ogg,.flac" hidden />`
           : '';
@@ -265,7 +498,7 @@ class SettingsForm {
           : '';
         controlHtml = `
           <div class="field-with-actions">
-            <input class="app-input-text general-field" type="text" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}" />
+            <input class="app-input-text ${fieldClass}" type="text" id="${this._escapeHtml(inputIdBase)}" ${fieldAttrs} value="${this._escapeHtml(`${value || ''}`)}" />
             <div class="field-actions">${browseBtnHtml}</div>
           </div>
           ${pickerHtml}
@@ -276,10 +509,13 @@ class SettingsForm {
         const minAttr = Number.isFinite(Number(min)) ? ` min="${Number(min)}"` : ' min="0"';
         const maxAttr = Number.isFinite(Number(max)) ? ` max="${Number(max)}"` : ' max="255"';
         const sliderValue = `${value ?? defaultValue ?? 128}`;
+        const rangeLabelId = isGeneral && key === 'WindowTransparencyValue'
+          ? 'WindowTransparencyLabel'
+          : `RangeLabel_${inputIdBase}`;
         controlHtml = `
           <div class="app-range-slider">
-            <input type="range" class="general-field" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}"${minAttr}${maxAttr} step="1" value="${this._escapeHtml(sliderValue)}" />
-            <span id="WindowTransparencyLabel">${this._escapeHtml(sliderValue)}</span>
+            <input type="range" class="${fieldClass}" id="${this._escapeHtml(inputIdBase)}" ${fieldAttrs}${minAttr}${maxAttr} step="1" value="${this._escapeHtml(sliderValue)}" />
+            <span id="${this._escapeHtml(rangeLabelId)}">${this._escapeHtml(sliderValue)}</span>
           </div>
         `;
         break;
@@ -288,12 +524,16 @@ class SettingsForm {
         const minAttr = Number.isFinite(Number(min)) ? ` min="${Number(min)}"` : '';
         const maxAttr = Number.isFinite(Number(max)) ? ` max="${Number(max)}"` : '';
         controlHtml = `
-          <input class="app-input-text general-field" type="number" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}"${minAttr}${maxAttr} />
+          <input class="app-input-text ${fieldClass}" type="number" id="${this._escapeHtml(inputIdBase)}" ${fieldAttrs} value="${this._escapeHtml(`${value || ''}`)}"${minAttr}${maxAttr} />
         `;
         break;
       }
       case 'select': {
-        const options = this._getGeneralSelectOptions(field);
+        const options = isGeneral
+          ? this._getGeneralSelectOptions(field)
+          : (Array.isArray(field?.options) && field.options.length
+            ? field.options
+            : [{ value: `${field?.value ?? field?.default ?? ''}`, label: `${field?.value ?? field?.default ?? ''}` }]);
         const selected = `${value ?? defaultValue ?? ''}`;
         const optionsHtml = options.map((opt) => {
           const v = `${opt?.value ?? ''}`;
@@ -303,31 +543,47 @@ class SettingsForm {
         }).join('');
         controlHtml = `
           <div class="app-select-menu">
-            <select class="general-field" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}">${optionsHtml}</select>
+            <select class="${fieldClass}" id="${this._escapeHtml(inputIdBase)}" ${fieldAttrs}>${optionsHtml}</select>
           </div>
         `;
         break;
       }
       default: {
         controlHtml = `
-          <input class="app-input-text general-field" type="text" id="${this._escapeHtml(key)}" data-key="${this._escapeHtml(key)}" data-type="${this._escapeHtml(type)}" value="${this._escapeHtml(`${value || ''}`)}" />
+          <input class="app-input-text ${fieldClass}" type="text" id="${this._escapeHtml(inputIdBase)}" ${fieldAttrs} value="${this._escapeHtml(`${value || ''}`)}" />
         `;
       }
     }
 
-    const maybeDevTools = key === 'DebugLevel'
+    const maybeDevTools = scope === 'general' && key === 'DebugLevel'
       ? '<div class="field-actions"><button type="button" id="openDevTools" class="app-btn app-btn-subtle field-btn"><span>Open DevTools</span></button></div>'
       : '';
 
-    return `
-      <div class="setting-row">
-        <label class="field-label" for="${this._escapeHtml(key)}">${this._escapeHtml(label)}</label>
-        <div class="app-input-container">
-          ${description ? `<p class="field-description">${this._escapeHtml(description)}</p>` : ''}
-          ${maybeDevTools ? `<div class="field-with-actions">${controlHtml}${maybeDevTools}</div>` : controlHtml}
+    if (scope === 'plugin') {
+      return `
+        <div class="setting-row plugin-setting-row">
+          <div class="plugin-field-meta">
+            <label class="field-label">${this._escapeHtml(label)}</label>
+            ${description ? `<p class="field-description">${this._escapeHtml(description)}</p>` : ''}
+          </div>
+          <div class="app-input-container">
+            ${controlHtml}
+          </div>
         </div>
-      </div>
-    `;
+      `;
+    } else {
+      return `
+        <div class="setting-row">
+          <div class="general-field-meta">
+            <label class="field-label" for="${this._escapeHtml(inputIdBase)}">${this._escapeHtml(label)}</label>
+            ${description ? `<p class="field-description">${this._escapeHtml(description)}</p>` : ''}
+          </div>
+          <div class="app-input-container">
+            ${maybeDevTools ? `<div class="field-with-actions">${controlHtml}${maybeDevTools}</div>` : controlHtml}
+          </div>
+        </div>
+      `;
+    }
   }
 
   _getGeneralPathBrowseMeta(key) {
@@ -440,10 +696,9 @@ class SettingsForm {
       if (page.sections && page.sections.length > 0) {
         page.sections.forEach(sec => {
           sectionHtml += `<div class="setting-group"><h3>${this._escapeHtml(sec.title || sec.id)}</h3>`;
-          
           if (sec.fields && sec.fields.length > 0) {
             sec.fields.forEach(field => {
-              sectionHtml += this._renderPluginField(field);
+              sectionHtml += this._renderField(field, 'plugin', page.id);
             });
           }
           
@@ -519,15 +774,16 @@ class SettingsForm {
         const actionName = `${item?.action || ''}`;
         const hotkeys = this.getHotkeysForAction(actionName);
         const hotkeysHtml = hotkeys.length
-          ? `<div class="plugin-action-hotkeys">${hotkeys.map((hk) => this._renderActionHotkeyBadge(pluginId, actionName, hk)).join('')}</div>`
-          : `<div class="plugin-action-hotkeys">${this._renderActionHotkeyBadge(pluginId, actionName, '')}</div>`;
+          ? hotkeys.map((hk) => this._renderActionHotkeyBadge(pluginId, actionName, hk)).join('')
+          : this._renderActionHotkeyBadge(pluginId, actionName, '')
+        ;
         html += `
           <div class="plugin-action-item" data-plugin-id="${this._escapeHtml(pluginId || '')}" data-action-name="${this._escapeHtml(actionName)}">
             <div class="plugin-action-head">
               <div class="plugin-action-name">${this._escapeHtml(item.label || item.action || '')}</div>
-              ${hotkeysHtml}
+              <div class="plugin-action-description">${this._escapeHtml(item.description || '')}</div>
             </div>
-            <div class="plugin-action-description">${this._escapeHtml(item.description || '')}</div>
+            <div class="plugin-action-hotkeys">${hotkeysHtml}</div>
           </div>
         `;
       });
@@ -554,6 +810,22 @@ class SettingsForm {
         ${hotkeyRaw ? `<span class="hotkey-badge-remove" data-hotkey-remove="${this._escapeHtml(hotkeyRaw)}">&times;</span>` : ''}
       </button>
     `;
+  }
+
+  _syncPluginActionHotkeys() {
+    document.querySelectorAll('.plugin-action-item').forEach((item) => {
+      const pluginId = `${item.getAttribute('data-plugin-id') || ''}`;
+      const actionName = `${item.getAttribute('data-action-name') || ''}`;
+      const host = item.querySelector('.plugin-action-hotkeys');
+      if (!host || !actionName) return;
+
+      const hotkeys = this.getHotkeysForAction(actionName);
+      if (!hotkeys.length) {
+        host.innerHTML = this._renderActionHotkeyBadge(pluginId, actionName, '');
+        return;
+      }
+      host.innerHTML = hotkeys.map((hk) => this._renderActionHotkeyBadge(pluginId, actionName, hk)).join('');
+    });
   }
 
   _extractActionName(actionText) {
@@ -611,74 +883,8 @@ class SettingsForm {
   }
 
   _renderPluginField(field) {
-    const key = field.key || '';
-    const label = field.label || key;
-    const description = field.description || '';
-    const control = field.control || 'text';
-    const value = field.value || '';
-    const defaultValue = field.default || '';
-    const pluginId = field.pluginId || '';
-
-    let controlHtml = '';
-    
-    switch (control) {
-      case 'switch':
-        const checked = (value === true || value === 1 || value === '1' || value === 'true') ? 'checked' : '';
-        controlHtml = `<label class="app-switch"><input type="checkbox" class="plugin-field" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}"${checked} /><div class="app-switch-view"></div><span class="app-switch-label" data-on="On" data-off="Off"></span></label>`;
-        break;
-      
-      case 'hotkey':
-        const hotkeyFieldId = `pluginHotkey_${pluginId}_${key}`.replace(/[^A-Za-z0-9_\-]/g, '_');
-        const readable = this._humanizeHotkey(value);
-        controlHtml = `
-          <div class="field-with-actions">
-            <input type="hidden" id="${this._escapeHtml(hotkeyFieldId)}" class="plugin-field plugin-field-hotkey" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" value="${this._escapeHtml(value)}" />
-            <button type="button" class="app-btn hotkey-badge hotkey-badge-medium" data-hotkey-target="${this._escapeHtml(hotkeyFieldId)}" data-hotkey-display-for="${this._escapeHtml(hotkeyFieldId)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">
-              <span class="hotkey-badge-label">${this._escapeHtml(readable || 'Assign hotkey')}</span>
-              <span class="hotkey-badge-remove" data-hotkey-reset-field="${this._escapeHtml(hotkeyFieldId)}" data-default="${this._escapeHtml(defaultValue)}">&times;</span>
-            </button>
-          </div>
-        `;
-        break;
-      
-      case 'color':
-        const colorKey = `${pluginId}::${key}`;
-        controlHtml = `
-          <div class="field-with-actions">
-            <input type="text" class="app-input-text plugin-field plugin-color-input" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" data-plugin-color-key="${this._escapeHtml(colorKey)}" value="${this._escapeHtml(value)}" placeholder="${this._escapeHtml(defaultValue)}" />
-            <div class="field-actions">
-              <button type="button" class="app-btn app-btn-subtle field-btn" data-color-selector=".plugin-color-input[data-plugin-id=&quot;${this._escapeHtml(pluginId)}&quot;][data-key=&quot;${this._escapeHtml(key)}&quot;]" data-win-toggle="modal" data-win-target="#ColorPickerDialog">
-                <span class="color-swatch-small" data-plugin-color-swatch="${this._escapeHtml(colorKey)}" aria-hidden="true"></span>
-                <span>Pick</span>
-              </button>
-              <button type="button" class="app-btn app-btn-subtle field-btn" data-reset-field="${this._escapeHtml(key)}" data-default="${this._escapeHtml(defaultValue)}">Reset</button>
-            </div>
-          </div>
-        `;
-        break;
-      
-      default: // text, string, etc.
-        controlHtml = `
-          <div class="field-with-actions">
-            <input type="text" class="app-input-text plugin-field" data-plugin-id="${this._escapeHtml(pluginId)}" data-key="${this._escapeHtml(key)}" value="${this._escapeHtml(value)}" />
-            <div class="field-actions">
-              <button type="button" class="app-btn app-btn-subtle field-btn" data-reset-field="${this._escapeHtml(key)}" data-default="${this._escapeHtml(defaultValue)}">Reset</button>
-            </div>
-          </div>
-        `;
-    }
-
-    return `
-      <div class="setting-row plugin-setting-row">
-        <div class="plugin-field-meta">
-          <label class="field-label">${this._escapeHtml(label)}</label>
-          ${description ? `<p class="field-description">${this._escapeHtml(description)}</p>` : ''}
-        </div>
-        <div class="app-input-container">
-          ${controlHtml}
-        </div>
-      </div>
-    `;
+    // Plugin fields now use the unified _renderField with scope='plugin'
+    return this._renderField(field, 'plugin', field?.pluginId);
   }
 
   _resetPluginFields(pluginId) {

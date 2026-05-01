@@ -55,6 +55,27 @@ class ColorPickerController {
       this._updatePluginSwatchForInput(input);
     });
 
+    // Also handle general color inputs (with data-color-swatch-id)
+    document.addEventListener('input', (ev) => {
+      if (ev.target.dataset.colorSwatchId) {
+        const swatchId = ev.target.getAttribute('data-color-swatch-id');
+        const swatch = swatchId ? document.getElementById(swatchId) : null;
+        if (swatch) {
+          this._updatePluginSwatch(swatch, ev.target.value || '');
+        }
+      }
+    });
+
+    document.addEventListener('change', (ev) => {
+      if (ev.target.dataset.colorSwatchId) {
+        const swatchId = ev.target.getAttribute('data-color-swatch-id');
+        const swatch = swatchId ? document.getElementById(swatchId) : null;
+        if (swatch) {
+          this._updatePluginSwatch(swatch, ev.target.value || '');
+        }
+      }
+    });
+
     this.syncFromForm();
   }
 
@@ -148,8 +169,20 @@ class ColorPickerController {
   }
 
   updatePluginSwatches() {
-    document.querySelectorAll('.plugin-color-input').forEach((input) => {
+    // Handle both plugin and general color inputs
+    document.querySelectorAll('[data-plugin-color-key]').forEach((input) => {
       this._updatePluginSwatchForInput(input);
+    });
+    document.querySelectorAll('[data-color-swatch-id]').forEach((trigger) => {
+      const swatchId = trigger.getAttribute('data-color-swatch-id');
+      const inputId = trigger.getAttribute('data-color-input-id');
+      if (swatchId && inputId) {
+        const input = document.getElementById(inputId);
+        const swatch = document.getElementById(swatchId);
+        if (swatch && input) {
+          this._updatePluginSwatch(swatch, input.value || '');
+        }
+      }
     });
   }
 
