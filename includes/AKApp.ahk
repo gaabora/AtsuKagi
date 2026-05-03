@@ -346,38 +346,8 @@ class AKApp extends AKBase {
       
       pages.Push(page)
     }
-    
-    ; this._sortPluginPages(pages)//FIXME: this can be done on js side, no need to do it in AHK
     return pages
   }
-
-  ; _sortPluginPages(&pages) {
-  ;   ; Small N expected, so bubble-sort keeps implementation simple and explicit.
-  ;   n := pages.Length
-  ;   if (n <= 1)
-  ;     return
-
-  ;   Loop n - 1 {
-  ;     i := 1
-  ;     Loop n - A_Index {
-  ;       left := pages[i]
-  ;       right := pages[i + 1]
-
-  ;       leftOrder := left.Has("navOrder") ? Integer(left["navOrder"]) : 100
-  ;       rightOrder := right.Has("navOrder") ? Integer(right["navOrder"]) : 100
-  ;       leftTitle := left.Has("title") ? ("" left["title"]) : ""
-  ;       rightTitle := right.Has("title") ? ("" right["title"]) : ""
-
-  ;       shouldSwap := (leftOrder > rightOrder) || ((leftOrder = rightOrder) && (leftTitle > rightTitle))
-  ;       if (shouldSwap) {
-  ;         tmp := pages[i]
-  ;         pages[i] := pages[i + 1]
-  ;         pages[i + 1] := tmp
-  ;       }
-  ;       i += 1
-  ;     }
-  ;   }
-  ; }
 
   ; Build sections for a plugin settings page
   _buildPluginSections(pluginId, descriptor) {
@@ -547,6 +517,9 @@ class AKApp extends AKBase {
     for problem in configProblems {
       this.outputDebugLine(problem, 1)
     }
+    if (configProblems.Length > 0) {
+      ;TODO: open settings gui on logs page filtered to show only problems (warn+ selected in filter dropdown)
+    }
 
     if (this.Config.Has("HOTKEYS")) {
       For k, v In this.Config.HOTKEYS {
@@ -595,7 +568,7 @@ class AKApp extends AKBase {
       return
     }
 
-    this.ShowInfo("Settings applied.", "Settings")
+    this.ShowInfo("Settings saved")
   }
 
   ReloadApp(some*) {
