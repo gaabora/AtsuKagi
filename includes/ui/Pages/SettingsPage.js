@@ -305,8 +305,18 @@ class SettingsPage {
   }
 
   _saveSettings() {
+    const invalidField = document.querySelector('.settings-content :invalid');
+    if (invalidField) {
+      if (typeof invalidField.reportValidity === 'function') {
+        invalidField.reportValidity();
+      }
+      if (typeof invalidField.focus === 'function') {
+        invalidField.focus();
+      }
+      return;
+    }
+
     const payloadObject = this.form.serializeObject();
-    console.log('Saving settings...', { payloadObject });
     this.hostBridge.saveSettings(payloadObject);
   }
 

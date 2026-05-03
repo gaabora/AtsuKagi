@@ -110,6 +110,10 @@ Returns a descriptor `Map` that defines plugin metadata, config schema, actions,
 `__ConfigHelp()`, `__UsageHelp()`, and `__ActionsHelp()` are legacy compatibility helpers.
 Prefer `__DescribePlugin()` for all new plugins.
 
+Deprecation note:
+These helpers are maintained for backward compatibility only and may be removed in a future cleanup pass.
+Treat `__DescribePlugin()` as the single source of truth for plugin metadata.
+
 ### `__ConfigHelp()`
 Returns a string describing all config keys this plugin uses.
 

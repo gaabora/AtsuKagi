@@ -952,7 +952,9 @@ class AKApp extends AKBase {
 
     try payload := AK_JsonParse(payloadText)
     catch as err {
+
       this.outputDebugLine("Invalid JSON settings payload: " err.Message, 1)
+      this.outputDebugLine(payloadText, 4)
       return
     }
 
@@ -961,16 +963,12 @@ class AKApp extends AKBase {
       return
     }
 
-    generalEncoded := ""
-    if (payload.Has("general") && IsObject(payload["general"]) && payload["general"] is Map) {
-      for key, rawValue in payload["general"] {
-        value := (rawValue = true) ? "1" : ((rawValue = false) ? "0" : "" rawValue)
-        generalEncoded .= this._encodeEscapedLinePart(key) "`t" this._encodeEscapedLinePart(value) "`n"
-      }
-      generalEncoded := RTrim(generalEncoded, "`n")
-    }
+    cfg := this.Config
+    oldDisabledPlugins := cfg.GENERAL.DisabledPlugins
 
-    disabledCsv := ""
+    if (payload.Has("general") && IsObject(payload["general"]) && payload["general"] is Map)
+      this._applyGeneralConfigObject(payload["general"])
+
     if (payload.Has("disabledPlugins") && payload["disabledPlugins"] is Array) {
       parts := []
       for item in payload["disabledPlugins"] {
@@ -978,37 +976,140 @@ class AKApp extends AKBase {
         if (name != "")
           parts.Push(name)
       }
-      disabledCsv := Join(parts, ",")
+      cfg.GENERAL.DisabledPlugins := Join(parts, ",")
     }
 
-    pluginEncoded := ""
-    if (payload.Has("pluginConfigs") && IsObject(payload["pluginConfigs"]) && payload["pluginConfigs"] is Map) {
-      for pluginId, cfgObj in payload["pluginConfigs"] {
-        if (!IsObject(cfgObj) || !(cfgObj is Map))
+    if (payload.Has("pluginConfigs") && IsObject(payload["pluginConfigs"]) && payload["pluginConfigs"] is Map)
+      this._applyPluginConfigObject(payload["pluginConfigs"])
+
+    if (payload.Has("hotkeys") && payload["hotkeys"] is Array)
+      this._applyHotkeysObject(payload["hotkeys"])
+
+    cfg.Save()
+    this.ApplySettings(oldDisabledPlugins)
+  }
+
+  _applyGeneralConfigObject(generalObj) {
+    if (!IsObject(generalObj) || !(generalObj is Map))
+      return
+
+    cfg := this.Config
+    if (!cfg.Has("GENERAL"))
+      cfg.GENERAL := {}
+
+    typeIndex := this._buildGeneralTypeIndex()
+    for key, rawValue in generalObj {
+      keyText := "" key
+      if (!typeIndex.Has(keyText)) {
+        this.outputDebugLine("Unknown [GENERAL] config key: " . keyText, 1)
+        continue
+      }
+      valueType := typeIndex[keyText]
+      cfg.GENERAL.%keyText% := this._coerceConfigValue(rawValue, valueType, true)
+    }
+  }
+
+  _applyPluginConfigObject(pluginConfigs) {
+    if (!IsObject(pluginConfigs) || !(pluginConfigs is Map))
+      return
+
+    typeIndex := this._buildPluginTypeIndex()
+    for pluginId, cfgObj in pluginConfigs {
+      pluginIdText := "" pluginId
+      if (!pluginIdText || !IsObject(cfgObj) || !(cfgObj is Map))
+        continue
+
+      if (!this.Config.Has(pluginIdText))
+        this.Config[pluginIdText] := {}
+
+      pluginTypes := typeIndex.Has(pluginIdText) ? typeIndex[pluginIdText] : 0
+      for key, rawValue in cfgObj {
+        keyText := "" key
+        valueType := (pluginTypes && pluginTypes.Has(keyText)) ? pluginTypes[keyText] : "string"
+        this.Config[pluginIdText][keyText] := this._coerceConfigValue(rawValue, valueType, false)
+      }
+    }
+  }
+
+  _applyHotkeysObject(hotkeysArr) {
+    if (!(hotkeysArr is Array))
+      return
+
+    parsed := Map()
+    for entry in hotkeysArr {
+      if (!IsObject(entry) || !(entry is Map))
+        continue
+
+      hk := entry.Has("hotKey") ? Trim("" entry["hotKey"]) : ""
+      actionText := entry.Has("action") ? Trim("" entry["action"]) : ""
+      if (!hk || !actionText)
+        continue
+      parsed[hk] := actionText
+    }
+    this.Config.HOTKEYS := parsed
+  }
+
+  _buildGeneralTypeIndex() {
+    typeIndex := Map()
+    for fieldDesc in this.GetGeneralConfigSchema() {
+      if (!fieldDesc.Has("key"))
+        continue
+      fieldType := fieldDesc.Has("type") ? fieldDesc["type"] : "string"
+      typeIndex["" fieldDesc["key"]] := fieldType
+    }
+    return typeIndex
+  }
+
+  _buildPluginTypeIndex() {
+    typeIndex := Map()
+    for className, libObj in this._addedLibs {
+      descriptor := libObj.__GetPluginDescriptor()
+      if (!descriptor || !descriptor.Has("plugin") || !descriptor["plugin"].Has("id"))
+        continue
+
+      pluginId := "" descriptor["plugin"]["id"]
+      if (!typeIndex.Has(pluginId))
+        typeIndex[pluginId] := Map()
+
+      schema := libObj.__GetConfigSchema()
+      for fieldDesc in schema {
+        if (!fieldDesc.Has("key"))
           continue
-        for key, rawValue in cfgObj {
-          value := (rawValue = true) ? "1" : ((rawValue = false) ? "0" : "" rawValue)
-          pluginEncoded .= this._encodeEscapedLinePart(pluginId) "`t" this._encodeEscapedLinePart(key) "`t" this._encodeEscapedLinePart(value) "`n"
+        fieldType := fieldDesc.Has("type") ? fieldDesc["type"] : "string"
+        typeIndex[pluginId]["" fieldDesc["key"]] := fieldType
+      }
+    }
+    return typeIndex
+  }
+
+  _coerceConfigValue(rawValue, valueType := "string", booleansAsInt := true) {
+    text := "" rawValue
+    if (valueType = "boolean") {
+      boolValue := (rawValue = true || text = "1" || text = "true")
+      return booleansAsInt ? (boolValue ? 1 : 0) : boolValue
+    }
+
+    if (valueType = "integer") {
+      try return Integer(rawValue)
+      catch {
+        try return Integer(text)
+        catch {
+          return text
         }
       }
-      pluginEncoded := RTrim(pluginEncoded, "`n")
     }
 
-    hotkeysEncoded := ""
-    if (payload.Has("hotkeys") && payload["hotkeys"] is Array) {
-      for entry in payload["hotkeys"] {
-        if (!IsObject(entry) || !(entry is Map))
-          continue
-        hotKey := entry.Has("hotKey") ? Trim("" entry["hotKey"]) : ""
-        action := entry.Has("action") ? Trim("" entry["action"]) : ""
-        if (!hotKey || !action)
-          continue
-        hotkeysEncoded .= this._encodeEscapedLinePart(hotKey) "`t" this._encodeEscapedLinePart(action) "`n"
+    if (valueType = "number") {
+      try return Number(rawValue)
+      catch {
+        try return Number(text)
+        catch {
+          return text
+        }
       }
-      hotkeysEncoded := RTrim(hotkeysEncoded, "`n")
     }
 
-    this.ApplyEncodedSettings(generalEncoded, disabledCsv, pluginEncoded, hotkeysEncoded)
+    return text
   }
 
   _encodeEscapedLinePart(value) {

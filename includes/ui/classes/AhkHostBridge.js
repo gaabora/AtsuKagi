@@ -21,19 +21,9 @@ class AhkHostBridge {
   }
 
   saveSettings(payloadObject) {
+    this._checkHostFunction('SaveSettingsJson');
     const obj = payloadObject || {};
-
-    if (this._hasHostFunction('SaveSettingsJson')) {
-      this.host.SaveSettingsJson(JSON.stringify(obj));
-      return;
-    }
-
-    this._checkHostFunction('SaveSettings');
-    const generalEncoded = SettingsFormSerializer.encodeGeneralLines(obj.general || {});
-    const disabledCsv = Array.isArray(obj.disabledPlugins) ? obj.disabledPlugins.join(',') : '';
-    const pluginEncoded = SettingsFormSerializer.encodePluginConfigLines(obj.pluginConfigs || {});
-    const hotkeysEncoded = SettingsFormSerializer.encodeHotkeysLines(obj.hotkeys || []);
-    this.host.SaveSettings(generalEncoded, disabledCsv, pluginEncoded, hotkeysEncoded);
+    this.host.SaveSettingsJson(JSON.stringify(obj));
   }
 
   closeSettings() {

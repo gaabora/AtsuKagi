@@ -8,6 +8,7 @@ SetControlDelay(-1)
 ; >+Backspace::MsgBox('Right Shift Only')
 
 #Include lib/helpers.ahk
+#Include lib/jsongo.ahk
 #Include lib/Notify.ahk
 #Include lib/IniFile.ahk
 #Include lib/WebViewToo-main/Lib/WebViewToo.ahk
