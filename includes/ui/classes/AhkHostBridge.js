@@ -19,10 +19,10 @@ class AhkHostBridge {
   saveSettings(payloadObject) {
     this._checkHostFunction('SaveSettings');
     const obj = payloadObject || {};
-    const generalEncoded = SettingsForm.encodeGeneralLines(obj.general || {});
+    const generalEncoded = SettingsFormSerializer.encodeGeneralLines(obj.general || {});
     const disabledCsv = Array.isArray(obj.disabledPlugins) ? obj.disabledPlugins.join(',') : '';
-    const pluginEncoded = SettingsForm.encodePluginConfigLines(obj.pluginConfigs || {});
-    const hotkeysEncoded = SettingsForm.encodeHotkeysLines(obj.hotkeys || []);
+    const pluginEncoded = SettingsFormSerializer.encodePluginConfigLines(obj.pluginConfigs || {});
+    const hotkeysEncoded = SettingsFormSerializer.encodeHotkeysLines(obj.hotkeys || []);
     this.host.SaveSettings(generalEncoded, disabledCsv, pluginEncoded, hotkeysEncoded);
   }
 

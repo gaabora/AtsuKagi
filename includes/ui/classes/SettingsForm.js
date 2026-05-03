@@ -48,48 +48,6 @@ class SettingsForm {
     };
   }
 
-  static encodePluginConfigLines(pluginConfigs) {
-    const lines = [];
-    Object.keys(pluginConfigs || {}).forEach((pluginId) => {
-      const cfg = pluginConfigs[pluginId] || {};
-      Object.keys(cfg).forEach((key) => {
-        const rawValue = cfg[key];
-        const value = typeof rawValue === 'boolean' ? (rawValue ? '1' : '0') : `${rawValue ?? ''}`;
-        lines.push(`${SettingsForm.escapeLinePart(pluginId)}\t${SettingsForm.escapeLinePart(key)}\t${SettingsForm.escapeLinePart(value)}`);
-      });
-    });
-    return lines.join('\n');
-  }
-
-  static encodeGeneralLines(general) {
-    const lines = [];
-    Object.keys(general || {}).forEach((key) => {
-      const rawValue = general[key];
-      const value = typeof rawValue === 'boolean' ? (rawValue ? '1' : '0') : `${rawValue ?? ''}`;
-      lines.push(`${SettingsForm.escapeLinePart(key)}\t${SettingsForm.escapeLinePart(value)}`);
-    });
-    return lines.join('\n');
-  }
-
-  static encodeHotkeysLines(hotkeys) {
-    const lines = [];
-    (hotkeys || []).forEach((entry) => {
-      const hotKey = `${entry?.hotKey || ''}`;
-      const action = `${entry?.action || ''}`;
-      if (!hotKey || !action) return;
-      lines.push(`${SettingsForm.escapeLinePart(hotKey)}\t${SettingsForm.escapeLinePart(action)}`);
-    });
-    return lines.join('\n');
-  }
-
-  static escapeLinePart(value) {
-    return `${value ?? ''}`
-      .replace(/\\/g, '\\\\')
-      .replace(/\r/g, '\\r')
-      .replace(/\n/g, '\\n')
-      .replace(/\t/g, '\\t');
-  }
-
   /**
    * Apply incoming state from AHK to form DOM.
    */
@@ -113,8 +71,8 @@ class SettingsForm {
     this._rowOpsReplaces = 0;
     this._rowOpsRemoves = 0;
 
-    const currentSig = this._buildStateSignatures(state);
-    const previousSig = this._buildStateSignatures(prevState || null);
+    const currentSig = SettingsFormSerializer.buildStateSignatures(state);
+    const previousSig = SettingsFormSerializer.buildStateSignatures(prevState || null);
 
     const generalSchemaChanged = currentSig.generalSchema !== previousSig.generalSchema;
     const generalValuesChanged = currentSig.generalValues !== previousSig.generalValues;
@@ -238,144 +196,6 @@ class SettingsForm {
       titleChanged,
       rowOperations
     };
-  }
-
-  _buildStateSignatures(state) {
-    if (!state) {
-      return {
-        generalSchema: '',
-        generalValues: '',
-        pluginList: '',
-        pluginPagesSchema: '',
-        pluginFieldValues: '',
-        hotkeys: '',
-        logsText: '',
-        problemsText: '',
-        theme: '',
-        title: ''
-      };
-    }
-
-    return {
-      generalSchema: this._signature(this._stripGeneralValues(state.generalPage)),
-      generalValues: this._signature(this._extractGeneralValues(state.generalPage)),
-      pluginList: this._signature({
-        available: state?.plugins?.available || [],
-        disabled: state?.plugins?.disabled || []
-      }),
-      pluginPagesSchema: this._signature(this._stripPluginPageValues(state?.plugins?.pages || [])),
-      pluginFieldValues: this._signature(this._extractPluginFieldValues(state?.plugins?.pages || [])),
-      hotkeys: this._signature(state.hotkeys || []),
-      logsText: `${state.logsText ?? ''}`,
-      problemsText: `${state.problemsText ?? ''}`,
-      theme: `${state.theme ?? ''}`,
-      title: `${state.title ?? ''}`
-    };
-  }
-
-  _signature(value) {
-    return JSON.stringify(this._toStableValue(value));
-  }
-
-  _toStableValue(value) {
-    if (Array.isArray(value)) {
-      return value.map((item) => this._toStableValue(item));
-    }
-    if (!value || typeof value !== 'object') {
-      return value;
-    }
-
-    const out = {};
-    Object.keys(value).sort().forEach((key) => {
-      out[key] = this._toStableValue(value[key]);
-    });
-    return out;
-  }
-
-  _stripGeneralValues(page) {
-    if (!page) return null;
-    return {
-      id: page.id || '',
-      title: page.title || '',
-      description: page.description || '',
-      icon: page.icon || '',
-      navOrder: page.navOrder || 0,
-      enableDynamicRender: !!page.enableDynamicRender,
-      sections: (page.sections || []).map((section) => ({
-        id: section?.id || '',
-        title: section?.title || '',
-        fields: (section?.fields || []).map((field) => ({
-          key: field?.key || '',
-          pluginId: field?.pluginId || '',
-          label: field?.label || '',
-          description: field?.description || '',
-          type: field?.type || '',
-          control: field?.control || '',
-          default: field?.default ?? '',
-          scope: field?.scope || '',
-          validation: field?.validation || {},
-          options: field?.options || []
-        }))
-      }))
-    };
-  }
-
-  _extractGeneralValues(page) {
-    const out = {};
-    if (!Array.isArray(page?.sections)) return out;
-    page.sections.forEach((section) => {
-      (section?.fields || []).forEach((field) => {
-        const key = `${field?.key || ''}`.trim();
-        if (!key) return;
-        out[key] = field && Object.prototype.hasOwnProperty.call(field, 'value') ? field.value : '';
-      });
-    });
-    return out;
-  }
-
-  _stripPluginPageValues(pages) {
-    return (pages || []).map((page) => ({
-      id: page?.id || '',
-      title: page?.title || '',
-      description: page?.description || '',
-      icon: page?.icon || '',
-      enabled: !!page?.enabled,
-      navOrder: page?.navOrder || 0,
-      sections: (page?.sections || []).map((section) => ({
-        id: section?.id || '',
-        title: section?.title || '',
-        fields: (section?.fields || []).map((field) => ({
-          key: field?.key || '',
-          pluginId: field?.pluginId || '',
-          label: field?.label || '',
-          description: field?.description || '',
-          type: field?.type || '',
-          control: field?.control || '',
-          default: field?.default ?? '',
-          scope: field?.scope || '',
-          validation: field?.validation || {},
-          options: field?.options || []
-        }))
-      })),
-      actions: page?.actions || []
-    }));
-  }
-
-  _extractPluginFieldValues(pages) {
-    const out = {};
-    (pages || []).forEach((page) => {
-      const pageId = `${page?.id || ''}`;
-      if (!pageId) return;
-      out[pageId] = {};
-      (page?.sections || []).forEach((section) => {
-        (section?.fields || []).forEach((field) => {
-          const key = `${field?.key || ''}`.trim();
-          if (!key) return;
-          out[pageId][key] = field && Object.prototype.hasOwnProperty.call(field, 'value') ? field.value : '';
-        });
-      });
-    });
-    return out;
   }
 
   _readGeneralFields() {
@@ -728,7 +548,7 @@ class SettingsForm {
         navItem.setAttribute('data-dynamic-plugin', '1');
       }
 
-      const navSig = this._signature({ id: pageId, title: page.title || page.id || '', icon: page.icon || 'icons10-puzzle' });
+      const navSig = SettingsFormSerializer.signature({ id: pageId, title: page.title || page.id || '', icon: page.icon || 'icons10-puzzle' });
       if (navItem.dataset.navSig !== navSig) {
         navItem.innerHTML = `<i class="${this._escapeHtml(page.icon || 'icons10-puzzle')}"></i><span>${this._escapeHtml(page.title || page.id)}</span>`;
         navItem.dataset.navSig = navSig;
@@ -776,17 +596,17 @@ class SettingsForm {
     if (!pageId) return;
 
     const shell = this._ensurePluginPageShell(section);
-    const headerSig = this._signature({
+    const headerSig = SettingsFormSerializer.signature({
       id: pageId,
       title: page.title || page.id || '',
       description: page.description || '',
       enabled: !!page.enabled
     });
-    const sectionsOrderSig = this._signature((page.sections || []).map((sec, idx) => ({
+    const sectionsOrderSig = SettingsFormSerializer.signature((page.sections || []).map((sec, idx) => ({
       id: `${sec?.id || sec?.title || `section-${idx}`}`,
       title: `${sec?.title || sec?.id || ''}`
     })));
-    const actionsSig = this._signature(page.actions || []);
+    const actionsSig = SettingsFormSerializer.signature(page.actions || []);
 
     if (shell.header.dataset.sig !== headerSig) {
       shell.header.innerHTML = this._renderPluginHeaderHtml(page);
@@ -914,7 +734,7 @@ class SettingsForm {
 
   _pluginFieldSignature(field) {
     if (!field) return '';
-    return this._signature({
+    return SettingsFormSerializer.signature({
       key: `${field?.key || ''}`,
       pluginId: `${field?.pluginId || ''}`,
       label: `${field?.label || ''}`,
