@@ -151,10 +151,6 @@ class SettingsFormRenderer {
       }
     }
 
-    const maybeDevTools = scope === 'general' && key === 'DebugLevel'
-      ? '<div class="field-actions"><button type="button" id="openDevTools" class="app-btn app-btn-subtle field-btn"><span>Open DevTools</span></button></div>'
-      : '';
-
     if (scope === 'plugin') {
       const pluginFieldKey = `${key}`;
       const pluginFieldSig = this.form._pluginFieldSignature(field);
@@ -178,7 +174,7 @@ class SettingsFormRenderer {
           ${description ? `<p class="field-description">${this.form._escapeHtml(description)}</p>` : ''}
         </div>
         <div class="app-input-container">
-          ${maybeDevTools ? `<div class="field-with-actions">${controlHtml}${maybeDevTools}</div>` : controlHtml}
+          ${controlHtml}
         </div>
       </div>
     `;

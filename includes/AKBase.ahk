@@ -12,6 +12,8 @@ class AKBase {
   debugLevel := 0 ; 0: error, 1: warning, 2: notice, 3: info, 4: debug
   static _uiLogs := []
   static _nextLogId := 0
+  static _hasBindingProblems := false
+  static _logPushHandler := 0
   Debug(level:=0) {
     this.debugLevel := level
     ; this.initMenu()
@@ -65,12 +67,15 @@ class AKBase {
         return AKBase.DIALOG_CONTINUE
     }
   }
-  outputDebugLine(line, level:=4) {
+  outputDebugLine(line, level:=4, meta:=0) {
     if (level <= this.debugLevel)
       OutputDebug(line) ;  "`n"
-    AKBase._bufferLogMessage(line, level)
+    AKBase._bufferLogMessage(line, level, meta)
   }
-  static _bufferLogMessage(line, level:=4) {
+  static SetLogPushHandler(handler := 0) {
+    AKBase._logPushHandler := handler
+  }
+  static _bufferLogMessage(line, level:=4, meta:=0) {
     timestamp := FormatTime(, "yyyy-MM-dd HH:mm:ss")
     logEntry := Map(
       "id",       AKBase._nextLogId,
@@ -78,11 +83,30 @@ class AKBase {
       "level",    level,
       "text",     "" line
     )
+
+    if (IsObject(meta)) {
+      if (meta is Map) {
+        if (meta.Has("source"))
+          logEntry["source"] := "" meta["source"]
+        if (meta.Has("settingRef") && IsObject(meta["settingRef"]))
+          logEntry["settingRef"] := meta["settingRef"]
+      } else {
+        if (meta.HasOwnProp("source"))
+          logEntry["source"] := "" meta.source
+        if (meta.HasOwnProp("settingRef") && IsObject(meta.settingRef))
+          logEntry["settingRef"] := meta.settingRef
+      }
+    }
+
     AKBase._nextLogId++
 
     AKBase._uiLogs.Push(logEntry)
     if (AKBase._uiLogs.Length > 500)
       AKBase._uiLogs.RemoveAt(1)
+
+    if (IsObject(AKBase._logPushHandler)) {
+      try AKBase._logPushHandler.Call(logEntry)
+    }
   }
   static GetUiLogs() {
     return AKBase._uiLogs

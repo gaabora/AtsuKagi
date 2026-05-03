@@ -83,7 +83,16 @@ class SettingsForm {
     const pluginPagesSchemaChanged = currentSig.pluginPagesSchema !== previousSig.pluginPagesSchema;
     const pluginFieldValuesChanged = currentSig.pluginFieldValues !== previousSig.pluginFieldValues;
     const hotkeysChanged = currentSig.hotkeys !== previousSig.hotkeys;
-    const logsChanged = Array.isArray(state.logs);
+    const hasLogs = Array.isArray(state.logs);
+    const prevLogs = Array.isArray(prevState?.logs) ? prevState.logs : null;
+    const currentLogs = hasLogs ? state.logs : [];
+    const prevLast = prevLogs && prevLogs.length ? Number(prevLogs[prevLogs.length - 1]?.id ?? -1) : -1;
+    const currentLast = currentLogs.length ? Number(currentLogs[currentLogs.length - 1]?.id ?? -1) : -1;
+    const logsChanged = hasLogs && (
+      !prevLogs ||
+      currentLogs.length !== prevLogs.length ||
+      currentLast !== prevLast
+    );
     const themeChanged = currentSig.theme !== previousSig.theme;
     const titleChanged = currentSig.title !== previousSig.title;
 

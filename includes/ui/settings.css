@@ -167,7 +167,6 @@ body {
 }
 
 .setting-group {
-  margin-bottom: 32px;
 }
 
 .setting-group h2 {
@@ -192,6 +191,7 @@ body {
   align-items: flex-start;
   margin-bottom: 20px;
   gap: 16px;
+  justify-content: space-between;
 }
 
 .setting-row label.field-label {
@@ -251,6 +251,7 @@ body {
   gap: 8px;
   width: 100%;
   flex-wrap: wrap;
+  justify-content: end;
 }
 
 .field-with-actions .app-input-text {
@@ -584,6 +585,12 @@ body {
   font-size: 12px;
   line-height: 1.45;
   white-space: pre-wrap;
+  margin-bottom: 10px;
+}
+
+.bottom-toolbar {
+  display: flex;
+  justify-content: space-between;
 }
 
 .settings-section.section-console .console-box {
@@ -621,24 +628,33 @@ body {
 
 
 /* FIXES */
-.app-dialog .app-dialog-modal .app-dialog-body { max-height: 80vh; }
-
+.app-dialog .app-dialog-modal .app-dialog-body { max-height: 80vh; }.app-dialog.show { display: flex !important; }
 /* ── Logs ─────────────────────────────────────────────────────────────────── */
 .logs-toolbar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
 .logs-search-input {
-  flex: 1 1 160px;
   min-width: 100px;
+  min-width: 200px;
 }
 
 .logs-filter-wrap {
   position: relative;
+}
+
+.logs-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  margin-left: auto;
 }
 
 .logs-filter-dropdown {
@@ -647,12 +663,12 @@ body {
   top: calc(100% + 4px);
   left: 0;
   z-index: 200;
-  min-width: 160px;
-  background: var(--color-bg-overlay, #fff);
-  border: 1px solid var(--color-ui-border-default, #ddd);
-  border-radius: 6px;
-  padding: 6px 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  min-width: 220px;
+  background: var(--color-navbar-bg-default, #1f1f1f);
+  border: 1px solid var(--color-ui-border-default, #3a3a3a);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
 }
 
 .logs-filter-dropdown.open {
@@ -662,14 +678,52 @@ body {
 .logs-filter-dropdown label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none;
+  color: var(--color-text-default, #000);
+}
+
+[data-theme="dark"] .logs-filter-dropdown label {
+  color: var(--color-text-default, #f2f2f2);
 }
 
 .logs-filter-dropdown label:hover {
-  background: var(--color-navbar-bg-hover, rgba(0,0,0,.04));
+  background: var(--color-ui-hover-strong, rgba(255,255,255,.08));
+}
+
+.logs-filter-dropdown .log-level-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.logs-filter-dropdown .log-level-badge.log-level-error { background: rgba(211,47,47,.2); }
+.logs-filter-dropdown .log-level-badge.log-level-warning { background: rgba(245,124,0,.22); }
+.logs-filter-dropdown .log-level-badge.log-level-notice { background: rgba(25,118,210,.22); }
+.logs-filter-dropdown .log-level-badge.log-level-info { background: rgba(255,255,255,.14); }
+.logs-filter-dropdown .log-level-badge.log-level-debug { background: rgba(255,255,255,.1); }
+
+.logs-filter-dropdown input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+.logs-filter-dropdown .log-level-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
 .logs-toggle-label {

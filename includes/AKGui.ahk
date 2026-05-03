@@ -2,6 +2,7 @@ class AKGui extends AKBase {
   static PREFERRED_APP_MODE := { Default: 0, AllowDark: 1, ForceDark: 2, ForceLight: 3, Max: 4 }
   static QUOTE_CHAR := Chr(34)
   _settingsGui := 0
+  _isLogPageActive := false
 
   __New(App) {
     this.App := App
@@ -54,6 +55,9 @@ class AKGui extends AKBase {
     nw := WebViewGui("+Resize -Caption",,, webViewSettings)
     nw.Title := this.App.ScriptName " — Settings"
     this._settingsGui := nw
+    this._isLogPageActive := false
+    AKBase.SetLogPushHandler(this._pushLogEntry.Bind(this))
+    this.outputDebugLine("Settings window opened", 4, Map("source", "core"))
 
     ; Register JS → AHK callbacks
     nw.AddCallbackToScript("SaveSettingsJson", (wv, payload:="") => this._saveSettingsJson(payload))
@@ -63,6 +67,8 @@ class AKGui extends AKBase {
     nw.AddCallbackToScript("RemoveHotkey", (wv, index:=0) => this._removeHotkey(index))
     nw.AddCallbackToScript("AddHotkey", (wv, hotKey:="", action:="") => this._addHotkey(hotKey, action))
     nw.AddCallbackToScript("TogglePlugin", (wv, pluginId:="", enabled:=1) => this._togglePlugin(pluginId, enabled))
+    nw.AddCallbackToScript("SetLogPageActive", (wv, active:=0) => this._setLogPageActive(active))
+    nw.AddCallbackToScript("GetLogsSince", (wv, lastId:=0) => AK_ToJson(AKBase.GetUiLogsSince(Integer(lastId))))
     nw.AddCallbackToScript("ClearLogs", (wv, *) => AKBase.ClearLogs())
     nw.AddCallbackToScript("CloseSettings", (wv, *) => this._closeSettings())
     nw.AddCallbackToScript("BrowseForFile", (wv, currentPath:="") => this._browseForFile(currentPath))
@@ -71,7 +77,7 @@ class AKGui extends AKBase {
     ; Populate form after page finishes loading
     nw.DOMContentLoaded((ICoreWebView2, Args) => this._populateSettingsPage(nw))
 
-    nw.OnEvent("Close", (*) => (this._settingsGui := 0))
+    nw.OnEvent("Close", (*) => (this._isLogPageActive := false, AKBase.SetLogPushHandler(0), this.outputDebugLine("Settings window closed", 4, Map("source", "core")), this._settingsGui := 0))
     nw.Navigate("includes/ui/settings.html")
     nw.Show("w820 h560")
     if (this.App.Config.GENERAL.DebugLevel >= 4)
@@ -131,6 +137,11 @@ class AKGui extends AKBase {
       "title", this.App.ScriptName " — Settings"
     )
 
+    if (AKBase._hasBindingProblems) {
+      state["openPage"] := "logs"
+      state["logLevelFilter"] := [0, 1]
+    }
+
     js := "(() => {`n"
     js .= "  const state = " . AK_ToJson(state) . ";`n"
     js .= "  if (window.SettingsPageBridge && typeof window.SettingsPageBridge.applyState === 'function') {`n"
@@ -174,6 +185,24 @@ class AKGui extends AKBase {
     return this.App.TogglePlugin(pluginId, enabled)
   }
 
+  _setLogPageActive(active) {
+    activeText := Trim("" active)
+    this._isLogPageActive := (active = true || activeText = "1" || activeText = "true")
+    return true
+  }
+
+  _pushLogEntry(entry) {
+    if (this._settingsGui = 0 || !this._isLogPageActive)
+      return
+
+    js := "(() => {`n"
+    js .= "  if (window.SettingsPageBridge && typeof window.SettingsPageBridge.appendLogs === 'function') {`n"
+    js .= "    try { window.SettingsPageBridge.appendLogs(" AK_ToJson([entry]) "); } catch (error) { console.error('Failed to append pushed logs', error); }`n"
+    js .= "  }`n"
+    js .= "})();`n"
+    try this._settingsGui.ExecuteScriptAsync(js)
+  }
+
   _openDevTools() {
     if (this._settingsGui = 0)
       return false
@@ -205,6 +234,8 @@ class AKGui extends AKBase {
   _closeSettings() {
     if (this._settingsGui != 0) {
       nw := this._settingsGui
+      this._isLogPageActive := false
+      AKBase.SetLogPushHandler(0)
       this._settingsGui := 0
       try nw.Destroy()
     }

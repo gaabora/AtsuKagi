@@ -23,6 +23,8 @@ class AKApp extends AKBase {
   _pluginRegistry := Map()        ; pluginId -> descriptor
   _actionRegistry := Map()        ; actionName -> actionDescriptor
   _pluginConfigRegistry := Map()  ; pluginId -> configSchema[]
+  _generalTypeIndex := 0
+  _pluginTypeIndex := 0
 
   __New(ConfigFile:=0) {
     this.ActionDeprecationMap["RemapTo"] := "RemapKeyTo"
@@ -460,6 +462,7 @@ class AKApp extends AKBase {
   AddPlugin(className, debug:=0) {
     libObj := %className%(this)
     if (!IsObject(libObj)) {
+      this.outputDebugLine("Plugin failed to load: " className " - unable to create instance", 0, Map("source", className, "settingRef", Map("page", "plugins")))
       this.ShowWarning("AddPlugin ERROR: Unable to create instance of " className)
       return
     }
@@ -495,7 +498,7 @@ class AKApp extends AKBase {
     for actionString, description in actions {
       this._registerAction(libObj, actionString, className, description)
     }
-    this.outputDebugLine("Plugin loaded: " className, 3)
+    this.outputDebugLine("Plugin loaded: " className, 3, Map("source", className, "settingRef", Map("page", "plugins")))
 
     ; hooks := libObj.__HooksHelp()
     ; for hookString, description in hooks {
@@ -514,11 +517,12 @@ class AKApp extends AKBase {
     AKBase.ClearProblems()
 
     configProblems := this._validateHotkeysConfig()
+    AKBase._hasBindingProblems := (configProblems.Length > 0)
     for problem in configProblems {
-      this.outputDebugLine(problem, 1)
+      this.outputDebugLine(problem, 1, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys")))
     }
     if (configProblems.Length > 0) {
-      ;TODO: open settings gui on logs page filtered to show only problems (warn+ selected in filter dropdown)
+      this.outputDebugLine("Hotkey binding validation found " configProblems.Length " problem(s)", 1, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys")))
     }
 
     if (this.Config.Has("HOTKEYS")) {
@@ -526,6 +530,8 @@ class AKApp extends AKBase {
         this.BindHotkey(k, runHotkeyActionFn, v)
       }
     }
+    if (configProblems.Length = 0)
+      this.outputDebugLine("Hotkey binding validation passed", 3, Map("source", "hotkeys"))
     this._updateStartupDiagnostics()
   }
 
@@ -632,7 +638,7 @@ class AKApp extends AKBase {
     if (hkDef['action'] != '' && !this._actionExists(actionInfo.fnName)) {
       hotkeyError := 'Action not found'
       errorText := 'ERROR: ' . debugText . ' FAILED: ' . hotkeyError
-      this.outputDebugLine(errorText, 0)
+      this.outputDebugLine(errorText, 0, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys")))
       return errorText
     } 
 
@@ -642,7 +648,7 @@ class AKApp extends AKBase {
       hotkeyError := Format("{1}: {2}.`n`nFile:`t{3}`nLine:`t{4}`nWhat:`t{5}`nStack:`n{6}"
         , type(err), err.Message, err.File, err.Line, err.What, err.Stack)
       errorText := "ERROR: " . debugText . " FAILED: " . hotkeyError
-      this.outputDebugLine(errorText, 0)
+      this.outputDebugLine(errorText, 0, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys")))
       return errorText
     }
 
@@ -930,6 +936,8 @@ class AKApp extends AKBase {
 
     if (!this.Config.Has("HOTKEYS"))
       this.Config.HOTKEYS := GetDefaultHotkeysConfig()
+
+    this.outputDebugLine("Config loaded from " ConfigFile, 3, Map("source", "core"))
   }
 
   ApplyEncodedSettings(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded:="") {
@@ -1040,6 +1048,7 @@ class AKApp extends AKBase {
       coercedValue := this._coerceConfigValue(rawValue, valueType, true)
       this.Config.GENERAL.%keyText% := coercedValue
       this.Config.Save()
+      this.outputDebugLine("Config written to disk", 4, Map("source", "core"))
 
       if (keyText = "DebugLevel") {
         debugLevel := Integer(coercedValue)
@@ -1053,8 +1062,11 @@ class AKApp extends AKBase {
         this._rebindControlHotkeys()
       }
 
+      this.outputDebugLine("Setting saved: GENERAL." keyText " = " coercedValue, 4, Map("source", "core", "settingRef", Map("page", "general", "key", keyText)))
+
       return this._jsonAtomicResult(true)
     } catch as err {
+      this.outputDebugLine("Failed saving GENERAL." keyText ": " err.Message, 1, Map("source", "core", "settingRef", Map("page", "general", "key", keyText)))
       return this._jsonAtomicResult(false, err.Message)
     }
   }
@@ -1077,14 +1089,18 @@ class AKApp extends AKBase {
       coercedValue := this._coerceConfigValue(rawValue, valueType, false)
       this.Config[pluginIdText][keyText] := coercedValue
       this.Config.Save()
+      this.outputDebugLine("Config written to disk", 4, Map("source", "core"))
 
       pluginInstance := this._findPluginInstanceById(pluginIdText)
       if (pluginInstance && HasMethod(pluginInstance, "OnConfigChanged")) {
         try pluginInstance.OnConfigChanged(keyText, coercedValue)
       }
 
+      this.outputDebugLine("Setting saved: " pluginIdText "." keyText " = " coercedValue, 4, Map("source", pluginIdText, "settingRef", Map("page", "plugin-" pluginIdText, "key", keyText)))
+
       return this._jsonAtomicResult(true)
     } catch as err {
+      this.outputDebugLine("Failed saving " pluginIdText "." keyText ": " err.Message, 1, Map("source", pluginIdText, "settingRef", Map("page", "plugin-" pluginIdText, "key", keyText)))
       return this._jsonAtomicResult(false, err.Message)
     }
   }
@@ -1189,6 +1205,8 @@ class AKApp extends AKBase {
     entries[idx + 1] := Map("hotKey", "" hotKey, "action", "" action)
     this._saveHotkeyEntries(entries)
     this.Config.Save()
+    this.outputDebugLine("Config written to disk", 4, Map("source", "core"))
+    this.outputDebugLine("Hotkey updated at index " idx ": " hotKey " -> " action, 4, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys", "index", idx)))
     return this._jsonAtomicResult(true, "", Map("problems", []))
   }
 
@@ -1208,6 +1226,8 @@ class AKApp extends AKBase {
 
     this._saveHotkeyEntries(entries)
     this.Config.Save()
+    this.outputDebugLine("Config written to disk", 4, Map("source", "core"))
+    this.outputDebugLine("Hotkey removed at index " idx, 4, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys", "index", idx)))
     return this._jsonAtomicResult(true, "", Map("problems", []))
   }
 
@@ -1225,6 +1245,8 @@ class AKApp extends AKBase {
     entries.Push(Map("hotKey", "" hotKey, "action", "" action))
     this._saveHotkeyEntries(entries)
     this.Config.Save()
+    this.outputDebugLine("Config written to disk", 4, Map("source", "core"))
+    this.outputDebugLine("Hotkey added: " hotKey " -> " action, 4, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys", "index", entries.Length - 1)))
     return this._jsonAtomicResult(true, "", Map("problems", []))
   }
 
@@ -1258,6 +1280,7 @@ class AKApp extends AKBase {
 
     this.Config.GENERAL.DisabledPlugins := Join(nextDisabled, ",")
     this.Config.Save()
+    this.outputDebugLine("Config written to disk", 4, Map("source", "core"))
 
     availablePlugins := this._getAvailablePlugins()
     requiredPlugins := []
@@ -1266,6 +1289,7 @@ class AKApp extends AKBase {
         requiredPlugins.Push(pluginName)
     }
     this._generateDynamicPlugins(requiredPlugins)
+    this.outputDebugLine("Plugin " pluginIdText " set to " (enabledBool ? "enabled" : "disabled") " (reload required)", 3, Map("source", pluginIdText, "settingRef", Map("page", "plugins")))
 
     return this._jsonAtomicResult(true, "", Map("requiresReload", true))
   }
@@ -1331,6 +1355,9 @@ class AKApp extends AKBase {
   }
 
   _buildGeneralTypeIndex() {
+    if (this._generalTypeIndex && this._generalTypeIndex is Map)
+      return this._generalTypeIndex
+
     typeIndex := Map()
     for fieldDesc in this.GetGeneralConfigSchema() {
       if (!fieldDesc.Has("key"))
@@ -1338,10 +1365,14 @@ class AKApp extends AKBase {
       fieldType := fieldDesc.Has("type") ? fieldDesc["type"] : "string"
       typeIndex["" fieldDesc["key"]] := fieldType
     }
+    this._generalTypeIndex := typeIndex
     return typeIndex
   }
 
   _buildPluginTypeIndex() {
+    if (this._pluginTypeIndex && this._pluginTypeIndex is Map)
+      return this._pluginTypeIndex
+
     typeIndex := Map()
     for className, libObj in this._addedLibs {
       descriptor := libObj.__GetPluginDescriptor()
@@ -1360,6 +1391,7 @@ class AKApp extends AKBase {
         typeIndex[pluginId]["" fieldDesc["key"]] := fieldType
       }
     }
+    this._pluginTypeIndex := typeIndex
     return typeIndex
   }
 
@@ -1612,7 +1644,7 @@ class AKApp extends AKBase {
       collisionKey := actionString "::" existingOwner "::" className
       if (!this._warnedActionCollisions.Has(collisionKey)) {
         this._warnedActionCollisions[collisionKey] := true
-        this.outputDebugLine("Action collision: '" actionString "' from plugin '" className "' conflicts with plugin '" existingOwner "'. Keeping existing registration.", 1)
+        this.outputDebugLine("Action collision: '" actionString "' from plugin '" className "' conflicts with plugin '" existingOwner "'. Keeping existing registration.", 1, Map("source", className, "settingRef", Map("page", "plugins")))
       }
       return false
     }

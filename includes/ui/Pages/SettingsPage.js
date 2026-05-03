@@ -307,7 +307,7 @@ class SettingsPage {
   }
 
   _bindHotkeyRecorderDialog() {
-    const applyBtn = document.getElementById('applyHotkeyRecord');
+    const applyBtn = document.getElementById('apply-hotkey-record');
 
     if (applyBtn) {
       applyBtn.addEventListener('click', () => {
@@ -329,7 +329,7 @@ class SettingsPage {
   }
 
   _bindDevToolsButton() {
-    const openDevToolsBtn = document.getElementById('openDevTools');
+    const openDevToolsBtn = document.getElementById('open-dev-tools');
     if (!openDevToolsBtn) return;
     if (openDevToolsBtn.dataset.boundDevTools === '1') return;
     openDevToolsBtn.dataset.boundDevTools = '1';
@@ -538,6 +538,17 @@ class SettingsPage {
         rowOperations: changes.rowOperations
       });
     }
+
+    const openPage = `${state?.openPage || ''}`.trim();
+    if (openPage) {
+      const navEl = this.dom.getNavItem(openPage) || document.querySelector(`.settings-nav .nav-item[data-section="${CSS.escape(openPage)}"]`);
+      this._showSection(openPage, navEl);
+    }
+
+    if (Array.isArray(state?.logLevelFilter) && state.logLevelFilter.length > 0) {
+      this.logs.setLevelFilter(state.logLevelFilter);
+    }
+
     this._isApplyingState = false;
   }
 
@@ -567,13 +578,14 @@ class SettingsPage {
 
     // Find and scroll to the field
     let targetEl = null;
-    if (page === 'hotkeys' && typeof index === 'number') {
+    const hotkeyIndex = Number(index);
+    if (page === 'hotkeys' && Number.isInteger(hotkeyIndex) && hotkeyIndex >= 0) {
       // For hotkeys, find the row at index
       const tbody = this.dom.getField('hotkeys-tbody');
       if (tbody) {
         const rows = tbody.querySelectorAll('tr');
-        if (rows[index]) {
-          targetEl = rows[index];
+        if (rows[hotkeyIndex]) {
+          targetEl = rows[hotkeyIndex];
         }
       }
     } else {

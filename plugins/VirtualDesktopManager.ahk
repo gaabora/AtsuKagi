@@ -67,11 +67,7 @@ class VirtualDesktopManager extends AKPlugin {
       this._initError := "VirtualDesktopAccessor.dll not found at " this.dllPath
       this.ShowWarning(this._initError)
       return
-    } 
-    else  return ; FIXME: remove this, its just for debug for case when lib was not included
-
-    
-
+    }
     try {
       this.hVirtualDesktopAccessor             := DllCall("LoadLibrary", "Str", this.dllPath, "Ptr")
       this.GetDesktopCountProc                 := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")

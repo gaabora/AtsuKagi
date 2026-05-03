@@ -71,12 +71,20 @@ class LogsController {
     if (!entry || typeof entry !== 'object') {
       return { id: -1, time: '', level: 4, text: `${entry}` };
     }
-    return {
+    const normalized = {
       id:    Number(entry.id ?? -1),
       time:  `${entry.time ?? ''}`,
       level: Number(entry.level ?? 4),
       text:  `${entry.text ?? ''}`
     };
+
+    if (entry.settingRef && typeof entry.settingRef === 'object') {
+      normalized.settingRef = entry.settingRef;
+    }
+    if (entry.source != null) {
+      normalized.source = `${entry.source}`;
+    }
+    return normalized;
   }
 
   static levelLabel(level) {
@@ -160,7 +168,8 @@ class LogsController {
   // ── Toolbar factory (call once after mounting) ────────────────────────────────
 
   buildToolbar(toolbarEl) {
-    if (!toolbarEl) return;
+    if (!toolbarEl || toolbarEl.dataset.bound === '1') return;
+    toolbarEl.dataset.bound = '1';
 
     // Search
     const search = toolbarEl.querySelector('#logs-search');
@@ -180,6 +189,9 @@ class LogsController {
         ev.stopPropagation();
         filterDropdown.classList.toggle('open');
       });
+      filterDropdown.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+      });
       document.addEventListener('click', () => filterDropdown.classList.remove('open'));
 
       const checkboxes = filterDropdown.querySelectorAll('input[type="checkbox"][data-level]');
@@ -188,8 +200,8 @@ class LogsController {
         checkboxes.forEach((cb) => { if (cb.checked) active.push(Number(cb.dataset.level)); });
         this.setLevelFilter(active);
         filterBtn.textContent = active.length === 5
-          ? 'All levels ▾'
-          : active.map((l) => LogsController.levelLabel(l)).join(', ') + ' ▾';
+          ? 'ALL ▾'
+          : (active.map((level) => LogsController.levelLabel(level)).join(' ') || 'NONE') + ' ▾';
       };
       checkboxes.forEach((cb) => cb.addEventListener('change', updateFilter));
     }

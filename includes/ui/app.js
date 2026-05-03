@@ -33,7 +33,7 @@ class SettingsDom {
       'ReloadAppHotkey', 'SuspendAppHotkey', 'SwapMouseXButtons',
       'ReloadAppHotkeyDisplay', 'SuspendAppHotkeyDisplay',
       'WindowTransparencyLabel', 'BorderColorSwatch',
-      'plugins-list', 'hotkeys-tbody', 'logs-content', 'problems-content',
+      'plugins-list', 'hotkeys-tbody', 'logs-content',
       'titleText'
     ];
 
@@ -56,22 +56,15 @@ class SettingsDom {
 
 // Initialize on page load
 (function initialize() {
-  // Host bridge stub (replace with actual bridge in prod)
-  const hostBridge = window.hostBridge || {};
-
-  // LogsController instance
-  const logsContentEl = document.getElementById('logs-content');
-  window.logsController = new LogsController(hostBridge);
-  if (logsContentEl) window.logsController.mount(logsContentEl);
-
   window.settingsPage = new SettingsPage();
-  // Attach logsController to settingsPage and SettingsForm if present
-  if (window.settingsPage && window.settingsPage.form) {
-    window.settingsPage.form.logsController = window.logsController;
-  }
   window.SettingsPageBridge = {
     applyState: (state) => window.settingsPage.applyState(state),
-    refresh: () => window.settingsPage.refreshUI()
+    refresh: () => window.settingsPage.refreshUI(),
+    appendLogs: (entries) => {
+      if (window.settingsPage && window.settingsPage.logs) {
+        window.settingsPage.logs.appendLogs(entries);
+      }
+    }
   };
 })();
 

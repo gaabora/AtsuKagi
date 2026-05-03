@@ -136,7 +136,7 @@ class SettingsFormPluginPagesRenderer {
     if (shell.footer.dataset.sig !== resetSig) {
       shell.footer.innerHTML = `
         <div class="setting-group">
-          <button type="button" class="app-btn app-btn-subtle" data-plugin-reset-all="${this.form._escapeHtml(pageId)}">Reset All</button>
+          <button type="button" class="app-btn app-btn-outline-danger" data-plugin-reset-all="${this.form._escapeHtml(pageId)}">Reset All</button>
         </div>
       `;
       shell.footer.dataset.sig = resetSig;

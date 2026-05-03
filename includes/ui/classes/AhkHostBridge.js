@@ -74,6 +74,11 @@ class AhkHostBridge {
     this.host.ClearLogs();
   }
 
+  setLogPageActive(active) {
+    this._checkHostFunction('SetLogPageActive');
+    this.host.SetLogPageActive(active ? 1 : 0);
+  }
+
   closeSettings() {
     this._checkHostFunction('CloseSettings');
     this.host.CloseSettings();
