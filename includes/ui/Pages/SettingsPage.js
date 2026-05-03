@@ -5,6 +5,7 @@ class SettingsPage {
     this.form = new SettingsForm(this.dom);
     this.colorPicker = new ColorPickerController(this.dom);
     this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw));
+    this.logs = new LogsController(this.hostBridge);
     this._isApplyingState = false;
     this._fieldSaveTimers = new Map();
     this.init();
@@ -22,6 +23,19 @@ class SettingsPage {
     this._bindPluginFieldReset();
     this._bindActionHotkeyRemoval();
     this._bindHotkeyBadgeReset();
+    this._mountLogsController();
+  }
+
+  _mountLogsController() {
+    const container = document.getElementById('logs-content');
+    const toolbar = document.getElementById('logs-toolbar');
+    if (container) {
+      this.logs.mount(container);
+    }
+    if (toolbar) {
+      this.logs.buildToolbar(toolbar);
+    }
+    this.form.logsController = this.logs;
   }
 
   _bindActions() {

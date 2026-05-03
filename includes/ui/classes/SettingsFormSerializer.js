@@ -8,8 +8,6 @@ class SettingsFormSerializer {
         pluginPagesSchema: '',
         pluginFieldValues: '',
         hotkeys: '',
-        logsText: '',
-        problemsText: '',
         theme: '',
         title: ''
       };
@@ -25,8 +23,6 @@ class SettingsFormSerializer {
       pluginPagesSchema: SettingsFormSerializer.signature(SettingsFormSerializer.stripPluginPageValues(state?.plugins?.pages || [])),
       pluginFieldValues: SettingsFormSerializer.signature(SettingsFormSerializer.extractPluginFieldValues(state?.plugins?.pages || [])),
       hotkeys: SettingsFormSerializer.signature(state.hotkeys || []),
-      logsText: `${state.logsText ?? ''}`,
-      problemsText: `${state.problemsText ?? ''}`,
       theme: `${state.theme ?? ''}`,
       title: `${state.title ?? ''}`
     };

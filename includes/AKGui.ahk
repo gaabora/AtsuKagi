@@ -63,6 +63,7 @@ class AKGui extends AKBase {
     nw.AddCallbackToScript("RemoveHotkey", (wv, index:=0) => this._removeHotkey(index))
     nw.AddCallbackToScript("AddHotkey", (wv, hotKey:="", action:="") => this._addHotkey(hotKey, action))
     nw.AddCallbackToScript("TogglePlugin", (wv, pluginId:="", enabled:=1) => this._togglePlugin(pluginId, enabled))
+    nw.AddCallbackToScript("ClearLogs", (wv, *) => AKBase.ClearLogs())
     nw.AddCallbackToScript("CloseSettings", (wv, *) => this._closeSettings())
     nw.AddCallbackToScript("BrowseForFile", (wv, currentPath:="") => this._browseForFile(currentPath))
     nw.AddCallbackToScript("OpenDevTools", (wv, *) => this._openDevTools())
@@ -125,8 +126,7 @@ class AKGui extends AKBase {
         "pages", this.App.GetPluginSettingsPages()
       ),
       "hotkeys", hotkeys,
-      "logsText", AKBase.GetUiLogsText(),
-      "problemsText", AKBase.GetUiProblemsText(),
+      "logs", AKBase.GetUiLogs(),
       "theme", theme,
       "title", this.App.ScriptName " — Settings"
     )

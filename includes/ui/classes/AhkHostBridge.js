@@ -69,6 +69,11 @@ class AhkHostBridge {
     return this._parseHostResult(this.host.TogglePlugin(`${pluginId || ''}`, enabled ? 1 : 0));
   }
 
+  clearLogs() {
+    this._checkHostFunction('ClearLogs');
+    this.host.ClearLogs();
+  }
+
   closeSettings() {
     this._checkHostFunction('CloseSettings');
     this.host.CloseSettings();

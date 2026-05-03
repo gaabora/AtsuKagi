@@ -6,6 +6,7 @@ class SettingsForm {
   constructor(dom) {
     this.dom = dom;
     this._hotkeyEntries = [];
+    this.logsController = null;
     this.renderer = new SettingsFormRenderer(this);
     this.pluginPagesRenderer = new SettingsFormPluginPagesRenderer(this);
     this.actionsRenderer = new SettingsFormActionsRenderer(this);
@@ -63,7 +64,6 @@ class SettingsForm {
       pluginFieldValuesChanged: false,
       hotkeysChanged: false,
       logsChanged: false,
-      problemsChanged: false,
       themeChanged: false,
       titleChanged: false,
       rowOperations: { adds: 0, replaces: 0, removes: 0 }
@@ -83,8 +83,7 @@ class SettingsForm {
     const pluginPagesSchemaChanged = currentSig.pluginPagesSchema !== previousSig.pluginPagesSchema;
     const pluginFieldValuesChanged = currentSig.pluginFieldValues !== previousSig.pluginFieldValues;
     const hotkeysChanged = currentSig.hotkeys !== previousSig.hotkeys;
-    const logsChanged = currentSig.logsText !== previousSig.logsText;
-    const problemsChanged = currentSig.problemsText !== previousSig.problemsText;
+    const logsChanged = Array.isArray(state.logs);
     const themeChanged = currentSig.theme !== previousSig.theme;
     const titleChanged = currentSig.title !== previousSig.title;
 
@@ -144,17 +143,11 @@ class SettingsForm {
     }
 
     try {
-      if (logsChanged) {
-        const logsEl = this.dom.getField('logs-content');
-        if (logsEl) logsEl.textContent = state.logsText || 'No logs yet.';
-      }
-
-      if (problemsChanged) {
-        const problemsEl = this.dom.getField('problems-content');
-        if (problemsEl) problemsEl.textContent = state.problemsText || 'No problems detected.';
+      if (logsChanged && this.logsController) {
+        this.logsController.setLogs(state.logs);
       }
     } catch (error) {
-      console.error('Logs/problems render failed', error);
+      console.error('Logs render failed', error);
     }
 
     try {
@@ -194,7 +187,6 @@ class SettingsForm {
       pluginFieldValuesChanged,
       hotkeysChanged,
       logsChanged,
-      problemsChanged,
       themeChanged,
       titleChanged,
       rowOperations

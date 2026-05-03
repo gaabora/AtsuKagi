@@ -11,7 +11,7 @@ class AKBase {
 
   debugLevel := 0 ; 0: error, 1: warning, 2: notice, 3: info, 4: debug
   static _uiLogs := []
-  static _uiProblems := []
+  static _nextLogId := 0
   Debug(level:=0) {
     this.debugLevel := level
     ; this.initMenu()
@@ -72,34 +72,35 @@ class AKBase {
   }
   static _bufferLogMessage(line, level:=4) {
     timestamp := FormatTime(, "yyyy-MM-dd HH:mm:ss")
-    levelStr := ""
-    switch (level) {
-      case 0: levelStr := "ERROR"
-      case 1: levelStr := "WARNING"
-      case 2: levelStr := "NOTICE"
-      case 3: levelStr := "INFO"
-      default: levelStr := "DEBUG"
-    }
-    
-    logEntry := "[" timestamp "] [" levelStr "] " line
+    logEntry := Map(
+      "id",       AKBase._nextLogId,
+      "time",     timestamp,
+      "level",    level,
+      "text",     "" line
+    )
+    AKBase._nextLogId++
+
     AKBase._uiLogs.Push(logEntry)
-    if (AKBase._uiLogs.Length > 300)
+    if (AKBase._uiLogs.Length > 500)
       AKBase._uiLogs.RemoveAt(1)
-    
-    if (level <= 1) {
-      AKBase._uiProblems.Push(logEntry)
-      if (AKBase._uiProblems.Length > 200)
-        AKBase._uiProblems.RemoveAt(1)
+  }
+  static GetUiLogs() {
+    return AKBase._uiLogs
+  }
+  static GetUiLogsSince(lastId) {
+    result := []
+    for entry in AKBase._uiLogs {
+      if (entry["id"] > lastId)
+        result.Push(entry)
     }
+    return result
   }
-  static GetUiLogsText() {
-    return AKBase._uiLogs.Length ? Join(AKBase._uiLogs, "`n") : "No logs yet."
-  }
-  static GetUiProblemsText() {
-    return AKBase._uiProblems.Length ? Join(AKBase._uiProblems, "`n") : "No problems detected."
+  static ClearLogs() {
+    AKBase._uiLogs := []
   }
   static ClearProblems() {
-    AKBase._uiProblems := []
+    ; kept for backward compat; use ClearLogs() instead
+    AKBase.ClearLogs()
   }
 }
 

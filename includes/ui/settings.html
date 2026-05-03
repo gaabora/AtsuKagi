@@ -44,10 +44,6 @@
         <i class="icons10-list"></i>
         <span>Logs</span>
       </button>
-      <button class="nav-item" data-section="problems">
-        <i class="icons10-warning"></i>
-        <span>Problems</span>
-      </button>
     </div>
 
     <!-- ── Content ──────────────────────────────────────────────── -->
@@ -101,17 +97,24 @@
       <div id="section-logs" class="settings-section section-console">
         <div class="setting-group">
           <h2>Logs</h2>
-          <p class="subtitle">Startup and runtime diagnostics.</p>
-          <div id="logs-content" class="console-box">No logs yet.</div> 
-        </div>
-      </div>
-
-      <!-- ═══ PROBLEMS ══════════════════════════════════════════ -->
-      <div id="section-problems" class="settings-section section-console">
-        <div class="setting-group">
-          <h2>Problems</h2>
-          <p class="subtitle">Configuration validation issues and binding errors.</p>
-          <div id="problems-content" class="console-box">No problems detected.</div>
+          <div class="logs-toolbar" id="logs-toolbar">
+            <input type="text" id="logs-search" class="app-input-text logs-search-input" placeholder="Search logs…" autocomplete="off" />
+            <div class="logs-filter-wrap">
+              <button type="button" id="logs-filter-btn" class="app-btn app-btn-subtle">All levels ▾</button>
+              <div id="logs-filter-dropdown" class="logs-filter-dropdown">
+                <label><input type="checkbox" data-level="0" checked /> <span class="log-level-badge log-level-error">ERROR</span></label>
+                <label><input type="checkbox" data-level="1" checked /> <span class="log-level-badge log-level-warning">WARNING</span></label>
+                <label><input type="checkbox" data-level="2" checked /> <span class="log-level-badge log-level-notice">NOTICE</span></label>
+                <label><input type="checkbox" data-level="3" checked /> <span class="log-level-badge log-level-info">INFO</span></label>
+                <label><input type="checkbox" data-level="4" checked /> <span class="log-level-badge log-level-debug">DEBUG</span></label>
+              </div>
+            </div>
+            <label class="logs-toggle-label">
+              <input type="checkbox" id="logs-show-time" /> Show time
+            </label>
+            <button type="button" id="logs-clear" class="app-btn app-btn-subtle">Clear</button>
+          </div>
+          <div id="logs-content" class="console-box logs-container">No logs yet.</div>
         </div>
       </div>
 
@@ -186,6 +189,7 @@
   <script src="classes/hotkeyUtils.js"></script>
   <script src="classes/SettingsFormSerializer.js"></script>
   <script src="classes/AhkHostBridge.js"></script>
+  <script src="classes/LogsController.js"></script>
   <script src="classes/HotkeyRecorderController.js"></script>
   <script src="classes/ColorPickerController.js"></script>
   <script src="classes/SettingsFormRenderer.js"></script>

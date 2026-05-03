@@ -598,4 +598,127 @@ body {
 
 /* FIXES */
 .app-dialog .app-dialog-modal .app-dialog-body { max-height: 80vh; }
+
+/* ── Logs ─────────────────────────────────────────────────────────────────── */
+.logs-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.logs-search-input {
+  flex: 1 1 160px;
+  min-width: 100px;
+}
+
+.logs-filter-wrap {
+  position: relative;
+}
+
+.logs-filter-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  min-width: 160px;
+  background: var(--color-bg-overlay, #fff);
+  border: 1px solid var(--color-ui-border-default, #ddd);
+  border-radius: 6px;
+  padding: 6px 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+}
+
+.logs-filter-dropdown.open {
+  display: block;
+}
+
+.logs-filter-dropdown label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.logs-filter-dropdown label:hover {
+  background: var(--color-navbar-bg-hover, rgba(0,0,0,.04));
+}
+
+.logs-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.logs-container {
+  height: calc(100vh - 270px);
+  max-height: none;
+  white-space: normal;
+}
+
+.logs-empty {
+  color: var(--color-text-secondary, #888);
+  font-style: italic;
+}
+
+.log-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+  border-bottom: 1px solid transparent;
+}
+
+.log-line:last-child { border-bottom: none; }
+
+.log-time {
+  display: none;
+  flex-shrink: 0;
+  color: var(--color-text-secondary, #999);
+  font-size: 11px;
+}
+
+.logs-show-time .log-time {
+  display: inline;
+}
+
+.log-level-badge {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.log-text {
+  word-break: break-word;
+}
+
+/* level colours */
+.log-level-error  { border-left: 3px solid #d32f2f; }
+.log-level-warning { border-left: 3px solid #f57c00; }
+.log-level-notice { border-left: 3px solid #1976d2; }
+.log-level-info   { border-left: 3px solid transparent; }
+.log-level-debug  { opacity: .65; border-left: 3px solid transparent; }
+
+.log-level-error  .log-level-badge { background: rgba(211,47,47,.15);  color: #c62828; }
+.log-level-warning .log-level-badge { background: rgba(245,124,0,.15); color: #e65100; }
+.log-level-notice .log-level-badge { background: rgba(25,118,210,.15); color: #1565c0; }
+.log-level-info   .log-level-badge { background: rgba(0,0,0,.06);      color: var(--color-text-secondary,#555); }
+.log-level-debug  .log-level-badge { background: rgba(0,0,0,.04);      color: var(--color-text-secondary,#888); }
+
+[data-theme="dark"] .log-level-error  .log-level-badge { color: #ef9a9a; background: rgba(211,47,47,.25); }
+[data-theme="dark"] .log-level-warning .log-level-badge { color: #ffcc80; background: rgba(245,124,0,.25); }
+[data-theme="dark"] .log-level-notice .log-level-badge { color: #90caf9; background: rgba(25,118,210,.25); }
+[data-theme="dark"] .log-level-info   .log-level-badge { color: #b0bec5; }
+[data-theme="dark"] .log-level-debug  .log-level-badge { color: #78909c; }
 .app-dialog .app-dialog-modal { width: auto; }
