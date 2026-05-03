@@ -5,9 +5,10 @@ class SettingsPage {
     this.form = new SettingsForm(this.dom);
     this.colorPicker = new ColorPickerController(this.dom);
     this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw));
-    this.logs = new LogsController(this.hostBridge);
+    this.logs = new LogsController(this.hostBridge, (settingRef) => this._goToSetting(settingRef));
     this._isApplyingState = false;
     this._fieldSaveTimers = new Map();
+    this._currentSection = null;
     this.init();
   }
 
@@ -209,6 +210,11 @@ class SettingsPage {
   }
 
   _showSection(name, navEl) {
+    // Deactivate previous section
+    if (this._currentSection === 'logs') {
+      this.logs.onPageInactive();
+    }
+
     document.querySelectorAll('.settings-content .settings-section').forEach(section => {
       section.classList.remove('active');
     });
@@ -223,6 +229,12 @@ class SettingsPage {
     }
     if (navEl) {
       navEl.classList.add('active');
+    }
+
+    // Activate new section
+    this._currentSection = name;
+    if (name === 'logs') {
+      this.logs.onPageActive();
     }
   }
 
@@ -544,5 +556,43 @@ class SettingsPage {
       return false;
     }
     return false;
+  }
+
+  _goToSetting(settingRef) {
+    const { page, section, key, index } = settingRef || {};
+    if (!page) return;
+
+    // Navigate to the page
+    this._showSection(page);
+
+    // Find and scroll to the field
+    let targetEl = null;
+    if (page === 'hotkeys' && typeof index === 'number') {
+      // For hotkeys, find the row at index
+      const tbody = this.dom.getField('hotkeys-tbody');
+      if (tbody) {
+        const rows = tbody.querySelectorAll('tr');
+        if (rows[index]) {
+          targetEl = rows[index];
+        }
+      }
+    } else {
+      // For general/plugin pages, find the field
+      const selector = key ? `[data-key="${CSS.escape(key)}"]` : null;
+      if (selector) {
+        const sectionEl = this.dom.getSection(page);
+        if (sectionEl) {
+          targetEl = sectionEl.querySelector(selector);
+        }
+      }
+    }
+
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add highlight class
+      targetEl.classList.add('setting-highlight');
+      // Remove after 2s
+      setTimeout(() => targetEl.classList.remove('setting-highlight'), 2000);
+    }
   }
 }

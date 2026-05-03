@@ -1,3 +1,27 @@
+/* Highlight animation for go-to-setting */
+.setting-highlight {
+  animation: highlight-pulse 2s ease-out;
+}
+@keyframes highlight-pulse {
+  0% { background-color: rgba(255, 200, 0, 0.4); }
+  100% { background-color: transparent; }
+}
+
+/* Go to setting button in logs */
+.log-goto-setting {
+  margin-left: 8px;
+  background: none;
+  border: none;
+  color: var(--PrimaryColor, #0078D7);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 4px;
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+.log-goto-setting:hover {
+  background: rgba(0,120,215,0.08);
+}
 :root {
   --PrimaryColor: #0078D7;
   --PrimaryColorLight: #60CDFF;

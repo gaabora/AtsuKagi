@@ -1,11 +1,12 @@
 class LogsController {
-  constructor(hostBridge) {
+  constructor(hostBridge, goToSettingCallback = null) {
     this.hostBridge = hostBridge;
     this._logs = [];
     this._searchQuery = '';
     this._levelFilter = new Set([0, 1, 2, 3, 4]);
     this._showTime = false;
     this._container = null;
+    this._goToSettingCallback = goToSettingCallback;
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────────
@@ -143,6 +144,16 @@ class LogsController {
     text.textContent = entry.text;
     div.appendChild(text);
 
+    // Go to setting button if settingRef exists
+    if (entry.settingRef) {
+      const gotoBtn = document.createElement('button');
+      gotoBtn.className = 'log-goto-setting';
+      gotoBtn.title = 'Go to setting';
+      gotoBtn.textContent = '⚙';
+      gotoBtn.addEventListener('click', () => this._goToSetting(entry.settingRef));
+      div.appendChild(gotoBtn);
+    }
+
     return div;
   }
 
@@ -193,6 +204,26 @@ class LogsController {
     const clearBtn = toolbarEl.querySelector('#logs-clear');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => this.clear());
+    }
+  }
+
+  // ── Navigation lifecycle ──────────────────────────────────────────────────────
+
+  onPageActive() {
+    if (this.hostBridge && typeof this.hostBridge.setLogPageActive === 'function') {
+      this.hostBridge.setLogPageActive(true);
+    }
+  }
+
+  onPageInactive() {
+    if (this.hostBridge && typeof this.hostBridge.setLogPageActive === 'function') {
+      this.hostBridge.setLogPageActive(false);
+    }
+  }
+
+  _goToSetting(settingRef) {
+    if (this._goToSettingCallback) {
+      this._goToSettingCallback(settingRef);
     }
   }
 }
