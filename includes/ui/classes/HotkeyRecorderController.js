@@ -58,7 +58,7 @@ class HotkeyRecorderController {
         statusEl.textContent = 'Recording... press a key combination.';
       }
       if (valueEl) {
-        valueEl.textContent = this.pendingRaw ? this._humanizeAhkHotkey(this.pendingRaw) : '(listening...)';
+        valueEl.textContent = this.pendingRaw ? AK_HumanizeAhkHotkey(this.pendingRaw) : '(listening...)';
       }
 
       this._stopRecording();
@@ -92,7 +92,7 @@ class HotkeyRecorderController {
       statusEl.textContent = 'Recording... press a key combination.';
     }
     if (valueEl) {
-      valueEl.textContent = this.pendingRaw ? this._humanizeAhkHotkey(this.pendingRaw) : '(listening...)';
+      valueEl.textContent = this.pendingRaw ? AK_HumanizeAhkHotkey(this.pendingRaw) : '(listening...)';
     }
 
     this._stopRecording();
@@ -119,7 +119,7 @@ class HotkeyRecorderController {
       statusEl.textContent = 'Captured. Press Apply to use it or keep pressing keys to change.';
     }
     if (valueEl) {
-      valueEl.textContent = this._humanizeAhkHotkey(raw);
+      valueEl.textContent = AK_HumanizeAhkHotkey(raw);
     }
   }
 
@@ -156,7 +156,7 @@ class HotkeyRecorderController {
     if (!input) return;
 
     const txt = (input.value || '').trim();
-    const readable = txt ? this._humanizeAhkHotkey(txt) : '';
+    const readable = txt ? AK_HumanizeAhkHotkey(txt) : '';
     this._setDisplayText(display, readable);
   }
 
@@ -197,7 +197,7 @@ class HotkeyRecorderController {
   _updateElementPreview(input, display) {
     if (!input || !display) return;
     const txt = (input.value || '').trim();
-    this._setDisplayText(display, txt ? this._humanizeAhkHotkey(txt) : '');
+    this._setDisplayText(display, txt ? AK_HumanizeAhkHotkey(txt) : '');
   }
 
   _toAhkHotkey(ev, wildcard, passthrough) {
@@ -236,38 +236,4 @@ class HotkeyRecorderController {
     return prefix + keyName;
   }
 
-  _humanizeAhkHotkey(hk) {
-    if (!hk) return '';
-    let input = hk;
-    const labels = [];
-
-    if (input.indexOf('*') !== -1) {
-      labels.push('Wildcard');
-      input = input.replace(/\*/g, '');
-    }
-    if (input.indexOf('~') !== -1) {
-      labels.push('Passthrough');
-      input = input.replace(/~/g, '');
-    }
-    if (input.indexOf('^') !== -1) {
-      labels.push('Ctrl');
-      input = input.replace(/\^/g, '');
-    }
-    if (input.indexOf('!') !== -1) {
-      labels.push('Alt');
-      input = input.replace(/!/g, '');
-    }
-    if (input.indexOf('+') !== -1) {
-      labels.push('Shift');
-      input = input.replace(/\+/g, '');
-    }
-    if (input.indexOf('#') !== -1) {
-      labels.push('Win');
-      input = input.replace(/#/g, '');
-    }
-
-    const key = input.trim();
-    if (key) labels.push(key);
-    return labels.join(' + ');
-  }
 }

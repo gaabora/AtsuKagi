@@ -499,7 +499,7 @@ class SettingsForm {
         break;
       }
       case 'hotkey': {
-        const readable = this._humanizeHotkey(`${value || ''}`) || 'Assign hotkey';
+        const readable = AK_HumanizeAhkHotkey(`${value || ''}`) || 'Assign hotkey';
         const hotkeyFieldId = isGeneral ? key : `pluginHotkey_${pluginId || 'plugin'}_${key}`.replace(/[^A-Za-z0-9_\-]/g, '_');
         const hotkeyBadgeClass = isGeneral ? 'hotkey-badge-large' : 'hotkey-badge-medium';
         controlHtml = `
@@ -1009,7 +1009,7 @@ class SettingsForm {
   }
 
   _renderActionHotkeyBadge(pluginId, actionName, hotkeyRaw) {
-    const readable = this._humanizeHotkey(hotkeyRaw);
+    const readable = AK_HumanizeAhkHotkey(hotkeyRaw);
     return `
       <button
         type="button"
@@ -1127,41 +1127,6 @@ class SettingsForm {
       hotkeyController.updatePreview('SuspendAppHotkey');
       hotkeyController.updatePluginPreviews();
     }
-  }
-
-  _humanizeHotkey(hk) {
-    if (!hk) return '';
-    let input = hk;
-    const labels = [];
-
-    if (input.indexOf('*') !== -1) {
-      labels.push('Wildcard');
-      input = input.replace(/\*/g, '');
-    }
-    if (input.indexOf('~') !== -1) {
-      labels.push('Passthrough');
-      input = input.replace(/~/g, '');
-    }
-    if (input.indexOf('^') !== -1) {
-      labels.push('Ctrl');
-      input = input.replace(/\^/g, '');
-    }
-    if (input.indexOf('!') !== -1) {
-      labels.push('Alt');
-      input = input.replace(/!/g, '');
-    }
-    if (input.indexOf('+') !== -1) {
-      labels.push('Shift');
-      input = input.replace(/\+/g, '');
-    }
-    if (input.indexOf('#') !== -1) {
-      labels.push('Win');
-      input = input.replace(/#/g, '');
-    }
-
-    const key = input.trim();
-    if (key) labels.push(key);
-    return labels.join(' + ');
   }
 
   _updateTransparencyUI() {

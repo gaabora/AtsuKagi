@@ -6,7 +6,7 @@ This guide helps you create new plugins for Haribol!. Plugins are AutoHotkey v2 
 
 1. Create a file in `plugins/` directory: `MyPlugin.ahk`
 2. Extend `AKPlugin` class with your plugin name
-3. Implement metadata methods (`__ConfigHelp()`, `__UsageHelp()`, `__ActionsHelp()`)
+3. Implement `__DescribePlugin()` metadata descriptor
 4. Add action methods that plugins will call
 5. Test with `app.LoadPlugin("MyPlugin")`
 
@@ -16,25 +16,44 @@ This guide helps you create new plugins for Haribol!. Plugins are AutoHotkey v2 
 #Requires AutoHotkey v2.0
 
 class MyPlugin extends AKPlugin {
-  
-  ; Metadata: describe config keys used by this plugin
-  __ConfigHelp() {
-    return "MyConfigKey (default: 'value'): description of what this controls"
+  ; Canonical metadata entrypoint
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "MyPlugin",
+        "title", "My Plugin",
+        "description", "What this plugin does",
+        "icon", "icons10-puzzle"
+      ),
+      "config", [
+        Map(
+          "key", "MyConfigKey",
+          "label", "My Config Key",
+          "description", "Description of what this controls",
+          "type", "string",
+          "control", "text",
+          "default", "default_value"
+        )
+      ],
+      "actions", [
+        Map(
+          "action", "MyAction",
+          "label", "My action",
+          "description", "Does something useful"
+        ),
+        Map(
+          "action", "MyActionWithArg",
+          "label", "My action with arg",
+          "description", "Does something with params"
+        )
+      ],
+      "settingsPage", Map(
+        "navOrder", 100,
+        "hidden", false
+      )
+    )
   }
-  
-  ; Metadata: one-line usage summary
-  __UsageHelp() {
-    return "What this plugin does and how to use it in one sentence"
-  }
-  
-  ; Metadata: user-callable actions (actions triggered by hotkeys)
-  __ActionsHelp() {
-    texts := Map()
-    texts["MyAction"]         := "MyAction() - does something useful"
-    texts["MyActionWithArg"]  := "MyActionWithArg(param1, param2) - does something with params"
-    return texts
-  }
-  
+ 
   ; Optional: internal hooks that other plugins can listen to
   __HooksHelp() {
     texts := Map()
@@ -77,7 +96,19 @@ class MyPlugin extends AKPlugin {
 }
 ```
 
-## Metadata Methods Explained
+## Metadata Descriptor (Canonical)
+
+### `__DescribePlugin()`
+Returns a descriptor `Map` that defines plugin metadata, config schema, actions, and settings-page behavior.
+
+**Used for:** Settings UI rendering, hotkey validation, action catalog generation, plugin metadata.
+
+---
+
+## Legacy Metadata Helpers (Compatibility)
+
+`__ConfigHelp()`, `__UsageHelp()`, and `__ActionsHelp()` are legacy compatibility helpers.
+Prefer `__DescribePlugin()` for all new plugins.
 
 ### `__ConfigHelp()`
 Returns a string describing all config keys this plugin uses.
@@ -303,7 +334,7 @@ Use these prefixes consistently for clarity:
 
 3. **Handle window context gracefully.** Many actions work on hovered window or active window. Use clear param names: `hwnd:=0` means "0 = active window", not "0 = do nothing".
 
-4. **Document dependencies.** If your plugin requires DLLs, note in `_init()` and `__ConfigHelp()`.
+4. **Document dependencies.** If your plugin requires DLLs, document them in the descriptor and `_init()`.
 
 5. **Respect user blocklists.** Always check `IsWindowBlocklisted()` before modifying windows.
 
@@ -366,7 +397,7 @@ Haribol!/
 - Config values must be stored in `Map()` or use `.Have()` check before accessing via `[key]` syntax.
 
 **Action not appearing in ACTION_CATALOG.md:**
-- Verify action is listed in `__ActionsHelp()` Map with exact name.
+- Verify action is listed in `__DescribePlugin()["actions"]` (or legacy `__ActionsHelp()` if still used).
 - Run ACTION_CATALOG generation step (CI/CD task).
 
 **Blocklist not working:**
@@ -378,7 +409,7 @@ Haribol!/
 ## Next Steps
 
 1. Copy this template and fill in your plugin name
-2. Implement `__ConfigHelp()`, `__UsageHelp()`, `__ActionsHelp()`
+2. Implement `__DescribePlugin()`
 3. Add 1-2 simple actions
 4. Test with app instance
 5. Add to plugins directory
