@@ -169,24 +169,23 @@ class ColorPickerController {
   }
 
   updatePluginSwatches() {
-    // Handle both plugin and general color inputs
+    // Unified color fields: input carries data-color-swatch-id.
+    document.querySelectorAll('input[data-color-swatch-id]').forEach((input) => {
+      const swatchId = input.getAttribute('data-color-swatch-id');
+      const swatch = swatchId ? document.getElementById(swatchId) : null;
+      if (swatch) {
+        this._updatePluginSwatch(swatch, input.value || '');
+      }
+    });
+
+    // Legacy plugin color fields.
     document.querySelectorAll('[data-plugin-color-key]').forEach((input) => {
       this._updatePluginSwatchForInput(input);
-    });
-    document.querySelectorAll('[data-color-swatch-id]').forEach((trigger) => {
-      const swatchId = trigger.getAttribute('data-color-swatch-id');
-      const inputId = trigger.getAttribute('data-color-input-id');
-      if (swatchId && inputId) {
-        const input = document.getElementById(inputId);
-        const swatch = document.getElementById(swatchId);
-        if (swatch && input) {
-          this._updatePluginSwatch(swatch, input.value || '');
-        }
-      }
     });
   }
 
   _updatePluginSwatchForInput(input) {
+    console.log("ASS1")
     if (!input) return;
     const key = input.getAttribute('data-plugin-color-key');
     if (!key) return;
@@ -195,6 +194,8 @@ class ColorPickerController {
   }
 
   _resolveSwatch(input) {
+
+    console.log("ASS2")
     if (!input || input === this.colorInput) return this.smallSwatch;
     const key = input.getAttribute('data-plugin-color-key');
     if (!key) return null;

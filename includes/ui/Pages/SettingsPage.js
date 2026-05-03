@@ -19,6 +19,7 @@ class SettingsPage {
     this._bindSliderRefresh();
     this._bindDevToolsButton();
     this._bindAutoSave();
+    this._bindPluginFieldReset();
     this._bindActionHotkeyRemoval();
     this._bindHotkeyBadgeReset();
   }
@@ -235,6 +236,39 @@ class SettingsPage {
     });
   }
 
+  _bindPluginFieldReset() {
+    document.addEventListener('click', (ev) => {
+      const resetBtn = ev.target.closest('[data-reset-field]');
+      if (!resetBtn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+
+      const section = resetBtn.closest('.settings-section[id^="section-plugin-"]');
+      const sectionId = `${section?.id || ''}`;
+      const pluginId = sectionId.startsWith('section-plugin-') ? sectionId.slice('section-plugin-'.length) : '';
+      const key = `${resetBtn.getAttribute('data-reset-field') || ''}`.trim();
+      const def = `${resetBtn.getAttribute('data-default') || ''}`;
+      if (!pluginId || !key) return;
+
+      const selector = `.plugin-field[data-plugin-id="${CSS.escape(pluginId)}"][data-key="${CSS.escape(key)}"]`;
+      const field = section ? section.querySelector(selector) : document.querySelector(selector);
+      if (!field) return;
+
+      if (field.type === 'checkbox') {
+        field.checked = (def === '1' || def === 'true');
+      } else {
+        field.value = def;
+      }
+
+      field.dispatchEvent(new Event('input'));
+      field.dispatchEvent(new Event('change'));
+
+      if (field.classList.contains('plugin-field-hotkey') && field.id) {
+        this.hotkeyRecorder.updatePreview(field.id);
+      }
+    });
+  }
+
   _applyActionHotkey(actionName, hotkeyRaw, replaceRaw) {
     this.form.assignActionHotkey(actionName, hotkeyRaw, replaceRaw);
     this._refreshActionHotkeys(actionName);
@@ -285,12 +319,47 @@ class SettingsPage {
    */
   applyState(state) {
     this._isApplyingState = true;
+    const t0 = performance.now();
     const prevState = this._lastAppliedState || null;
-    this.form.applyState(state, prevState);
+    const changes = this.form.applyState(state, prevState);
+    const t1 = performance.now();
     // Keep exact incoming AHK payload for DevTools export/import replay.
     this._lastAppliedState = state ? JSON.parse(JSON.stringify(state)) : null;
-    this._bindDynamicGeneralControls();
-    this.refreshUI();
+
+    if (changes.generalSchemaChanged || changes.pluginPagesSchemaChanged) {
+      this._bindDynamicGeneralControls();
+    }
+    if (changes.generalSchemaChanged || changes.generalValuesChanged || changes.pluginPagesSchemaChanged || changes.pluginFieldValuesChanged || changes.hotkeysChanged) {
+      this.refreshUI();
+    }
+    const t2 = performance.now();
+
+    if (this._isVerboseUiDebug(state)) {
+      console.debug('[SettingsUI] applyState timings', {
+        totalMs: Math.round((t2 - t0) * 100) / 100,
+        formApplyMs: Math.round((t1 - t0) * 100) / 100,
+        postApplyMs: Math.round((t2 - t1) * 100) / 100,
+        changes,
+        rowOperations: changes.rowOperations
+      });
+    }
     this._isApplyingState = false;
+  }
+
+  _isVerboseUiDebug(state) {
+    try {
+      const sections = state?.generalPage?.sections || [];
+      for (const section of sections) {
+        for (const field of (section?.fields || [])) {
+          if (`${field?.key || ''}` === 'DebugLevel') {
+            const level = Number(field?.value ?? field?.default ?? 0);
+            return Number.isFinite(level) && level >= 4;
+          }
+        }
+      }
+    } catch (error) {
+      return false;
+    }
+    return false;
   }
 }

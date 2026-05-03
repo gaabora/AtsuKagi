@@ -94,7 +94,24 @@ class SettingsForm {
    * Apply incoming state from AHK to form DOM.
    */
   applyState(state, prevState = null) {
-    if (!state) return;
+    if (!state) return {
+      generalSchemaChanged: false,
+      generalValuesChanged: false,
+      pluginListChanged: false,
+      pluginPagesSchemaChanged: false,
+      pluginFieldValuesChanged: false,
+      hotkeysChanged: false,
+      logsChanged: false,
+      problemsChanged: false,
+      themeChanged: false,
+      titleChanged: false,
+      rowOperations: { adds: 0, replaces: 0, removes: 0 }
+    };
+
+    // Initialize counters for row-level operations during this apply cycle
+    this._rowOpsAdds = 0;
+    this._rowOpsReplaces = 0;
+    this._rowOpsRemoves = 0;
 
     const currentSig = this._buildStateSignatures(state);
     const previousSig = this._buildStateSignatures(prevState || null);
@@ -105,6 +122,10 @@ class SettingsForm {
     const pluginPagesSchemaChanged = currentSig.pluginPagesSchema !== previousSig.pluginPagesSchema;
     const pluginFieldValuesChanged = currentSig.pluginFieldValues !== previousSig.pluginFieldValues;
     const hotkeysChanged = currentSig.hotkeys !== previousSig.hotkeys;
+    const logsChanged = currentSig.logsText !== previousSig.logsText;
+    const problemsChanged = currentSig.problemsText !== previousSig.problemsText;
+    const themeChanged = currentSig.theme !== previousSig.theme;
+    const titleChanged = currentSig.title !== previousSig.title;
 
     try {
       if (state.generalPage && generalSchemaChanged) {
@@ -162,12 +183,12 @@ class SettingsForm {
     }
 
     try {
-      if (currentSig.logsText !== previousSig.logsText) {
+      if (logsChanged) {
         const logsEl = this.dom.getField('logs-content');
         if (logsEl) logsEl.textContent = state.logsText || 'No logs yet.';
       }
 
-      if (currentSig.problemsText !== previousSig.problemsText) {
+      if (problemsChanged) {
         const problemsEl = this.dom.getField('problems-content');
         if (problemsEl) problemsEl.textContent = state.problemsText || 'No problems detected.';
       }
@@ -176,7 +197,7 @@ class SettingsForm {
     }
 
     try {
-      if (currentSig.theme !== previousSig.theme) {
+      if (themeChanged) {
         if (state.theme === 'dark') {
           document.documentElement.setAttribute('data-theme', 'dark');
           document.body.classList.add('dark-theme');
@@ -190,13 +211,33 @@ class SettingsForm {
     }
 
     try {
-      if (currentSig.title !== previousSig.title && state.title) {
+      if (titleChanged && state.title) {
         const titleEl = this.dom.getField('titleText');
         if (titleEl) titleEl.innerText = state.title;
       }
     } catch (error) {
       console.error('Title apply failed', error);
     }
+
+    const rowOperations = {
+      adds: this._rowOpsAdds || 0,
+      replaces: this._rowOpsReplaces || 0,
+      removes: this._rowOpsRemoves || 0
+    };
+
+    return {
+      generalSchemaChanged,
+      generalValuesChanged,
+      pluginListChanged,
+      pluginPagesSchemaChanged,
+      pluginFieldValuesChanged,
+      hotkeysChanged,
+      logsChanged,
+      problemsChanged,
+      themeChanged,
+      titleChanged,
+      rowOperations
+    };
   }
 
   _buildStateSignatures(state) {
@@ -560,8 +601,10 @@ class SettingsForm {
       : '';
 
     if (scope === 'plugin') {
+      const pluginFieldKey = `${key}`;
+      const pluginFieldSig = this._pluginFieldSignature(field);
       return `
-        <div class="setting-row plugin-setting-row">
+        <div class="setting-row plugin-setting-row" data-plugin-field-key="${this._escapeHtml(pluginFieldKey)}" data-plugin-field-sig="${this._escapeHtml(pluginFieldSig)}">
           <div class="plugin-field-meta">
             <label class="field-label">${this._escapeHtml(label)}</label>
             ${description ? `<p class="field-description">${this._escapeHtml(description)}</p>` : ''}
@@ -643,120 +686,291 @@ class SettingsForm {
     const content = document.querySelector('.settings-content');
     if (!nav || !content) return;
 
-    const sortedPages = [...(pages || [])].sort((a, b) => {
+    const sortedPages = [...(pages || [])].filter((page) => page && page.id).sort((a, b) => {
       const ao = Number.isFinite(Number(a?.navOrder)) ? Number(a.navOrder) : 100;
       const bo = Number.isFinite(Number(b?.navOrder)) ? Number(b.navOrder) : 100;
       if (ao !== bo) return ao - bo;
       return String(a?.title || a?.id || '').localeCompare(String(b?.title || b?.id || ''));
     });
 
-    // Re-render safety: remove previously generated plugin pages/nav to avoid duplicates.
-    nav.querySelectorAll('[data-dynamic-plugin="1"]').forEach((el) => el.remove());
-    content.querySelectorAll('[data-dynamic-plugin="1"]').forEach((el) => el.remove());
+    const wantedPageIds = new Set(sortedPages.map((page) => `${page.id}`));
+
+    // Remove obsolete dynamic nav items and sections.
+    nav.querySelectorAll('[data-dynamic-plugin="1"]').forEach((el) => {
+      const sectionName = `${el.getAttribute('data-section') || ''}`;
+      const pageId = sectionName.startsWith('plugin-') ? sectionName.slice(7) : '';
+      if (!wantedPageIds.has(pageId)) {
+        el.remove();
+      }
+    });
+    content.querySelectorAll('[data-dynamic-plugin="1"]').forEach((el) => {
+      const id = `${el.id || ''}`;
+      const pageId = id.startsWith('section-plugin-') ? id.slice('section-plugin-'.length) : '';
+      if (!wantedPageIds.has(pageId)) {
+        el.remove();
+      }
+    });
 
     // Find insertion point: after "Plugins" but before "Hotkeys"
     const pluginsBtn = nav.querySelector('[data-section="plugins"]');
     const hotkeysBtn = nav.querySelector('[data-section="hotkeys"]');
 
-    sortedPages.forEach(page => {
-      if (!page || !page.id) return; //FIXME: find where empty coming from and fix at source instead of silently skipping here.
-      // Create nav item
-      const navItem = document.createElement('button');
-      navItem.className = 'nav-item';
-      navItem.setAttribute('data-section', `plugin-${page.id}`);
-      navItem.setAttribute('data-dynamic-plugin', '1');
-      navItem.innerHTML = `<i class="${this._escapeHtml(page.icon || 'icons10-puzzle')}"></i><span>${this._escapeHtml(page.title || page.id)}</span>`;
-      
-      // Insert nav item after Plugins and before Hotkeys
+    // Keep nav order stable by inserting in reverse before Hotkeys.
+    for (let i = sortedPages.length - 1; i >= 0; i -= 1) {
+      const page = sortedPages[i];
+      const pageId = `${page.id}`;
+      const navSelector = `[data-dynamic-plugin="1"][data-section="plugin-${CSS.escape(pageId)}"]`;
+      let navItem = nav.querySelector(navSelector);
+      if (!navItem) {
+        navItem = document.createElement('button');
+        navItem.className = 'nav-item';
+        navItem.setAttribute('data-section', `plugin-${pageId}`);
+        navItem.setAttribute('data-dynamic-plugin', '1');
+      }
+
+      const navSig = this._signature({ id: pageId, title: page.title || page.id || '', icon: page.icon || 'icons10-puzzle' });
+      if (navItem.dataset.navSig !== navSig) {
+        navItem.innerHTML = `<i class="${this._escapeHtml(page.icon || 'icons10-puzzle')}"></i><span>${this._escapeHtml(page.title || page.id)}</span>`;
+        navItem.dataset.navSig = navSig;
+      }
+
       if (pluginsBtn && hotkeysBtn) {
         pluginsBtn.parentNode.insertBefore(navItem, hotkeysBtn);
       } else if (pluginsBtn) {
         pluginsBtn.parentNode.appendChild(navItem);
       }
+    }
 
-      // Create content section
-      const section = document.createElement('div');
-      section.id = `section-plugin-${page.id}`;
-      section.className = 'settings-section';
-      section.setAttribute('data-dynamic-plugin', '1');
-      
-      // Build section HTML
-      let sectionHtml = `
-        <div class="setting-group">
-          <div class="plugin-page-header">
-            <div class="plugin-header-info">
-              <h2>${this._escapeHtml(page.title || page.id)}</h2>
-              <p class="subtitle">${this._escapeHtml(page.description || '')}</p>
-              ${!page.enabled ? '<div class="plugin-disabled-badge">Plugin is disabled</div>' : ''}
-            </div>
-          </div>
-      `;
-
-      // Add settings groups (sections)
-      if (page.sections && page.sections.length > 0) {
-        page.sections.forEach(sec => {
-          sectionHtml += `<div class="setting-group"><h3>${this._escapeHtml(sec.title || sec.id)}</h3>`;
-          if (sec.fields && sec.fields.length > 0) {
-            sec.fields.forEach(field => {
-              sectionHtml += this._renderField(field, 'plugin', page.id);
-            });
-          }
-          
-          sectionHtml += '</div>';
-        });
+    sortedPages.forEach(page => {
+      const pageId = `${page.id}`;
+      const sectionId = `section-plugin-${pageId}`;
+      let section = document.getElementById(sectionId);
+      if (!section) {
+        section = document.createElement('div');
+        section.id = sectionId;
+        section.className = 'settings-section';
+        section.setAttribute('data-dynamic-plugin', '1');
       }
 
-      // Add actions summary block grouped by category.
-      if (page.actions && page.actions.length > 0) {
-        sectionHtml += this._renderPluginActionsSummary(page.id, page.actions);
-      }
+      this._upsertPluginPage(section, page);
 
-      // Add Reset All button
-      sectionHtml += `
-        <div class="setting-group">
-          <button type="button" class="app-btn app-btn-subtle" data-plugin-reset-all="${page.id}">Reset All</button>
-        </div>
-      `;
-
-      sectionHtml += '</div>';
-      section.innerHTML = sectionHtml;
-
-      // Insert section into content
       content.appendChild(section);
-
-      // Bind per-field reset buttons for this section.
-      section.querySelectorAll('[data-reset-field]').forEach((btn) => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const key = btn.getAttribute('data-reset-field');
-          const def = btn.getAttribute('data-default') || '';
-          const field = section.querySelector(`.plugin-field[data-plugin-id="${page.id}"][data-key="${key}"]`);
-          if (!field) return;
-          if (field.type === 'checkbox') {
-            field.checked = (def === '1' || def === 'true');
-          } else {
-            field.value = def;
-          }
-          if (field.classList.contains('plugin-field-hotkey')) {
-            const display = document.querySelector(`[data-plugin-hotkey-display="${page.id}::${key}"]`);
-            if (display) {
-              display.value = def ? this._humanizeHotkey(def) : '';
-            }
-          }
-          field.dispatchEvent(new Event('input'));
-          field.dispatchEvent(new Event('change'));
-        });
-      });
     });
 
-    // Bind Reset All buttons
-    document.querySelectorAll('[data-plugin-reset-all]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+    if (!this._isPluginResetAllBound) {
+      this._isPluginResetAllBound = true;
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-plugin-reset-all]');
+        if (!btn) return;
         e.preventDefault();
         const pluginId = btn.getAttribute('data-plugin-reset-all');
         this._resetPluginFields(pluginId);
       });
+    }
+  }
+
+  _upsertPluginPage(section, page) {
+    if (!section || !page) return;
+
+    const pageId = `${page.id || ''}`;
+    if (!pageId) return;
+
+    const shell = this._ensurePluginPageShell(section);
+    const headerSig = this._signature({
+      id: pageId,
+      title: page.title || page.id || '',
+      description: page.description || '',
+      enabled: !!page.enabled
     });
+    const sectionsOrderSig = this._signature((page.sections || []).map((sec, idx) => ({
+      id: `${sec?.id || sec?.title || `section-${idx}`}`,
+      title: `${sec?.title || sec?.id || ''}`
+    })));
+    const actionsSig = this._signature(page.actions || []);
+
+    if (shell.header.dataset.sig !== headerSig) {
+      shell.header.innerHTML = this._renderPluginHeaderHtml(page);
+      shell.header.dataset.sig = headerSig;
+    }
+
+    if (shell.sections.dataset.orderSig !== sectionsOrderSig) {
+      shell.sections.dataset.orderSig = sectionsOrderSig;
+    }
+    this._reconcilePluginSections(shell.sections, page);
+
+    if (shell.actions.dataset.sig !== actionsSig) {
+      shell.actions.innerHTML = (page.actions && page.actions.length > 0)
+        ? this._renderPluginActionsSummary(pageId, page.actions)
+        : '';
+      shell.actions.dataset.sig = actionsSig;
+    }
+
+    const resetSig = pageId;
+    if (shell.footer.dataset.sig !== resetSig) {
+      shell.footer.innerHTML = `
+        <div class="setting-group">
+          <button type="button" class="app-btn app-btn-subtle" data-plugin-reset-all="${this._escapeHtml(pageId)}">Reset All</button>
+        </div>
+      `;
+      shell.footer.dataset.sig = resetSig;
+    }
+  }
+
+  _ensurePluginPageShell(section) {
+    let header = section.querySelector(':scope > [data-plugin-slot="header"]');
+    let sections = section.querySelector(':scope > [data-plugin-slot="sections"]');
+    let actions = section.querySelector(':scope > [data-plugin-slot="actions"]');
+    let footer = section.querySelector(':scope > [data-plugin-slot="footer"]');
+
+    if (!header) {
+      header = document.createElement('div');
+      header.setAttribute('data-plugin-slot', 'header');
+      section.appendChild(header);
+    }
+    if (!sections) {
+      sections = document.createElement('div');
+      sections.setAttribute('data-plugin-slot', 'sections');
+      section.appendChild(sections);
+    }
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.setAttribute('data-plugin-slot', 'actions');
+      section.appendChild(actions);
+    }
+    if (!footer) {
+      footer = document.createElement('div');
+      footer.setAttribute('data-plugin-slot', 'footer');
+      section.appendChild(footer);
+    }
+
+    return { header, sections, actions, footer };
+  }
+
+  _renderPluginHeaderHtml(page) {
+    return `
+      <div class="setting-group">
+        <div class="plugin-page-header">
+          <div class="plugin-header-info">
+            <h2>${this._escapeHtml(page.title || page.id)}</h2>
+            <p class="subtitle">${this._escapeHtml(page.description || '')}</p>
+            ${!page.enabled ? '<div class="plugin-disabled-badge">Plugin is disabled</div>' : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  _reconcilePluginSections(container, page) {
+    if (!container) return;
+
+    const sections = page?.sections || [];
+    const wantedIds = new Set();
+
+    sections.forEach((sec, idx) => {
+      const secId = `${sec?.id || sec?.title || `section-${idx}`}`;
+      wantedIds.add(secId);
+    });
+
+    container.querySelectorAll(':scope > .setting-group[data-plugin-section-id]').forEach((el) => {
+      const id = `${el.getAttribute('data-plugin-section-id') || ''}`;
+      if (!wantedIds.has(id)) {
+        el.remove();
+      }
+    });
+
+    sections.forEach((sec, idx) => {
+      const secId = `${sec?.id || sec?.title || `section-${idx}`}`;
+      const selector = `:scope > .setting-group[data-plugin-section-id="${CSS.escape(secId)}"]`;
+      let secEl = container.querySelector(selector);
+      if (!secEl) {
+        secEl = document.createElement('div');
+        secEl.className = 'setting-group';
+        secEl.setAttribute('data-plugin-section-id', secId);
+      }
+
+      let titleEl = secEl.querySelector(':scope > h3[data-role="section-title"]');
+      if (!titleEl) {
+        titleEl = document.createElement('h3');
+        titleEl.setAttribute('data-role', 'section-title');
+        secEl.appendChild(titleEl);
+      }
+      const titleText = `${sec?.title || sec?.id || ''}`;
+      if (titleEl.textContent !== titleText) {
+        titleEl.textContent = titleText;
+      }
+
+      let fieldsHost = secEl.querySelector(':scope > [data-role="section-fields"]');
+      if (!fieldsHost) {
+        fieldsHost = document.createElement('div');
+        fieldsHost.setAttribute('data-role', 'section-fields');
+        secEl.appendChild(fieldsHost);
+      }
+
+      this._reconcilePluginFieldRows(fieldsHost, sec?.fields || [], page.id);
+
+      container.appendChild(secEl);
+    });
+  }
+
+  _pluginFieldSignature(field) {
+    if (!field) return '';
+    return this._signature({
+      key: `${field?.key || ''}`,
+      pluginId: `${field?.pluginId || ''}`,
+      label: `${field?.label || ''}`,
+      description: `${field?.description || ''}`,
+      type: `${field?.type || ''}`,
+      control: `${field?.control || ''}`,
+      default: `${field?.default ?? ''}`,
+      value: `${field?.value ?? ''}`,
+      scope: `${field?.scope || ''}`,
+      validation: field?.validation || {},
+      options: field?.options || []
+    });
+  }
+
+  _reconcilePluginFieldRows(fieldsHost, fields, pageId) {
+    const wantedKeys = new Set();
+    (fields || []).forEach((field, idx) => {
+      const key = `${field?.key || `field-${idx}`}`;
+      wantedKeys.add(key);
+    });
+
+    fieldsHost.querySelectorAll(':scope > .plugin-setting-row[data-plugin-field-key]').forEach((row) => {
+      const key = `${row.getAttribute('data-plugin-field-key') || ''}`;
+      if (!wantedKeys.has(key)) {
+        row.remove();
+        this._rowOpsRemoves = (this._rowOpsRemoves || 0) + 1;
+      }
+    });
+
+    (fields || []).forEach((field, idx) => {
+      const key = `${field?.key || `field-${idx}`}`;
+      const selector = `:scope > .plugin-setting-row[data-plugin-field-key="${CSS.escape(key)}"]`;
+      let row = fieldsHost.querySelector(selector);
+      const nextSig = this._pluginFieldSignature(field);
+
+      if (!row) {
+        row = this._createElementFromHtml(this._renderField(field, 'plugin', pageId));
+        this._rowOpsAdds = (this._rowOpsAdds || 0) + 1;
+      } else {
+        const currentSig = `${row.getAttribute('data-plugin-field-sig') || ''}`;
+        if (currentSig !== nextSig) {
+          const replacement = this._createElementFromHtml(this._renderField(field, 'plugin', pageId));
+          row.replaceWith(replacement);
+          row = replacement;
+          this._rowOpsReplaces = (this._rowOpsReplaces || 0) + 1;
+        }
+      }
+
+      fieldsHost.appendChild(row);
+    });
+  }
+
+  _createElementFromHtml(html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = `${html || ''}`.trim();
+    return tpl.content.firstElementChild;
   }
 
   _renderPluginActionsSummary(pluginId, actions) {
