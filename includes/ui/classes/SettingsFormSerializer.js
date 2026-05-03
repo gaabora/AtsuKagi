@@ -1,46 +1,4 @@
 class SettingsFormSerializer {
-  static encodePluginConfigLines(pluginConfigs) {
-    const lines = [];
-    Object.keys(pluginConfigs || {}).forEach((pluginId) => {
-      const cfg = pluginConfigs[pluginId] || {};
-      Object.keys(cfg).forEach((key) => {
-        const rawValue = cfg[key];
-        const value = typeof rawValue === 'boolean' ? (rawValue ? '1' : '0') : `${rawValue ?? ''}`;
-        lines.push(`${SettingsFormSerializer.escapeLinePart(pluginId)}\t${SettingsFormSerializer.escapeLinePart(key)}\t${SettingsFormSerializer.escapeLinePart(value)}`);
-      });
-    });
-    return lines.join('\n');
-  }
-
-  static encodeGeneralLines(general) {
-    const lines = [];
-    Object.keys(general || {}).forEach((key) => {
-      const rawValue = general[key];
-      const value = typeof rawValue === 'boolean' ? (rawValue ? '1' : '0') : `${rawValue ?? ''}`;
-      lines.push(`${SettingsFormSerializer.escapeLinePart(key)}\t${SettingsFormSerializer.escapeLinePart(value)}`);
-    });
-    return lines.join('\n');
-  }
-
-  static encodeHotkeysLines(hotkeys) {
-    const lines = [];
-    (hotkeys || []).forEach((entry) => {
-      const hotKey = `${entry?.hotKey || ''}`;
-      const action = `${entry?.action || ''}`;
-      if (!hotKey || !action) return;
-      lines.push(`${SettingsFormSerializer.escapeLinePart(hotKey)}\t${SettingsFormSerializer.escapeLinePart(action)}`);
-    });
-    return lines.join('\n');
-  }
-
-  static escapeLinePart(value) {
-    return `${value ?? ''}`
-      .replace(/\\/g, '\\\\')
-      .replace(/\r/g, '\\r')
-      .replace(/\n/g, '\\n')
-      .replace(/\t/g, '\\t');
-  }
-
   static buildStateSignatures(state) {
     if (!state) {
       return {
