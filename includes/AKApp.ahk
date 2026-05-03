@@ -757,6 +757,33 @@ class AKApp extends AKBase {
       this.GUI.ShowSettings()
   }
 
+  _unbindAssignedHotkeyByAction(actionName) {
+    target := Trim("" actionName)
+    if (target = "")
+      return
+
+    toDelete := []
+    for hotkey, hkDef in this._assignedHotkeys {
+      if (!IsObject(hkDef) || !hkDef.Has("action"))
+        continue
+      if ("" hkDef["action"] != target)
+        continue
+      try Hotkey(hotkey, "Off")
+      toDelete.Push(hotkey)
+    }
+
+    for hotkey in toDelete {
+      if (this._assignedHotkeys.Has(hotkey))
+        this._assignedHotkeys.Delete(hotkey)
+    }
+  }
+
+  _rebindControlHotkeys() {
+    this._unbindAssignedHotkeyByAction("ReloadApp")
+    this._unbindAssignedHotkeyByAction("ToggleAppSuspend")
+    this._bindControlHotkeys()
+  }
+
   _bindControlHotkeys() {
     actionName := 'ReloadApp'
     if (!this.AvailableActions.Has(actionName))
@@ -960,6 +987,287 @@ class AKApp extends AKBase {
 
     cfg.Save()
     this.ApplySettings(oldDisabledPlugins)
+  }
+
+  _jsonAtomicResult(ok := true, error := "", extra := 0) {
+    result := Map("ok", !!ok)
+    if (!ok && error != "")
+      result["error"] := "" error
+    if (IsObject(extra) && extra is Map) {
+      for k, v in extra {
+        result[k] := v
+      }
+    }
+    return AK_ToJson(result)
+  }
+
+  _parseAtomicValue(payload) {
+    payloadText := "" payload
+    try return AK_JsonParse(payloadText)
+    catch {
+      return payloadText
+    }
+  }
+
+  _findPluginInstanceById(pluginId) {
+    pluginIdText := Trim("" pluginId)
+    if (pluginIdText = "")
+      return 0
+
+    if (this._addedLibs.Has(pluginIdText))
+      return this._addedLibs[pluginIdText]
+
+    for className, instance in this._addedLibs {
+      desc := instance.__GetPluginDescriptor()
+      if (desc && desc.Has("plugin") && desc["plugin"].Has("id") && ("" desc["plugin"]["id"] = pluginIdText))
+        return instance
+    }
+    return 0
+  }
+
+  SaveGeneralSetting(key, valuePayload) {
+    keyText := Trim("" key)
+    if (keyText = "")
+      return this._jsonAtomicResult(false, "Missing key")
+
+    typeIndex := this._buildGeneralTypeIndex()
+    if (!typeIndex.Has(keyText))
+      return this._jsonAtomicResult(false, "Unknown [GENERAL] key: " keyText)
+
+    try {
+      rawValue := this._parseAtomicValue(valuePayload)
+      valueType := typeIndex[keyText]
+      coercedValue := this._coerceConfigValue(rawValue, valueType, true)
+      this.Config.GENERAL.%keyText% := coercedValue
+      this.Config.Save()
+
+      if (keyText = "DebugLevel") {
+        debugLevel := Integer(coercedValue)
+        this.Debug(debugLevel)
+        for className, libObj in this._addedLibs {
+          libObj.Debug(debugLevel)
+        }
+      } else if (keyText = "DarkTheme") {
+        this.GUI.ApplyThemeMode()
+      } else if (keyText = "ReloadAppHotkey" || keyText = "SuspendAppHotkey") {
+        this._rebindControlHotkeys()
+      }
+
+      return this._jsonAtomicResult(true)
+    } catch as err {
+      return this._jsonAtomicResult(false, err.Message)
+    }
+  }
+
+  SavePluginSetting(pluginId, key, valuePayload) {
+    pluginIdText := Trim("" pluginId)
+    keyText := Trim("" key)
+    if (pluginIdText = "" || keyText = "")
+      return this._jsonAtomicResult(false, "Missing pluginId or key")
+
+    try {
+      typeIndex := this._buildPluginTypeIndex()
+      pluginTypes := typeIndex.Has(pluginIdText) ? typeIndex[pluginIdText] : 0
+      valueType := (pluginTypes && pluginTypes.Has(keyText)) ? pluginTypes[keyText] : "string"
+
+      if (!this.Config.Has(pluginIdText))
+        this.Config[pluginIdText] := {}
+
+      rawValue := this._parseAtomicValue(valuePayload)
+      coercedValue := this._coerceConfigValue(rawValue, valueType, false)
+      this.Config[pluginIdText][keyText] := coercedValue
+      this.Config.Save()
+
+      pluginInstance := this._findPluginInstanceById(pluginIdText)
+      if (pluginInstance && HasMethod(pluginInstance, "OnConfigChanged")) {
+        try pluginInstance.OnConfigChanged(keyText, coercedValue)
+      }
+
+      return this._jsonAtomicResult(true)
+    } catch as err {
+      return this._jsonAtomicResult(false, err.Message)
+    }
+  }
+
+  _hotkeyEntriesFromConfig() {
+    entries := []
+    if (!this.Config.Has("HOTKEYS"))
+      this.Config.HOTKEYS := Map()
+
+    for hk, actionText in this.Config.HOTKEYS {
+      entries.Push(Map("hotKey", "" hk, "action", "" actionText))
+    }
+    return entries
+  }
+
+  _saveHotkeyEntries(entries) {
+    parsed := Map()
+    for entry in entries {
+      hk := entry.Has("hotKey") ? Trim("" entry["hotKey"]) : ""
+      actionText := entry.Has("action") ? Trim("" entry["action"]) : ""
+      if (!hk || !actionText)
+        continue
+      parsed[hk] := actionText
+    }
+    this.Config.HOTKEYS := parsed
+  }
+
+  _unbindAssignedHotkeyByRaw(hotKey) {
+    hotKeyText := Trim("" hotKey)
+    if (!hotKeyText)
+      return
+
+    universal := convertToUniversalVkHotkey(hotKeyText)
+    try Hotkey(universal, "Off")
+    if (this._assignedHotkeys.Has(universal))
+      this._assignedHotkeys.Delete(universal)
+  }
+
+  _validateHotkeyEntry(hotKey, actionText, entries, ignoreIndex := -1) {
+    problems := []
+    hk := Trim("" hotKey)
+    actionStr := Trim("" actionText)
+
+    if (!hk)
+      problems.Push("Hotkey cannot be empty")
+    if (!actionStr)
+      problems.Push("Action cannot be empty")
+
+    if (actionStr) {
+      actionInfo := this._parseActionInfo(actionStr)
+      if (actionInfo.fnName = "") {
+        problems.Push("Action cannot be empty")
+      } else if (!this._actionExists(actionInfo.fnName)) {
+        problems.Push("Unknown action: " actionInfo.fnName)
+      }
+    }
+
+    if (hk) {
+      hkUniversal := convertToUniversalVkHotkey(hk)
+      for idx, entry in entries {
+        if ((idx - 1) = ignoreIndex)
+          continue
+        existing := entry.Has("hotKey") ? Trim("" entry["hotKey"]) : ""
+        if (!existing)
+          continue
+        if (convertToUniversalVkHotkey(existing) = hkUniversal) {
+          problems.Push("Duplicate hotkey: " hk)
+          break
+        }
+      }
+    }
+
+    return problems
+  }
+
+  SaveHotkey(index, hotKey, action) {
+    try idx := Integer(index)
+    catch {
+      return this._jsonAtomicResult(false, "Invalid hotkey index")
+    }
+
+    entries := this._hotkeyEntriesFromConfig()
+    if (idx < 0 || idx >= entries.Length)
+      return this._jsonAtomicResult(false, "Hotkey index out of range")
+
+    problems := this._validateHotkeyEntry(hotKey, action, entries, idx)
+    if (problems.Length > 0)
+      return this._jsonAtomicResult(false, "Hotkey validation failed", Map("problems", problems))
+
+    oldEntry := entries[idx + 1]
+    runHotkeyActionFn := this._runHotkeyAction.bind(this)
+
+    this._unbindAssignedHotkeyByRaw(oldEntry["hotKey"])
+    bindResult := this.BindHotkey(hotKey, runHotkeyActionFn, action)
+    if (bindResult != 0) {
+      ; restore previous binding if replacement failed
+      if (oldEntry.Has("hotKey") && oldEntry.Has("action") && oldEntry["hotKey"] != "" && oldEntry["action"] != "")
+        this.BindHotkey(oldEntry["hotKey"], runHotkeyActionFn, oldEntry["action"])
+      return this._jsonAtomicResult(false, "Hotkey bind failed", Map("problems", ["" bindResult]))
+    }
+
+    entries[idx + 1] := Map("hotKey", "" hotKey, "action", "" action)
+    this._saveHotkeyEntries(entries)
+    this.Config.Save()
+    return this._jsonAtomicResult(true, "", Map("problems", []))
+  }
+
+  RemoveHotkey(index) {
+    try idx := Integer(index)
+    catch {
+      return this._jsonAtomicResult(false, "Invalid hotkey index")
+    }
+
+    entries := this._hotkeyEntriesFromConfig()
+    if (idx < 0 || idx >= entries.Length)
+      return this._jsonAtomicResult(false, "Hotkey index out of range")
+
+    oldEntry := entries[idx + 1]
+    this._unbindAssignedHotkeyByRaw(oldEntry["hotKey"])
+    entries.RemoveAt(idx + 1)
+
+    this._saveHotkeyEntries(entries)
+    this.Config.Save()
+    return this._jsonAtomicResult(true, "", Map("problems", []))
+  }
+
+  AddHotkey(hotKey, action) {
+    entries := this._hotkeyEntriesFromConfig()
+    problems := this._validateHotkeyEntry(hotKey, action, entries, -1)
+    if (problems.Length > 0)
+      return this._jsonAtomicResult(false, "Hotkey validation failed", Map("problems", problems))
+
+    runHotkeyActionFn := this._runHotkeyAction.bind(this)
+    bindResult := this.BindHotkey(hotKey, runHotkeyActionFn, action)
+    if (bindResult != 0)
+      return this._jsonAtomicResult(false, "Hotkey bind failed", Map("problems", ["" bindResult]))
+
+    entries.Push(Map("hotKey", "" hotKey, "action", "" action))
+    this._saveHotkeyEntries(entries)
+    this.Config.Save()
+    return this._jsonAtomicResult(true, "", Map("problems", []))
+  }
+
+  TogglePlugin(pluginId, enabled) {
+    pluginIdText := Trim("" pluginId)
+    if (pluginIdText = "")
+      return this._jsonAtomicResult(false, "Missing pluginId")
+
+    enabledText := Trim("" enabled)
+    enabledBool := (enabled = true || enabledText = "1" || enabledText = "true")
+
+    disabledPlugins := []
+    seen := Map()
+    for name in this._getDisabledPlugins() {
+      nameText := Trim("" name)
+      if (nameText = "" || seen.Has(nameText))
+        continue
+      seen[nameText] := true
+      disabledPlugins.Push(nameText)
+    }
+
+    nextDisabled := []
+    for name in disabledPlugins {
+      if (enabledBool && name = pluginIdText)
+        continue
+      nextDisabled.Push(name)
+    }
+
+    if (!enabledBool && !ArrayContains(nextDisabled, pluginIdText))
+      nextDisabled.Push(pluginIdText)
+
+    this.Config.GENERAL.DisabledPlugins := Join(nextDisabled, ",")
+    this.Config.Save()
+
+    availablePlugins := this._getAvailablePlugins()
+    requiredPlugins := []
+    for pluginName in availablePlugins {
+      if (!ArrayContains(nextDisabled, pluginName))
+        requiredPlugins.Push(pluginName)
+    }
+    this._generateDynamicPlugins(requiredPlugins)
+
+    return this._jsonAtomicResult(true, "", Map("requiresReload", true))
   }
 
   _applyGeneralConfigObject(generalObj) {

@@ -57,6 +57,12 @@ class AKGui extends AKBase {
 
     ; Register JS → AHK callbacks
     nw.AddCallbackToScript("SaveSettingsJson", (wv, payload:="") => this._saveSettingsJson(payload))
+    nw.AddCallbackToScript("SaveGeneralSetting", (wv, key:="", value:="") => this._saveGeneralSetting(key, value))
+    nw.AddCallbackToScript("SavePluginSetting", (wv, pluginId:="", key:="", value:="") => this._savePluginSetting(pluginId, key, value))
+    nw.AddCallbackToScript("SaveHotkey", (wv, index:=0, hotKey:="", action:="") => this._saveHotkey(index, hotKey, action))
+    nw.AddCallbackToScript("RemoveHotkey", (wv, index:=0) => this._removeHotkey(index))
+    nw.AddCallbackToScript("AddHotkey", (wv, hotKey:="", action:="") => this._addHotkey(hotKey, action))
+    nw.AddCallbackToScript("TogglePlugin", (wv, pluginId:="", enabled:=1) => this._togglePlugin(pluginId, enabled))
     nw.AddCallbackToScript("CloseSettings", (wv, *) => this._closeSettings())
     nw.AddCallbackToScript("BrowseForFile", (wv, currentPath:="") => this._browseForFile(currentPath))
     nw.AddCallbackToScript("OpenDevTools", (wv, *) => this._openDevTools())
@@ -142,6 +148,30 @@ class AKGui extends AKBase {
     if (this._settingsGui != 0) {
       this._populateSettingsPage(this._settingsGui)
     }
+  }
+
+  _saveGeneralSetting(key, value) {
+    return this.App.SaveGeneralSetting(key, value)
+  }
+
+  _savePluginSetting(pluginId, key, value) {
+    return this.App.SavePluginSetting(pluginId, key, value)
+  }
+
+  _saveHotkey(index, hotKey, action) {
+    return this.App.SaveHotkey(index, hotKey, action)
+  }
+
+  _removeHotkey(index) {
+    return this.App.RemoveHotkey(index)
+  }
+
+  _addHotkey(hotKey, action) {
+    return this.App.AddHotkey(hotKey, action)
+  }
+
+  _togglePlugin(pluginId, enabled) {
+    return this.App.TogglePlugin(pluginId, enabled)
   }
 
   _openDevTools() {

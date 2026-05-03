@@ -194,6 +194,9 @@ class AKPlugin extends AKBase {
   _init() {
   }
 
+  OnConfigChanged(key, value) {
+  }
+
   ; ── Helper: Convert PascalCase to "Sentence case" ──────────────────────────────
   _beautifyActionName(fnName) {
     ; Convert "EnterWindowMovingMode" to "Enter window moving mode"

@@ -6,7 +6,7 @@ class SettingsPage {
     this.colorPicker = new ColorPickerController(this.dom);
     this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw));
     this._isApplyingState = false;
-    this._autoSaveTimer = 0;
+    this._fieldSaveTimers = new Map();
     this.init();
   }
 
@@ -18,7 +18,7 @@ class SettingsPage {
     this._bindHotkeyRecorderDialog();
     this._bindSliderRefresh();
     this._bindDevToolsButton();
-    this._bindAutoSave();
+    this._bindAtomicAutoSave();
     this._bindPluginFieldReset();
     this._bindActionHotkeyRemoval();
     this._bindHotkeyBadgeReset();
@@ -41,9 +41,24 @@ class SettingsPage {
     }
   }
 
-  _bindAutoSave() {
+  _bindAtomicAutoSave() {
     const contentRoot = document.querySelector('.settings-content');
     if (!contentRoot) return;
+
+    const trackCurrentValue = (el) => {
+      if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement || el instanceof HTMLTextAreaElement)) return;
+      if (el.type === 'checkbox') {
+        el.dataset.prevValue = el.checked ? '1' : '0';
+      } else {
+        el.dataset.prevValue = `${el.value ?? ''}`;
+      }
+    };
+
+    contentRoot.addEventListener('focusin', (ev) => {
+      const target = ev.target;
+      if (!target) return;
+      trackCurrentValue(target);
+    });
 
     const onChange = (ev) => {
       if (this._isApplyingState) return;
@@ -51,10 +66,118 @@ class SettingsPage {
       if (!target) return;
       if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement))
         return;
-      this._scheduleAutoSave();
+
+      const pluginCheckbox = target.matches('#plugins-list input[type="checkbox"][id^="plugin_"]');
+      if (pluginCheckbox) {
+        this._schedulePluginToggleSave(target);
+        return;
+      }
+
+      if (target.classList.contains('general-field')) {
+        this._scheduleGeneralFieldSave(target);
+        return;
+      }
+
+      if (target.classList.contains('plugin-field')) {
+        this._schedulePluginFieldSave(target);
+      }
     };
 
     contentRoot.addEventListener('change', onChange);
+  }
+
+  _scheduleFieldSave(saveKey, callback, delayMs = 350) {
+    if (this._fieldSaveTimers.has(saveKey)) {
+      clearTimeout(this._fieldSaveTimers.get(saveKey));
+    }
+    const timer = setTimeout(() => {
+      this._fieldSaveTimers.delete(saveKey);
+      callback();
+    }, delayMs);
+    this._fieldSaveTimers.set(saveKey, timer);
+  }
+
+  _readFieldValue(el) {
+    if (!el) return '';
+    if (el.type === 'checkbox') return !!el.checked;
+    return `${el.value ?? ''}`;
+  }
+
+  _readPreviousFieldValue(el) {
+    if (!el) return '';
+    if (Object.prototype.hasOwnProperty.call(el.dataset, 'prevValue')) {
+      if (el.type === 'checkbox') return el.dataset.prevValue === '1';
+      return el.dataset.prevValue;
+    }
+    if (el.type === 'checkbox') return !el.checked;
+    return '';
+  }
+
+  _writeFieldValue(el, value) {
+    if (!el) return;
+    if (el.type === 'checkbox') {
+      el.checked = !!value;
+      el.dataset.prevValue = el.checked ? '1' : '0';
+      return;
+    }
+    el.value = `${value ?? ''}`;
+    el.dataset.prevValue = `${el.value ?? ''}`;
+  }
+
+  _scheduleGeneralFieldSave(target) {
+    const key = `${target.getAttribute('data-key') || ''}`.trim();
+    if (!key) return;
+
+    const value = this._readFieldValue(target);
+    const previousValue = this._readPreviousFieldValue(target);
+
+    this._scheduleFieldSave(`general:${key}`, () => {
+      const result = this.hostBridge.saveGeneralSetting(key, value);
+      if (!result?.ok) {
+        this._writeFieldValue(target, previousValue);
+        console.error('Failed to save general setting', { key, error: result?.error || 'Unknown error' });
+        return;
+      }
+      this._writeFieldValue(target, value);
+    });
+  }
+
+  _schedulePluginFieldSave(target) {
+    const pluginId = `${target.getAttribute('data-plugin-id') || ''}`.trim();
+    const key = `${target.getAttribute('data-key') || ''}`.trim();
+    if (!pluginId || !key) return;
+
+    const value = this._readFieldValue(target);
+    const previousValue = this._readPreviousFieldValue(target);
+
+    this._scheduleFieldSave(`plugin:${pluginId}:${key}`, () => {
+      const result = this.hostBridge.savePluginSetting(pluginId, key, value);
+      if (!result?.ok) {
+        this._writeFieldValue(target, previousValue);
+        console.error('Failed to save plugin setting', { pluginId, key, error: result?.error || 'Unknown error' });
+        return;
+      }
+      this._writeFieldValue(target, value);
+    });
+  }
+
+  _schedulePluginToggleSave(target) {
+    const id = `${target.id || ''}`;
+    const pluginId = id.startsWith('plugin_') ? id.slice('plugin_'.length) : '';
+    if (!pluginId) return;
+
+    const enabled = !!target.checked;
+    const previousValue = this._readPreviousFieldValue(target);
+
+    this._scheduleFieldSave(`plugin-toggle:${pluginId}`, () => {
+      const result = this.hostBridge.togglePlugin(pluginId, enabled);
+      if (!result?.ok) {
+        this._writeFieldValue(target, previousValue);
+        console.error('Failed to toggle plugin', { pluginId, error: result?.error || 'Unknown error' });
+        return;
+      }
+      this._writeFieldValue(target, enabled);
+    });
   }
 
   _bindNavigation() {
@@ -107,6 +230,7 @@ class SettingsPage {
       if (selected) {
         txt.value = selected;
         txt.title = selected;
+        txt.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
 
@@ -114,6 +238,7 @@ class SettingsPage {
       if (picker.files && picker.files.length > 0) {
         txt.value = picker.files[0].name;
         txt.title = picker.files[0].name;
+        txt.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
   }
@@ -210,7 +335,7 @@ class SettingsPage {
       this.form.removeHotkeyByRaw(raw);
       this._refreshActionHotkeys(actionName);
       this.form._renderHotkeys(this.form._hotkeyEntries);
-      this._scheduleAutoSave();
+      this._scheduleFieldSave('hotkeys:full-save', () => this._saveSettings());
     });
   }
 
@@ -232,7 +357,7 @@ class SettingsPage {
       field.dispatchEvent(new Event('input'));
       field.dispatchEvent(new Event('change'));
       this.hotkeyRecorder.updatePreview(fieldId);
-      this._scheduleAutoSave();
+      this._scheduleFieldSave('hotkeys:full-save', () => this._saveSettings());
     });
   }
 
@@ -273,7 +398,7 @@ class SettingsPage {
     this.form.assignActionHotkey(actionName, hotkeyRaw, replaceRaw);
     this._refreshActionHotkeys(actionName);
     this.form._renderHotkeys(this.form._hotkeyEntries);
-    this._scheduleAutoSave();
+    this._scheduleFieldSave('hotkeys:full-save', () => this._saveSettings());
   }
 
   _refreshActionHotkeys(actionName) {
@@ -292,16 +417,6 @@ class SettingsPage {
 
       host.innerHTML = hotkeys.map((hk) => this.form._renderActionHotkeyBadge(pluginId, wanted, hk)).join('');
     });
-  }
-
-  _scheduleAutoSave() {
-    if (this._autoSaveTimer) {
-      clearTimeout(this._autoSaveTimer);
-    }
-    this._autoSaveTimer = setTimeout(() => {
-      this._autoSaveTimer = 0;
-      this._saveSettings();
-    }, 350);
   }
 
   _saveSettings() {

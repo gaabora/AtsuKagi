@@ -158,8 +158,8 @@ class ColorPickerController {
     const activeInput = this.targetInput || this.colorInput;
     if (hex6 && activeInput) {
       activeInput.value = '0x' + hex6;
-      activeInput.dispatchEvent(new Event('input'));
-      activeInput.dispatchEvent(new Event('change'));
+      activeInput.dispatchEvent(new Event('input', { bubbles: true }));
+      activeInput.dispatchEvent(new Event('change', { bubbles: true }));
       if (activeInput === this.colorInput) {
         this._updateMainSwatch(activeInput.value);
       } else {

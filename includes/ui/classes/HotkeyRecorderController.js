@@ -140,8 +140,8 @@ class HotkeyRecorderController {
     if (!input || !this.pendingRaw) return;
 
     input.value = this.pendingRaw;
-    input.dispatchEvent(new Event('input'));
-    input.dispatchEvent(new Event('change'));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
     this._stopRecording();
     if (this.targetId) {
       this.updatePreview(this.targetId);

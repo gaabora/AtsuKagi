@@ -7,7 +7,7 @@
 Every setting change follows this heavy cycle:
 
 1. User edits one field → 350ms debounce fires
-2. `SettingsForm.serializeObject()` serializes **entire form** (all general settings, all plugin configs, all hotkeys)
+2. `ЫуеештпыАщкь.serializeObject()` serializes **entire form** (all general settings, all plugin configs, all hotkeys)
 3. `hostBridge.saveSettings(fullPayload)` sends full JSON to AHK
 4. AHK `ApplySettingsPayload()` re-applies **all** general, plugin, and hotkey configs
 5. `cfg.Save()` writes **entire** config.ini
@@ -60,7 +60,7 @@ Registered in AKGui via `nw.AddCallbackToScript(...)`.
 **`SaveGeneralSetting(key, value)`:**
 - Type-coerce using existing `_coerceConfigValue()` with schema lookup
 - Write only `Config.GENERAL[key] := value`
-- `cfg.Save()` (still full file write — IniFile doesn't support partial, acceptable for now)
+- `cfg.Save()` (still full file write — IniFile doesn't support partial, acceptable for now) //TODO: make ini file support partial writes later
 - Apply only the relevant side effect:
   - `DebugLevel` → call `this.Debug(value)`
   - `DarkTheme` → call `GUI.ApplyThemeMode()`
@@ -114,7 +114,7 @@ togglePlugin(pluginId, enabled)        → host.TogglePlugin(pluginId, enabled ?
 - On hotkey delete → `hostBridge.removeHotkey(index)`
 - On hotkey add → `hostBridge.addHotkey(hotKey, action)`
 - On plugin toggle → `hostBridge.togglePlugin(pluginId, enabled)`
-- Keep debounce (350ms) per field, but scope it per-field, not global
+- Keep debounce (350ms) per field, but scope it per-field, not global //TODO: make time configurable later
 
 **Remove full-form serialize path:**
 - Remove `SettingsForm.serializeObject()` call from auto-save
@@ -134,7 +134,7 @@ For hotkeys specifically, AHK returns validation problems inline, so JS can show
 
 1. Implement new atomic callbacks in AHK alongside existing `SaveSettingsJson`
 2. Update JS to use atomic calls for individual field changes
-3. Keep `SaveSettingsJson` as fallback (remove later when stable)
+3. Keep `SaveSettingsJson` as fallback (remove later when stable) //TODO: remove later
 4. Test that individual saves work correctly
 5. Remove the full-serialize auto-save path
 
@@ -166,7 +166,6 @@ logEntry := Map(
   "id",    AKBase._nextLogId++,   ; auto-increment, for stable DOM diffing
   "time",  FormatTime(, "yyyy-MM-dd HH:mm:ss"),
   "level", level,                 ; 0=ERROR, 1=WARNING, 2=NOTICE, 3=INFO, 4+=DEBUG
-  "levelStr", levelStr,           ; "ERROR", "WARNING", etc.
   "text",  line,                  ; the message text
   "source", source,               ; optional: plugin name or "core" or "hotkeys"
   "settingRef", settingRef        ; optional: Map("section","GENERAL","key","DebugLevel") for "go to setting"
@@ -320,9 +319,9 @@ class LogsController {
 Each log line is a DOM element:
 
 ```html
-<div class="log-line log-level-{levelStr}" data-log-id="{id}">
+<div class="log-line log-level-{LOG_LEVEL_DISPLAY(level)}" data-log-id="{id}">
   <span class="log-time" style="display:none">{time}</span>
-  <span class="log-level-badge">{levelStr}</span>
+  <span class="log-level-badge">{LOG_LEVEL_DISPLAY(level)}</span>
   <span class="log-text">{text}</span>
   <button class="log-goto-setting" data-section="{section}" data-key="{key}" title="Go to setting">⚙</button>
   <!-- goto button only shown if entry has settingRef -->
