@@ -320,6 +320,12 @@ class SettingsPage {
     this._bindDevToolsButton();
   }
 
+  _findHotkeyIndexByRaw(hotkeyRaw) {
+    const raw = `${hotkeyRaw || ''}`.trim();
+    if (!raw) return -1;
+    return this.form._hotkeyEntries.findIndex((entry) => `${entry.hotKey || ''}`.trim() === raw);
+  }
+
   _bindActionHotkeyRemoval() {
     document.addEventListener('click', (ev) => {
       const removeBtn = ev.target.closest('[data-action-hotkey-remove]');
@@ -332,10 +338,21 @@ class SettingsPage {
       const actionItem = removeBtn.closest('.plugin-action-item');
       const actionName = `${actionItem?.getAttribute('data-action-name') || ''}`.trim();
 
+      const idx = this._findHotkeyIndexByRaw(raw);
+      if (idx === -1) {
+        console.warn('Hotkey not found in local entries, skipping atomic remove', { raw });
+        return;
+      }
+
+      const result = this.hostBridge.removeHotkey(idx);
+      if (!result?.ok) {
+        console.error('Failed to remove hotkey', { raw, error: result?.error });
+        return;
+      }
+
       this.form.removeHotkeyByRaw(raw);
       this._refreshActionHotkeys(actionName);
       this.form._renderHotkeys(this.form._hotkeyEntries);
-      this._scheduleFieldSave('hotkeys:full-save', () => this._saveSettings());
     });
   }
 
@@ -354,10 +371,10 @@ class SettingsPage {
       if (!field) return;
 
       field.value = def;
-      field.dispatchEvent(new Event('input'));
-      field.dispatchEvent(new Event('change'));
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      field.dispatchEvent(new Event('change', { bubbles: true }));
       this.hotkeyRecorder.updatePreview(fieldId);
-      this._scheduleFieldSave('hotkeys:full-save', () => this._saveSettings());
+      // change event with bubbles:true is caught by atomic autosave handler
     });
   }
 
@@ -385,8 +402,8 @@ class SettingsPage {
         field.value = def;
       }
 
-      field.dispatchEvent(new Event('input'));
-      field.dispatchEvent(new Event('change'));
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      field.dispatchEvent(new Event('change', { bubbles: true }));
 
       if (field.classList.contains('plugin-field-hotkey') && field.id) {
         this.hotkeyRecorder.updatePreview(field.id);
@@ -395,10 +412,37 @@ class SettingsPage {
   }
 
   _applyActionHotkey(actionName, hotkeyRaw, replaceRaw) {
-    this.form.assignActionHotkey(actionName, hotkeyRaw, replaceRaw);
+    const newRaw = `${hotkeyRaw || ''}`.trim();
+    const replaceWith = `${replaceRaw || ''}`.trim();
+    if (!newRaw) return;
+
+    let result;
+    if (replaceWith) {
+      const idx = this._findHotkeyIndexByRaw(replaceWith);
+      if (idx !== -1) {
+        result = this.hostBridge.saveHotkey(idx, newRaw, actionName);
+      } else {
+        result = this.hostBridge.addHotkey(newRaw, actionName);
+      }
+    } else {
+      const existingIdx = this.form._hotkeyEntries.findIndex(
+        (e) => this.form._extractActionName(e.action) === actionName
+      );
+      if (existingIdx !== -1) {
+        result = this.hostBridge.saveHotkey(existingIdx, newRaw, actionName);
+      } else {
+        result = this.hostBridge.addHotkey(newRaw, actionName);
+      }
+    }
+
+    if (!result?.ok) {
+      console.error('Failed to save action hotkey', { actionName, hotkeyRaw: newRaw, error: result?.error });
+      return;
+    }
+
+    this.form.assignActionHotkey(actionName, newRaw, replaceWith);
     this._refreshActionHotkeys(actionName);
     this.form._renderHotkeys(this.form._hotkeyEntries);
-    this._scheduleFieldSave('hotkeys:full-save', () => this._saveSettings());
   }
 
   _refreshActionHotkeys(actionName) {
