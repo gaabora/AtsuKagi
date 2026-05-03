@@ -57,6 +57,7 @@ class AKGui extends AKBase {
 
     ; Register JS → AHK callbacks
     nw.AddCallbackToScript("SaveSettings", (wv, generalEncoded:="", disabledPlugins:="", pluginConfigEncoded:="", hotkeysEncoded:="") => this._saveSettings(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded))
+    nw.AddCallbackToScript("SaveSettingsJson", (wv, payload:="") => this._saveSettingsJson(payload))
     nw.AddCallbackToScript("CloseSettings", (wv, *) => this._closeSettings())
     nw.AddCallbackToScript("BrowseForFile", (wv, currentPath:="") => this._browseForFile(currentPath))
     nw.AddCallbackToScript("OpenDevTools", (wv, *) => this._openDevTools())
@@ -139,6 +140,13 @@ class AKGui extends AKBase {
 
   _saveSettings(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded:="") {
     this.App.ApplyEncodedSettings(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded)
+    if (this._settingsGui != 0) {
+      this._populateSettingsPage(this._settingsGui)
+    }
+  }
+
+  _saveSettingsJson(payload) {
+    this.App.ApplySettingsPayload(payload)
     if (this._settingsGui != 0) {
       this._populateSettingsPage(this._settingsGui)
     }

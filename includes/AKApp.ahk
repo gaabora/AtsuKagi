@@ -945,6 +945,81 @@ class AKApp extends AKBase {
     this.ApplySettings(oldDisabledPlugins)
   }
 
+  ApplySettingsPayload(jsonPayload) {
+    payloadText := "" jsonPayload
+    if (Trim(payloadText) = "")
+      return
+
+    try payload := AK_JsonParse(payloadText)
+    catch as err {
+      this.outputDebugLine("Invalid JSON settings payload: " err.Message, 1)
+      return
+    }
+
+    if (!IsObject(payload) || !(payload is Map)) {
+      this.outputDebugLine("Invalid settings payload object", 1)
+      return
+    }
+
+    generalEncoded := ""
+    if (payload.Has("general") && IsObject(payload["general"]) && payload["general"] is Map) {
+      for key, rawValue in payload["general"] {
+        value := (rawValue = true) ? "1" : ((rawValue = false) ? "0" : "" rawValue)
+        generalEncoded .= this._encodeEscapedLinePart(key) "`t" this._encodeEscapedLinePart(value) "`n"
+      }
+      generalEncoded := RTrim(generalEncoded, "`n")
+    }
+
+    disabledCsv := ""
+    if (payload.Has("disabledPlugins") && payload["disabledPlugins"] is Array) {
+      parts := []
+      for item in payload["disabledPlugins"] {
+        name := Trim("" item)
+        if (name != "")
+          parts.Push(name)
+      }
+      disabledCsv := Join(parts, ",")
+    }
+
+    pluginEncoded := ""
+    if (payload.Has("pluginConfigs") && IsObject(payload["pluginConfigs"]) && payload["pluginConfigs"] is Map) {
+      for pluginId, cfgObj in payload["pluginConfigs"] {
+        if (!IsObject(cfgObj) || !(cfgObj is Map))
+          continue
+        for key, rawValue in cfgObj {
+          value := (rawValue = true) ? "1" : ((rawValue = false) ? "0" : "" rawValue)
+          pluginEncoded .= this._encodeEscapedLinePart(pluginId) "`t" this._encodeEscapedLinePart(key) "`t" this._encodeEscapedLinePart(value) "`n"
+        }
+      }
+      pluginEncoded := RTrim(pluginEncoded, "`n")
+    }
+
+    hotkeysEncoded := ""
+    if (payload.Has("hotkeys") && payload["hotkeys"] is Array) {
+      for entry in payload["hotkeys"] {
+        if (!IsObject(entry) || !(entry is Map))
+          continue
+        hotKey := entry.Has("hotKey") ? Trim("" entry["hotKey"]) : ""
+        action := entry.Has("action") ? Trim("" entry["action"]) : ""
+        if (!hotKey || !action)
+          continue
+        hotkeysEncoded .= this._encodeEscapedLinePart(hotKey) "`t" this._encodeEscapedLinePart(action) "`n"
+      }
+      hotkeysEncoded := RTrim(hotkeysEncoded, "`n")
+    }
+
+    this.ApplyEncodedSettings(generalEncoded, disabledCsv, pluginEncoded, hotkeysEncoded)
+  }
+
+  _encodeEscapedLinePart(value) {
+    text := "" value
+    text := StrReplace(text, "\\", "\\\\")
+    text := StrReplace(text, "`r", "\\r")
+    text := StrReplace(text, "`n", "\\n")
+    text := StrReplace(text, "`t", "\\t")
+    return text
+  }
+
   _applyEncodedHotkeysConfig(encoded) {
     if (Trim(encoded) = "")
       return

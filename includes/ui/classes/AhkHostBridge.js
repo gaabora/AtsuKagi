@@ -16,9 +16,19 @@ class AhkHostBridge {
 
   _checkHostFunction(funcName) { if (!this.host || typeof this.host[funcName] !== 'function') throw new Error(`${funcName} is not available on host object`); }
 
+  _hasHostFunction(funcName) {
+    return !!(this.host && typeof this.host[funcName] === 'function');
+  }
+
   saveSettings(payloadObject) {
-    this._checkHostFunction('SaveSettings');
     const obj = payloadObject || {};
+
+    if (this._hasHostFunction('SaveSettingsJson')) {
+      this.host.SaveSettingsJson(JSON.stringify(obj));
+      return;
+    }
+
+    this._checkHostFunction('SaveSettings');
     const generalEncoded = SettingsFormSerializer.encodeGeneralLines(obj.general || {});
     const disabledCsv = Array.isArray(obj.disabledPlugins) ? obj.disabledPlugins.join(',') : '';
     const pluginEncoded = SettingsFormSerializer.encodePluginConfigLines(obj.pluginConfigs || {});
