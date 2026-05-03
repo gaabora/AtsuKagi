@@ -185,7 +185,6 @@ class ColorPickerController {
   }
 
   _updatePluginSwatchForInput(input) {
-    console.log("ASS1")
     if (!input) return;
     const key = input.getAttribute('data-plugin-color-key');
     if (!key) return;
@@ -194,8 +193,6 @@ class ColorPickerController {
   }
 
   _resolveSwatch(input) {
-
-    console.log("ASS2")
     if (!input || input === this.colorInput) return this.smallSwatch;
     const key = input.getAttribute('data-plugin-color-key');
     if (!key) return null;

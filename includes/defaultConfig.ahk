@@ -3,7 +3,7 @@ SetPropIfNotExist(configSection, propName, propValue) {
     configSection.%propName% := propValue
 }
 
-ProcessGereralConfigSection(configSection) {
+ProcessGeneralConfigSection(configSection) {
   SetPropIfNotExist(configSection, "HotkeyInterval"               , 1000)
   SetPropIfNotExist(configSection, "MaxHotkeysPerInterval"        , 1000)
   SetPropIfNotExist(configSection, "KeyboardHookStealersList"     , "TscShellContainerClass")

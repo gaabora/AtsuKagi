@@ -918,7 +918,7 @@ class AKApp extends AKBase {
 
     if (!this.Config.Has("GENERAL"))
       this.Config.GENERAL := {} 
-    ProcessGereralConfigSection(this.Config.GENERAL)
+    ProcessGeneralConfigSection(this.Config.GENERAL)
     
     if (!this.Config.Has("THEME"))
       this.Config.THEME := {} 

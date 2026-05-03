@@ -97,46 +97,38 @@ class AKGui extends AKBase {
     return settings
   }
 
-  _wrapQuotes(text) {
-    return AKGui.QUOTE_CHAR text AKGui.QUOTE_CHAR
-  }
   _populateSettingsPage(nw) {
     cfg := this.App.Config
 
-    ; Build a state object to pass to the page
     availablePlugins := this.App._getAvailablePlugins()
     disabledPlugins  := this.App._getDisabledPlugins()
-
-    pluginList := []
-    for pluginName in availablePlugins {
-      pluginList.Push(pluginName)
-    }
-
-    generalPage := this.App.GetGeneralSettingsPage()
-
-    logsText := WebViewCtrl.EscapeJavaScript(AKBase.GetUiLogsText())
-    problemsText := WebViewCtrl.EscapeJavaScript(AKBase.GetUiProblemsText())
-    title := WebViewCtrl.EscapeJavaScript(this.App.ScriptName " — Settings")
-
     theme := this.IsDarkTheme() ? "dark" : "light"
 
-    ; Build JavaScript to populate page state
+    hotkeys := []
+    if (cfg.HOTKEYS) {
+      for k, v in cfg.HOTKEYS {
+        hotkeys.Push(Map("hotKey", "" k, "action", "" v))
+      }
+    }
+
+    state := Map(
+      "generalPage", this.App.GetGeneralSettingsPage(),
+      "plugins", Map(
+        "available", availablePlugins,
+        "disabled", disabledPlugins,
+        "pages", this.App.GetPluginSettingsPages()
+      ),
+      "hotkeys", hotkeys,
+      "logsText", AKBase.GetUiLogsText(),
+      "problemsText", AKBase.GetUiProblemsText(),
+      "theme", theme,
+      "title", this.App.ScriptName " — Settings"
+    )
+
     js := "(() => {`n"
-    js .= "  window.state = {`n"
-    js .= "    generalPage: " this._AhkGeneralPageToJs(generalPage) ",`n"
-    js .= "    plugins: {`n"
-    js .= "      available: " this._AhkArrayToJs(pluginList) ",`n"
-    js .= "      disabled: " this._AhkArrayToJs(disabledPlugins) ",`n"
-    js .= "      pages: " this._AhkPluginPagesToJs(this.App.GetPluginSettingsPages()) "`n"
-    js .= "    },`n"
-    js .= "    hotkeys: " this._AhkHotkeysToJs(cfg.HOTKEYS) ",`n"
-    js .= "    logsText: " this._wrapQuotes(logsText) ",`n"
-    js .= "    problemsText: " this._wrapQuotes(problemsText) ",`n"
-    js .= "    theme: " this._wrapQuotes(theme) ",`n"
-    js .= "    title: " this._wrapQuotes(title) ",`n"
-    js .= "  };`n"
+    js .= "  const state = " . AK_ToJson(state) . ";`n"
     js .= "  if (window.SettingsPageBridge && typeof window.SettingsPageBridge.applyState === 'function') {`n"
-    js .= "    try { window.SettingsPageBridge.applyState(window.state); } catch (error) { console.error('Failed to apply settings state', error); }`n"
+    js .= "    try { window.SettingsPageBridge.applyState(state); } catch (error) { console.error('Failed to apply settings state', error); }`n"
     js .= "  }`n"
     js .= "})();`n"
 
@@ -144,135 +136,6 @@ class AKGui extends AKBase {
       FileOpen(A_ScriptDir "\ak_settings_debug.js", "w", "UTF-8").Write(js)
     nw.ExecuteScriptAsync(js)
   }
-
-  ; Convert general settings page descriptor to JavaScript
-  _AhkGeneralPageToJs(page) {
-    if (!IsObject(page))
-      return "null"
-
-    result := "{"
-    result .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "general")) ","
-    result .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "General")) ","
-    result .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "")) ","
-    result .= "icon: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "icons10-settings")) ","
-    result .= "navOrder: " (page.Has("navOrder") ? page["navOrder"] : 0) ","
-    result .= "enableDynamicRender: " (page.Has("enableDynamicRender") && page["enableDynamicRender"] ? "true" : "false") ","
-    result .= "sections: " this._AhkPluginSectionsToJs(page.Has("sections") ? page["sections"] : []) ","
-    result .= "actions: " this._AhkPluginActionsToJs(page.Has("actions") ? page["actions"] : [])
-    result .= "}"
-    return result
-  }
-
-  _AhkArrayToJs(arr) {
-    result := ""
-    for item in arr {
-      result .= this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" item)) ","
-    }
-    return "[" RTrim(result, ",") "]"
-  }
-
-  _AhkHotkeysToJs(hotkeys) {
-    result := ""
-    if (hotkeys) {
-      for k, v in hotkeys {
-        hotKey := WebViewCtrl.EscapeJavaScript(k)
-        action := WebViewCtrl.EscapeJavaScript(v)
-        result .= "{ hotKey: " this._wrapQuotes(hotKey) ", action: " this._wrapQuotes(action) " },"
-      }
-    }
-    return "[" RTrim(result, ",") "]"
-  }
-
-  ; Convert plugin pages to JavaScript
-  _AhkPluginPagesToJs(pages) {
-    parts := ""
-    for page in pages {
-      item := "{"
-      item .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("id") ? page["id"] : "")) ","
-      item .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("title") ? page["title"] : "")) ","
-      item .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("description") ? page["description"] : "")) ","
-      item .= "icon: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(page.Has("icon") ? page["icon"] : "")) ","
-      item .= "enabled: " (page.Has("enabled") && page["enabled"] ? "true" : "false") ","
-      item .= "sections: " this._AhkPluginSectionsToJs(page.Has("sections") ? page["sections"] : []) ","
-      item .= "actions: " this._AhkPluginActionsToJs(page.Has("actions") ? page["actions"] : [])
-      item .= "}"
-      parts .= item ","
-    }
-    return "[" RTrim(parts, ",") "]"
-  }
-
-  ; Convert plugin sections to JavaScript
-  _AhkPluginSectionsToJs(sections) {
-    parts := ""
-    for section in sections {
-      item := "{"
-      item .= "id: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(section.Has("id") ? section["id"] : "")) ","
-      item .= "title: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(section.Has("title") ? section["title"] : "")) ","
-      item .= "fields: " this._AhkPluginFieldsToJs(section.Has("fields") ? section["fields"] : [])
-      item .= "}"
-      parts .= item ","
-    }
-    return "[" RTrim(parts, ",") "]"
-  }
-
-  ; Convert plugin fields to JavaScript
-  _AhkPluginFieldsToJs(fields) {
-    parts := ""
-    for field in fields {
-      item := "{"
-      item .= "pluginId: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("pluginId") ? field["pluginId"] : "")) ","
-      item .= "key: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("key") ? field["key"] : "")) ","
-      item .= "label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("label") ? field["label"] : "")) ","
-      item .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("description") ? field["description"] : "")) ","
-      item .= "type: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("type") ? field["type"] : "string")) ","
-      item .= "control: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("control") ? field["control"] : "text")) ","
-      item .= "default: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("default") ? field["default"] : "")) ","
-      item .= "value: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("value") ? field["value"] : "")) ","
-      item .= "scope: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(field.Has("scope") ? field["scope"] : "plugin")) ","
-      item .= "validation: " this._AhkValidationToJs(field.Has("validation") ? field["validation"] : 0) ","
-      item .= "options: " this._AhkFieldOptionsToJs(field.Has("options") ? field["options"] : [])
-      item .= "}"
-      parts .= item ","
-    }
-    return "[" RTrim(parts, ",") "]"
-  }
-
-  _AhkValidationToJs(validation) {
-    if (!IsObject(validation))
-      return "{}"
-    parts := ""
-    for key, value in validation {
-      parts .= this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" key)) ": " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" value)) ","
-    }
-    return "{" RTrim(parts, ",") "}"
-  }
-
-  _AhkFieldOptionsToJs(options) {
-    parts := ""
-    for opt in options {
-      optValue := IsObject(opt) && opt.Has("value") ? opt["value"] : ""
-      optLabel := IsObject(opt) && opt.Has("label") ? opt["label"] : optValue
-      parts .= "{ value: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" optValue)) ", label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript("" optLabel)) " },"
-    }
-    return "[" RTrim(parts, ",") "]"
-  }
-
-  ; Convert plugin actions to JavaScript
-  _AhkPluginActionsToJs(actions) {
-    parts := ""
-    for action in actions {
-      item := "{"
-      item .= "action: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("action") ? action["action"] : "")) ","
-      item .= "label: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("label") ? action["label"] : "")) ","
-      item .= "description: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("description") ? action["description"] : "")) ","
-      item .= "category: " this._wrapQuotes(WebViewCtrl.EscapeJavaScript(action.Has("category") ? action["category"] : "")) ","
-      item .= "hotkeys: " this._AhkArrayToJs(action.Has("hotkeys") ? action["hotkeys"] : [])
-      item .= "}"
-      parts .= item ","
-    }
-    return "[" RTrim(parts, ",") "]"
-  }
-
 
   _saveSettings(generalEncoded, disabledPlugins, pluginConfigEncoded, hotkeysEncoded:="") {
     cfg := this.App.Config

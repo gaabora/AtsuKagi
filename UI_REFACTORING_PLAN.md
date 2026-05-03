@@ -26,15 +26,15 @@ This plan proposes surgical improvements targeting these pain points, ordered by
 
 ### Proposed Fix: Generic `toJson()` Serializer
 
-Add a single `_toJson(value)` method to AKGui (or a standalone function in helpers.ahk) that recursively serializes AHK values to JSON:
+Add a single `toJson(value)` standalone function in helpers.ahk that recursively serializes AHK values to JSON:
 
 ```ahk
 ; Handles: Map → {}, Array → [], String → "escaped", Number → number, Bool → true/false
-_toJson(value) {
+toJson(value) {
   if (value is Array) {
     parts := ""
     for item in value
-      parts .= this._toJson(item) ","
+      parts .= toJson(item) ","
     return "[" RTrim(parts, ",") "]"
   }
   if (value is Map) {
@@ -68,7 +68,7 @@ _populateSettingsPage(nw) {
     "theme",        this.IsDarkTheme() ? "dark" : "light",
     "title",        this.App.ScriptName " — Settings"
   )
-  js := "(() => { let s = " this._toJson(state) "; "
+  js := "(() => { let s = " toJson(state) "; "
      .  "if (window.SettingsPageBridge) { try { window.SettingsPageBridge.applyState(s); } catch(e) { console.error(e); } } })();"
   if (this.App.Config.GENERAL.DebugLevel >= 4)
     FileOpen(A_ScriptDir "\ak_settings_debug.js", "w", "UTF-8").Write(js)
@@ -138,7 +138,7 @@ Since WebView2 supports `postMessage`, and AHK can parse JSON via `Jxon` or a si
 
 **Option B (cleaner, requires more work)**: Use WebView2 `postMessage` / `addEventListener` for both directions instead of sync host callbacks. This is more modern but requires changes to the WebView library.
 
-**Recommendation**: Option A — swap the encoding format to JSON while keeping the callback mechanism. Add a simple `fromJson()` AHK function (pair to the `_toJson()` from Problem 1).
+**Recommendation**: Option A — swap the encoding format to JSON while keeping the callback mechanism. Add a simple `fromJson()` AHK function (pair to the `toJson()` from Problem 1).
 
 **Impact**: Eliminates 3 `_applyEncodedXxx` parsers in AHK + 3 `encodeXxxLines` methods in JS. Both sides speak JSON.
 

@@ -267,3 +267,44 @@ FormatCamelCaseToSentence(text) {
 
   return Join(results, " ")
 }
+
+AK_JsonEscape(text) {
+  escaped := "" text
+  escaped := StrReplace(escaped, "\\", "\\\\")
+  escaped := StrReplace(escaped, '"', '\"')
+  escaped := StrReplace(escaped, "`r", "\\r")
+  escaped := StrReplace(escaped, "`n", "\\n")
+  escaped := StrReplace(escaped, "`t", "\\t")
+  return escaped
+}
+
+AK_ToJson(value) {
+  if (value is Array) {
+    parts := ""
+    for item in value
+      parts .= AK_ToJson(item) ","
+    return "[" RTrim(parts, ",") "]"
+  }
+
+  if (value is Map) {
+    parts := ""
+    for key, item in value
+      parts .= '"' AK_JsonEscape("" key) '":' AK_ToJson(item) ","
+    return "{" RTrim(parts, ",") "}"
+  }
+
+  if (value is Integer || value is Float)
+    return "" value
+
+  if (!IsObject(value))
+    return '"' AK_JsonEscape(value) '"'
+
+  try {
+    parts := ""
+    for key, item in value.OwnProps()
+      parts .= '"' AK_JsonEscape("" key) '":' AK_ToJson(item) ","
+    return "{" RTrim(parts, ",") "}"
+  } catch {
+    return "null"
+  }
+}
