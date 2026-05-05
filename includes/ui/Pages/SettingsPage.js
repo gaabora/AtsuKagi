@@ -520,6 +520,7 @@ class SettingsPage {
     const t1 = performance.now();
     // Keep exact incoming AHK payload for DevTools export/import replay.
     this._lastAppliedState = state ? JSON.parse(JSON.stringify(state)) : null;
+    this._applyUIScaling(state);
 
     if (changes.generalSchemaChanged || changes.pluginPagesSchemaChanged) {
       this._bindDynamicGeneralControls();
@@ -605,6 +606,28 @@ class SettingsPage {
       targetEl.classList.add('setting-highlight');
       // Remove after 2s
       setTimeout(() => targetEl.classList.remove('setting-highlight'), 2000);
+    }
+  }
+
+  _applyUIScaling(state) {
+    try {
+      const generalPage = state?.generalPage;
+      if (!generalPage) return;
+      
+      const sections = generalPage.sections || [];
+      for (const section of sections) {
+        const fields = section.fields || [];
+        for (const field of fields) {
+          if (field.key === 'UIScalingPercent') {
+            const percent = Number(field.value) || 100;
+            const scale = percent / 100;
+            document.documentElement.style.setProperty('--ui-scale', scale);
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to apply UI scaling:', error);
     }
   }
 }

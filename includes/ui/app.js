@@ -28,7 +28,7 @@ class SettingsDom {
     });
 
     const fieldIds = [
-      'WelcomeMessage', 'DarkTheme', 'DebugLevel', 'ToolTipTimeoutMs', 'WindowTransparencyValue',
+      'WelcomeMessage', 'DarkTheme', 'UIScalingPercent', 'DebugLevel', 'ToolTipTimeoutMs', 'WindowTransparencyValue',
       'WindowOnTopBorderColor', 'StartupSound', 'NotificationSound',
       'ReloadAppHotkey', 'SuspendAppHotkey', 'SwapMouseXButtons',
       'ReloadAppHotkeyDisplay', 'SuspendAppHotkeyDisplay',

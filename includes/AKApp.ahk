@@ -200,10 +200,28 @@ class AKApp extends AKBase {
       ),
       "fields", [
         Map("key", "WelcomeMessage", "label", "Welcome Message", "description", "Message shown on app startup.", "type", "string", "control", "text", "default", "Haribol!", "section", "General"),
-        Map("key", "DarkTheme", "label", "Theme", "description", "-1 = Auto, 0 = Light, 1 = Dark.", "type", "integer", "control", "select", "default", -1, "section", "General", "options", [Map("value", -1, "label", "Auto (follow system)"), Map("value", 0, "label", "Light"), Map("value", 1, "label", "Dark")]),
-        Map("key", "DebugLevel", "label", "Debug Level", "description", "0 = Error .. 5 = Verbose.", "type", "integer", "control", "select", "default", A_IsCompiled ? 0 : 5, "section", "General", "options", [Map("value", 0, "label", "0 - Error"), Map("value", 1, "label", "1 - Warning"), Map("value", 2, "label", "2 - Notice"), Map("value", 3, "label", "3 - Info"), Map("value", 4, "label", "4 - Debug"), Map("value", 5, "label", "5 - Verbose")]),
-        Map("key", "ToolTipTimeoutMs", "label", "Tooltip Timeout (ms)", "description", "Timeout for tooltip auto-hide.", "type", "integer", "control", "number", "default", 1000, "section", "General", "validation", Map("min", 100, "max", 30000)),
-        Map("key", "WindowTransparencyValue", "label", "Window Transparency", "description", "Transparency for on-top overlays.", "type", "integer", "control", "range", "default", 128, "section", "General", "validation", Map("min", 0, "max", 255)),
+        Map("key", "DarkTheme", "label", "Theme", "description", "", "type", "integer", "control", "select", "default", -1, "section", "General", "options", [Map("value", -1, "label", "Auto (follow system)"), Map("value", 0, "label", "Light"), Map("value", 1, "label", "Dark")]),
+        Map("key", "UIScalingPercent", "label", "UI Scale", "description", "Scale the settings UI display.", "type", "integer", "control", "select", "default", 100, "section", "General", "options", [
+          Map("value", 75, "label", "75%"),
+          Map("value", 80, "label", "80%"),
+          Map("value", 85, "label", "85%"),
+          Map("value", 90, "label", "90%"),
+          Map("value", 95, "label", "95%"),
+          Map("value", 100, "label", "100%"),
+          Map("value", 110, "label", "110%"),
+          Map("value", 125, "label", "125%"),
+          Map("value", 150, "label", "150%"),
+        ]),
+        Map("key", "DebugLevel", "label", "Debug Level", "description", "0 = Error .. 5 = Verbose.", "type", "integer", "control", "select", "default", A_IsCompiled ? 0 : 5, "section", "General", "options", [
+          Map("value", 0, "label", "0 - Error"),
+          Map("value", 1, "label", "1 - Warning"),
+          Map("value", 2, "label", "2 - Notice"),
+          Map("value", 3, "label", "3 - Info"),
+          Map("value", 4, "label", "4 - Debug"),
+          Map("value", 5, "label", "5 - Verbose")
+        ]),
+        Map("key", "ToolTipTimeoutMs", "label", "Tooltip Timeout (ms)", "description", "Timeout for tooltip auto-hide.", "type", "integer", "control", "range", "default", 1000, "section", "General", "validation", Map("min", 100, "max", 10000)),
+        Map("key", "WindowTransparencyValue", "label", "Window Transparency", "description", "Transparency for on-top overlays.", "type", "integer", "control", "range", "default", 128, "section", "General", "validation", Map("min", 1, "max", 255)),
         Map("key", "WindowOnTopBorderColor", "label", "On-Top Border Color", "description", "Border color for always-on-top window highlight.", "type", "color", "control", "color", "default", "0xAACCFF", "section", "General"),
         Map("key", "StartupSound", "label", "Startup Sound", "description", "Sound file played when app starts.", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
         Map("key", "NotificationSound", "label", "Notification Sound", "description", "Sound file used for notifications.", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
@@ -1058,6 +1076,8 @@ class AKApp extends AKBase {
         }
       } else if (keyText = "DarkTheme") {
         this.GUI.ApplyThemeMode()
+      } else if (keyText = "UIScalingPercent") {
+        this.GUI._applyUIScaling(Integer(coercedValue))
       } else if (keyText = "ReloadAppHotkey" || keyText = "SuspendAppHotkey") {
         this._rebindControlHotkeys()
       }

@@ -18,6 +18,7 @@ ProcessGeneralConfigSection(configSection) {
   SetPropIfNotExist(configSection, "ReloadAppHotkey"              , "^#!Backspace")
   SetPropIfNotExist(configSection, "SuspendAppHotkey"             , "^#!Esc")
   SetPropIfNotExist(configSection, "DarkTheme"                    , -1)
+  SetPropIfNotExist(configSection, "UIScalingPercent"             , 100)
   SetPropIfNotExist(configSection, "SwapMouseXButtons"            , 0)
   SetPropIfNotExist(configSection, "ModifierHotkeysHint"          , "Alt=!, Ctrl=^, Shift=+, LWin=#, AltGr=<^>!")
   SetPropIfNotExist(configSection, "DisabledPlugins"              , "ShellMessageHook,RDPWindowHandler")

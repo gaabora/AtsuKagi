@@ -25,6 +25,7 @@
 :root {
   --PrimaryColor: #0078D7;
   --PrimaryColorLight: #60CDFF;
+  --ui-scale: 1;
 }
 
 html,
@@ -39,6 +40,7 @@ body {
   padding: 0;
   display: flex;
   flex-direction: column;
+  zoom: var(--ui-scale);
 }
 
 [data-theme="dark"] ::selection {
@@ -256,7 +258,7 @@ body {
 
 .field-with-actions .app-input-text {
   flex: 1;
-  min-width: 200px;
+  min-width: 100px;
 }
 
 .field-with-actions .hotkey-badge-large {
@@ -407,8 +409,7 @@ body {
 
 .plugin-field-meta,
 .general-field-meta {
-  min-width: 220px;
-  max-width: 260px;
+  width: 240px;
   flex-shrink: 0;
 }
 
@@ -629,6 +630,7 @@ body {
 
 /* FIXES */
 .app-dialog .app-dialog-modal .app-dialog-body { max-height: 80vh; }.app-dialog.show { display: flex !important; }
+.app-overlay, .app-dim-overlay, .app-alert, .app-dialog, .app-loader-busy-overlay, .app-splash-screen { height: 100%; }
 /* ── Logs ─────────────────────────────────────────────────────────────────── */
 .logs-toolbar {
   display: flex;

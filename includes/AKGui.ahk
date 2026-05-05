@@ -240,4 +240,12 @@ class AKGui extends AKBase {
       try nw.Destroy()
     }
   }
+
+  _applyUIScaling(percent) {
+    if (this._settingsGui = 0)
+      return
+    scale := percent / 100
+    js := "document.documentElement.style.setProperty('--ui-scale', '" scale "');"
+    try this._settingsGui.ExecuteScriptAsync(js)
+  }
 }
