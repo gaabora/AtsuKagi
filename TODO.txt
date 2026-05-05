@@ -101,7 +101,7 @@ value can be related to some action(s) or entire plugin, in KDEMoverSizer config
 
 
 
-
+https://www.autohotkey.com/docs/v2/FAQ.htm#uac
 
 
 
@@ -134,7 +134,7 @@ Notify_Class by XMCQCX https://github.com/XMCQCX/Notify_Class
 RDP-Key v1.0 by gildorwang https://github.com/gildorwang/RDP-Key/tree/master"
 VirtualDesktopAccessor by Ciantic https://github.com/Ciantic/VirtualDesktopAccessor/releases
 
-
+https://github.com/serzh82saratov/Hotkey/
 
 
 post fix here

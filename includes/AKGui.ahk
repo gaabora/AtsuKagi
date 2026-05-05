@@ -3,9 +3,11 @@ class AKGui extends AKBase {
   static QUOTE_CHAR := Chr(34)
   _settingsGui := 0
   _isLogPageActive := false
+  _hotkeyRecorder := unset
 
   __New(App) {
     this.App := App
+    this._hotkeyRecorder := HotkeyRecorder()
     if (this.IsDarkTheme()) {
       this.SetDarkThemeMode(AKGui.PREFERRED_APP_MODE.ForceDark)
     }
@@ -66,6 +68,8 @@ class AKGui extends AKBase {
     nw.AddCallbackToScript("SaveHotkey", (wv, index:=0, hotKey:="", action:="") => this._saveHotkey(index, hotKey, action))
     nw.AddCallbackToScript("RemoveHotkey", (wv, index:=0) => this._removeHotkey(index))
     nw.AddCallbackToScript("AddHotkey", (wv, hotKey:="", action:="") => this._addHotkey(hotKey, action))
+    nw.AddCallbackToScript("StartHotkeyRecording", (wv, optionsJson:="") => this._startHotkeyRecording(nw, optionsJson))
+    nw.AddCallbackToScript("StopHotkeyRecording", (wv, *) => this._stopHotkeyRecording())
     nw.AddCallbackToScript("TogglePlugin", (wv, pluginId:="", enabled:=1) => this._togglePlugin(pluginId, enabled))
     nw.AddCallbackToScript("SetLogPageActive", (wv, active:=0) => this._setLogPageActive(active))
     nw.AddCallbackToScript("GetLogsSince", (wv, lastId:=0) => AK_ToJson(AKBase.GetUiLogsSince(Integer(lastId))))
@@ -179,6 +183,63 @@ class AKGui extends AKBase {
 
   _addHotkey(hotKey, action) {
     return this.App.AddHotkey(hotKey, action)
+  }
+
+  _startHotkeyRecording(nw, optionsJson:="") {
+    ; Parse options from JSON string
+    options := Map()
+    if (optionsJson != "") {
+      try {
+        parsed := jsongo.Parse(optionsJson)
+        if (parsed is Map) {
+          for key, value in parsed {
+            options[key] := value
+          }
+        }
+      } catch {
+        ; Fall through with defaults
+      }
+    }
+
+    ; Set the callback to push updates to JS
+    this._hotkeyRecorder.OnKeyRecorded := (rawHotkey, displayString) => this._pushHotkeyUpdate(nw, rawHotkey, displayString)
+
+    ; Start recording
+    result := this._hotkeyRecorder.StartRecording(options)
+    
+    return AK_ToJson(Map("success", result))
+  }
+
+  _stopHotkeyRecording() {
+    result := this._hotkeyRecorder.StopRecording()
+    
+    ; Return final result
+    finalResult := this._hotkeyRecorder.GetResult()
+    return AK_ToJson(Map(
+      "success", result,
+      "raw", finalResult["raw"],
+      "display", finalResult["display"]
+    ))
+  }
+
+  _pushHotkeyUpdate(nw, rawHotkey, displayString) {
+    if (this._settingsGui = 0)
+      return
+
+    ; Build JSON payload
+    payload := AK_ToJson(Map(
+      "raw", rawHotkey,
+      "display", displayString
+    ))
+
+    ; Push to JS via ExecuteScriptAsync
+    js := "(() => {`n"
+    js .= "  if (window._onAhkHotkeyRecorded && typeof window._onAhkHotkeyRecorded === 'function') {`n"
+    js .= "    try { window._onAhkHotkeyRecorded(" payload "); } catch (error) { console.error('Failed to process hotkey update', error); }`n"
+    js .= "  }`n"
+    js .= "})();"
+
+    nw.ExecuteScriptAsync(js)
   }
 
   _togglePlugin(pluginId, enabled) {

@@ -976,7 +976,7 @@ class AKApp extends AKBase {
     if (Trim(payloadText) = "")
       return
 
-    try payload := AK_JsonParse(payloadText)
+    try payload := jsongo.Parse(payloadText)
     catch as err {
 
       this.outputDebugLine("Invalid JSON settings payload: " err.Message, 1)
@@ -1029,7 +1029,7 @@ class AKApp extends AKBase {
 
   _parseAtomicValue(payload) {
     payloadText := "" payload
-    try return AK_JsonParse(payloadText)
+    try return jsongo.Parse(payloadText)
     catch {
       return payloadText
     }

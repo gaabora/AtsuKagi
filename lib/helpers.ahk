@@ -278,7 +278,7 @@ AK_JsonEscape(text) {
   return escaped
 }
 
-AK_ToJson(value) {
+AK_ToJson(value) { ; TODO: obsolete, replace calls with jsongo.ToJson and remove this function and AK_JsonEscape
   if (value is Array) {
     parts := ""
     for item in value
@@ -307,8 +307,4 @@ AK_ToJson(value) {
   } catch {
     return "null"
   }
-}
-
-AK_JsonParse(jsonText) {
-  return jsongo.Parse("" jsonText)
 }

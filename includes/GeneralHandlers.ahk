@@ -1,14 +1,14 @@
 class GeneralHandlers extends AKPlugin {
 
-  __ConfigHelp() {
+  __ConfigHelp() { ; TODO: obsolete, rewrite to __DescribePlugin() 
     return "No config keys. Built-in general-purpose actions available in all plugins."
   }
 
-  __UsageHelp() {
+  __UsageHelp() { ; TODO: obsolete, rewrite to __DescribePlugin() 
     return "Core action utilities: conditional execution, blocklist checking, key remapping, info popups. Used as building blocks for other plugin actions."
   }
 
-  __ActionsHelp() {
+  __ActionsHelp() { ; TODO: obsolete, rewrite to __DescribePlugin() 
     texts := Map()
     texts["IfThenElse"] := "IfThenElse(IfActionString, ThenActionString, ElseActionString)"
     texts["SkipIfBlocklisted"] := "SkipIfBlocklisted(BlocklistName, ActionString, FallbackAction:='') - skip action if window is in named blocklist, optionally run fallback instead of passthrough"
