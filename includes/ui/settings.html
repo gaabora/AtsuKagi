@@ -160,8 +160,8 @@
       <div class="app-dialog-header">
         <h3 id="hotkeyDialogTitle">Record Hotkey</h3>
       </div>
-      <div class="app-dialog-body">
-        <div class="switch-row">
+      <div class="app-dialog-body hotkey-recorder-body">
+        <div class="switch-row hotkey-switch-row">
           <label class="app-switch">
             <input type="checkbox" id="hotkeyOptWildcard" />
             <div class="app-switch-view"></div>
@@ -176,40 +176,83 @@
           </label>
           <span>Passthrough (~)</span>
         </div>
-        <div class="switch-row">
-          <label class="app-switch">
-            <input type="checkbox" id="hotkeyOptLrModifiers" checked />
-            <div class="app-switch-view"></div>
-            <span class="app-switch-label" data-on="On" data-off="Off"></span>
-          </label>
-          <span>Distinguish L/R Modifiers</span>
-
-          <label class="app-switch">
-            <input type="checkbox" id="hotkeyOptMouseCapture" checked />
-            <div class="app-switch-view"></div>
-            <span class="app-switch-label" data-on="On" data-off="Off"></span>
-          </label>
-          <span>Capture Mouse</span>
-        </div>
-        <div class="switch-row">
-          <label class="app-switch">
-            <input type="checkbox" id="hotkeyOptGamepadCapture" checked />
-            <div class="app-switch-view"></div>
-            <span class="app-switch-label" data-on="On" data-off="Off"></span>
-          </label>
-          <span>Capture Gamepad</span>
-
-          <label class="app-switch">
-            <input type="checkbox" id="hotkeyOptModifiersOnly" />
-            <div class="app-switch-view"></div>
-            <span class="app-switch-label" data-on="On" data-off="Off"></span>
-          </label>
-          <span>Modifiers-only Hotkey</span>
-        </div>
         <div class="hotkey-recorder-state">
           <div><strong>Status:</strong><span id="hotkeyRecordStatus">Waiting to start recording...</span></div>
           <div><strong>Hotkey:</strong><span id="hotkeyRecordReadable">(none)</span></div>
         </div>
+
+        <details id="hotkeyAdvancedDetails" class="hotkey-advanced-panel">
+          <summary>Advanced</summary>
+          <div class="hotkey-advanced-content">
+            <div class="switch-row hotkey-switch-row">
+              <label class="app-switch">
+                <input type="checkbox" id="hotkeyOptLrModifiers" checked />
+                <div class="app-switch-view"></div>
+                <span class="app-switch-label" data-on="On" data-off="Off"></span>
+              </label>
+              <span>Distinguish L/R Modifiers</span>
+
+              <label class="app-switch">
+                <input type="checkbox" id="hotkeyOptMouseCapture" checked />
+                <div class="app-switch-view"></div>
+                <span class="app-switch-label" data-on="On" data-off="Off"></span>
+              </label>
+              <span>Capture Mouse</span>
+            </div>
+
+            <div class="switch-row hotkey-switch-row">
+              <label class="app-switch">
+                <input type="checkbox" id="hotkeyOptGamepadCapture" checked />
+                <div class="app-switch-view"></div>
+                <span class="app-switch-label" data-on="On" data-off="Off"></span>
+              </label>
+              <span>Capture Gamepad</span>
+
+              <label class="app-switch">
+                <input type="checkbox" id="hotkeyOptModifiersOnly" />
+                <div class="app-switch-view"></div>
+                <span class="app-switch-label" data-on="On" data-off="Off"></span>
+              </label>
+              <span>Modifiers-only Hotkey</span>
+            </div>
+
+            <div class="hotkey-manual-builder">
+              <div class="hotkey-manual-title">Manual Hotkey Builder</div>
+
+              <div class="hotkey-manual-modifiers" id="hotkeyManualModsGeneric">
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModCtrl" />Ctrl</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModAlt" />Alt</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModShift" />Shift</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModWin" />Win</label>
+              </div>
+
+              <div class="hotkey-manual-modifiers" id="hotkeyManualModsLr" hidden>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModLCtrl" />LCtrl</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModRCtrl" />RCtrl</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModLAlt" />LAlt</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModRAlt" />RAlt</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModLShift" />LShift</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModRShift" />RShift</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModLWin" />LWin</label>
+                <label class="hotkey-manual-mod"><input type="checkbox" id="hotkeyManualModRWin" />RWin</label>
+              </div>
+
+              <label class="hotkey-manual-filter-wrap">
+                <span>Filter keys</span>
+                <input class="app-input-text" type="text" id="hotkeyManualKeyFilter" placeholder="Type to filter keys" />
+              </label>
+
+              <select id="hotkeyManualKeyList" class="app-input-text hotkey-manual-key-list" size="9"></select>
+
+              <div class="hotkey-manual-footer">
+                <div class="hotkey-manual-preview-wrap">
+                  <strong>Manual:</strong><span id="hotkeyManualPreview">(pick modifiers and key)</span>
+                </div>
+                <button class="app-btn app-btn-primary" type="button" id="apply-manual-hotkey"><span>Use Manual Combination</span></button>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
       <div class="app-dialog-footer">
         <button class="app-btn" type="button" id="cancel-hotkey-record" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog"><span>Cancel</span></button>

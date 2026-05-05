@@ -628,12 +628,12 @@ body {
   width: min(760px, calc(100vw - 40px));
 }
 
-#HotkeyRecorderDialog .app-dialog-body {
+#HotkeyRecorderDialog .hotkey-recorder-body {
   display: grid;
   gap: 10px;
 }
 
-#HotkeyRecorderDialog .switch-row {
+#HotkeyRecorderDialog .hotkey-switch-row {
   margin-bottom: 0;
   display: grid;
   grid-template-columns: auto minmax(120px, 1fr) auto minmax(120px, 1fr);
@@ -645,10 +645,116 @@ body {
   background: var(--color-navbar-bg-default, #F7F7F7);
 }
 
-#HotkeyRecorderDialog .switch-row > span {
+#HotkeyRecorderDialog .hotkey-switch-row > span {
   font-size: 13px;
   line-height: 1.2;
   color: var(--color-text-default, #000);
+}
+
+#HotkeyRecorderDialog .hotkey-advanced-panel {
+  border: 1px solid var(--color-ui-border-default, #D8D8D8);
+  border-radius: 10px;
+  background: var(--color-navbar-bg-default, #F7F7F7);
+}
+
+#HotkeyRecorderDialog .hotkey-advanced-panel > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  font-weight: 600;
+  user-select: none;
+}
+
+#HotkeyRecorderDialog .hotkey-advanced-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+#HotkeyRecorderDialog .hotkey-advanced-panel > summary::before {
+  content: "▸";
+  margin-right: 8px;
+  transition: transform .15s ease;
+  display: inline-block;
+}
+
+#HotkeyRecorderDialog .hotkey-advanced-panel[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+#HotkeyRecorderDialog .hotkey-advanced-content {
+  display: grid;
+  gap: 10px;
+  padding: 0 10px 10px;
+}
+
+#HotkeyRecorderDialog .hotkey-manual-builder {
+  border: 1px dashed var(--color-ui-border-default, #D8D8D8);
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+#HotkeyRecorderDialog .hotkey-manual-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#HotkeyRecorderDialog .hotkey-manual-modifiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#HotkeyRecorderDialog .hotkey-manual-mod {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-ui-border-default, #D8D8D8);
+  background: var(--color-ui-hover-strong, #EFEFEF);
+  font-size: 12px;
+}
+
+#HotkeyRecorderDialog .hotkey-manual-filter-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+#HotkeyRecorderDialog .hotkey-manual-filter-wrap > span {
+  font-size: 12px;
+  opacity: .8;
+}
+
+#HotkeyRecorderDialog .hotkey-manual-key-list {
+  width: 100%;
+  min-height: 180px;
+  font-family: Consolas, "Cascadia Mono", monospace;
+}
+
+#HotkeyRecorderDialog .hotkey-manual-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+#HotkeyRecorderDialog .hotkey-manual-preview-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+#HotkeyRecorderDialog #hotkeyManualPreview {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-ui-border-default, #D8D8D8);
+  background: var(--color-ui-hover-strong, #EFEFEF);
+  font-family: Consolas, "Cascadia Mono", monospace;
 }
 
 #HotkeyRecorderDialog .hotkey-recorder-state {
@@ -676,8 +782,13 @@ body {
 }
 
 @media (max-width: 720px) {
-  #HotkeyRecorderDialog .switch-row {
+  #HotkeyRecorderDialog .hotkey-switch-row {
     grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  #HotkeyRecorderDialog .hotkey-manual-footer {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
