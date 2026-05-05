@@ -66,6 +66,15 @@ class HotkeyRecorderController {
   }
 
   _initializeRecorderUI() {
+    const optWildcard = document.getElementById('hotkeyOptWildcard');
+    const optPassthrough = document.getElementById('hotkeyOptPassthrough');
+    if (optWildcard) {
+      optWildcard.checked = this.pendingRaw.indexOf('*') !== -1;
+    }
+    if (optPassthrough) {
+      optPassthrough.checked = this.pendingRaw.indexOf('~') !== -1;
+    }
+
     const statusEl = document.getElementById('hotkeyRecordStatus');
     const valueEl = document.getElementById('hotkeyRecordReadable');
     if (statusEl) {
@@ -77,12 +86,20 @@ class HotkeyRecorderController {
   }
 
   _startAhkRecording() {
+    this._stopAhkRecording();
+
+    const optLrModifiers = document.getElementById('hotkeyOptLrModifiers');
+    const optMouseCapture = document.getElementById('hotkeyOptMouseCapture');
+    const optGamepadCapture = document.getElementById('hotkeyOptGamepadCapture');
+    const optModifiersOnly = document.getElementById('hotkeyOptModifiersOnly');
+
     // Note: wildcard and passthrough will be applied by JS at apply-time, not by AHK recorder
     const options = {
       keyboard: true,
-      mouse: true,
-      lrModifiers: true,
-      markOnly: false
+      mouse: optMouseCapture ? !!optMouseCapture.checked : true,
+      joystick: optGamepadCapture ? !!optGamepadCapture.checked : true,
+      lrModifiers: optLrModifiers ? !!optLrModifiers.checked : true,
+      markOnly: optModifiersOnly ? !!optModifiersOnly.checked : false
     };
 
     try {

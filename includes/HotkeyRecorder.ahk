@@ -65,6 +65,8 @@ class HotkeyRecorder {
     __New() {
         this.hookHandle := 0
         this.mouseHookHandle := 0
+        this.joyPollFn := this._PollJoystick.Bind(this)
+        this.lastJoyKey := ""
         
         ; State machine for modifier tracking
         this.modifierState := Map()
@@ -75,8 +77,8 @@ class HotkeyRecorder {
         ; Options
         this.options := Map(
             "keyboard", true,
-            "mouse", false,
-            "joystick", false,
+            "mouse", true,
+            "joystick", true,
             "lrModifiers", true,
             "wildcard", false,
             "passthrough", false,
@@ -110,6 +112,7 @@ class HotkeyRecorder {
         this.currentRaw := ""
         this.currentDisplay := ""
         this.lastKeyName := ""
+        this.lastJoyKey := ""
         this.modifierState := Map()
         
         ; Install keyboard hook
@@ -143,6 +146,11 @@ class HotkeyRecorder {
                 return false
             }
         }
+
+        if this.options.Get("joystick")
+            SetTimer(this.joyPollFn, 30)
+        else
+            SetTimer(this.joyPollFn, 0)
         
         return true
     }
@@ -161,6 +169,9 @@ class HotkeyRecorder {
             DllCall("UnhookWindowsHookEx", "Ptr", this.mouseHookHandle)
             this.mouseHookHandle := 0
         }
+
+        SetTimer(this.joyPollFn, 0)
+        this.lastJoyKey := ""
         
         this.IsRecording := false
         
@@ -310,6 +321,38 @@ class HotkeyRecorder {
             
             this._InvokeCallback()
         }
+    }
+
+    _PollJoystick() {
+        if !this.IsRecording || !this.options.Get("joystick")
+            return
+
+        foundKey := ""
+        loop 4 {
+            device := A_Index
+            loop 32 {
+                keyName := device "Joy" A_Index
+                if GetKeyState(keyName, "P") {
+                    foundKey := keyName
+                    break 2
+                }
+            }
+        }
+
+        if !foundKey {
+            this.lastJoyKey := ""
+            return
+        }
+
+        if foundKey = this.lastJoyKey
+            return
+
+        this.lastJoyKey := foundKey
+        prefix := this._BuildPrefix()
+        this.currentRaw := prefix . foundKey
+        this.currentDisplay := this._ToDisplayString(this.currentRaw)
+        this.lastKeyName := foundKey
+        this._InvokeCallback()
     }
     
     ; ============================================================================

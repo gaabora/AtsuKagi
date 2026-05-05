@@ -191,15 +191,17 @@ class AKGui extends AKBase {
     if (optionsJson != "") {
       try {
         parsed := jsongo.Parse(optionsJson)
-        if (parsed is Map) {
+        if (parsed is Map || parsed is Object) {
           for key, value in parsed {
-            options[key] := value
+            options.Set("" key, value)
           }
         }
       } catch {
         ; Fall through with defaults
       }
     }
+
+    this._hotkeyRecorder.StopRecording()
 
     ; Set the callback to push updates to JS
     this._hotkeyRecorder.OnKeyRecorded := (rawHotkey, displayString) => this._pushHotkeyUpdate(nw, rawHotkey, displayString)

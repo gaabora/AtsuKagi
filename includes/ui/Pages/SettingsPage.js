@@ -308,10 +308,20 @@ class SettingsPage {
 
   _bindHotkeyRecorderDialog() {
     const applyBtn = document.getElementById('apply-hotkey-record');
+    const cancelBtn = document.getElementById('cancel-hotkey-record');
 
-    if (applyBtn) {
+    if (applyBtn && applyBtn.dataset.boundHotkeyApply !== '1') {
+      applyBtn.dataset.boundHotkeyApply = '1';
       applyBtn.addEventListener('click', () => {
         this.hotkeyRecorder.apply();
+        if (cancelBtn) cancelBtn.click();
+      });
+    }
+
+    if (cancelBtn && cancelBtn.dataset.boundHotkeyCancel !== '1') {
+      cancelBtn.dataset.boundHotkeyCancel = '1';
+      cancelBtn.addEventListener('click', () => {
+        this.hotkeyRecorder.cancel();
       });
     }
 
