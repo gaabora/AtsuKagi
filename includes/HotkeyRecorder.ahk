@@ -37,6 +37,18 @@ class HotkeyRecorder {
         "LShift", "<+",    "RShift", ">+",
         "LWin", "<#",      "RWin", ">#"
     )
+
+    static SPECIAL_KEY_DISPLAY_MAP := Map(
+        "LButton", "Mouse Left",
+        "RButton", "Mouse Right",
+        "MButton", "Mouse Middle",
+        "WheelUp", "Mouse Wheel Up",
+        "WheelDown", "Mouse Wheel Down",
+        "WheelLeft", "Mouse Wheel Left",
+        "WheelRight", "Mouse Wheel Right",
+        "XButton1", "Mouse Button 4",
+        "XButton2", "Mouse Button 5"
+    )
     
     static WH_KEYBOARD_LL := 13
     static WH_MOUSE_LL := 14
@@ -147,7 +159,7 @@ class HotkeyRecorder {
             }
         }
 
-        if this.options.Get("joystick")
+        if (this.options.Get("joystick"))
             SetTimer(this.joyPollFn, 30)
         else
             SetTimer(this.joyPollFn, 0)
@@ -235,7 +247,7 @@ class HotkeyRecorder {
             } else if (wParam = HotkeyRecorder.WM_MOUSEWHEEL) {
                 mouseData := NumGet(lParam, 8, "UInt")
                 delta := (mouseData >> 16) & 0xFFFF
-                if delta >= 0x8000
+                if (delta >= 0x8000)
                     delta -= 0x10000
                 mouseButton := (delta > 0) ? "WheelUp" : "WheelDown"
                 isMouseDown := true
@@ -324,27 +336,49 @@ class HotkeyRecorder {
     }
 
     _PollJoystick() {
-        if !this.IsRecording || !this.options.Get("joystick")
+        if (!this.IsRecording || !this.options.Get("joystick"))
             return
 
         foundKey := ""
         loop 4 {
             device := A_Index
+
+            ; Buttons first (most reliable for hotkeys).
             loop 32 {
                 keyName := device "Joy" A_Index
-                if GetKeyState(keyName, "P") {
+                if (GetKeyState(keyName, "P")) {
                     foundKey := keyName
+                    break 2
+                }
+            }
+
+            ; POV hat / D-pad.
+            povKey := device "JoyPOV"
+            povValue := GetKeyState(povKey)
+            if (povValue != "" && povValue != -1) {
+                foundKey := povKey
+                break
+            }
+
+            ; Axes near extremes.
+            for (_, axis in ["X", "Y", "Z", "R", "U", "V"]) {
+                axisKey := device "Joy" axis
+                axisValue := GetKeyState(axisKey)
+                if (axisValue = "")
+                    continue
+                if (axisValue <= 15 || axisValue >= 85) {
+                    foundKey := axisKey
                     break 2
                 }
             }
         }
 
-        if !foundKey {
+        if (!foundKey) {
             this.lastJoyKey := ""
             return
         }
 
-        if foundKey = this.lastJoyKey
+        if (foundKey = this.lastJoyKey)
             return
 
         this.lastJoyKey := foundKey
@@ -491,6 +525,18 @@ class HotkeyRecorder {
         ; Get remaining key name
         keyPart := SubStr(rawHotkey, i)
         if (keyPart) {
+            if (HotkeyRecorder.SPECIAL_KEY_DISPLAY_MAP.Has(keyPart)) {
+                keyPart := HotkeyRecorder.SPECIAL_KEY_DISPLAY_MAP.Get(keyPart)
+            } else if (RegExMatch(keyPart, "i)^(\d+)Joy(\d+)$", &joyButtonMatch)) {
+                keyPart := "Gamepad " joyButtonMatch[1] " Button " joyButtonMatch[2]
+            } else if (RegExMatch(keyPart, "i)^(\d+)JoyPOV$", &joyPovMatch)) {
+                keyPart := "Gamepad " joyPovMatch[1] " D-Pad"
+            } else if (RegExMatch(keyPart, "i)^(\d+)Joy([XYZRUV])$", &joyAxisMatch)) {
+                keyPart := "Gamepad " joyAxisMatch[1] " Axis " joyAxisMatch[2]
+            } else if (RegExMatch(keyPart, "i)^Joy(\d+)$", &joyLegacyButtonMatch)) {
+                keyPart := "Gamepad Button " joyLegacyButtonMatch[1]
+            }
+
             ; Clean up vkXX/scXX format
             if (SubStr(keyPart, 1, 2) = "vk") {
                 vkCode := SubStr(keyPart, 1, 4)

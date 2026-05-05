@@ -168,9 +168,6 @@ body {
   display: block;
 }
 
-.setting-group {
-}
-
 .setting-group h2 {
   margin: 0 0 20px 0;
   font-size: 18px;
@@ -625,6 +622,63 @@ body {
   display: flex;
   gap: 16px;
   align-items: center;
+}
+
+#HotkeyRecorderDialog .app-dialog-modal {
+  width: min(760px, calc(100vw - 40px));
+}
+
+#HotkeyRecorderDialog .app-dialog-body {
+  display: grid;
+  gap: 10px;
+}
+
+#HotkeyRecorderDialog .switch-row {
+  margin-bottom: 0;
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto minmax(120px, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--color-ui-border-default, #D8D8D8);
+  border-radius: 10px;
+  background: var(--color-navbar-bg-default, #F7F7F7);
+}
+
+#HotkeyRecorderDialog .switch-row > span {
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--color-text-default, #000);
+}
+
+#HotkeyRecorderDialog .hotkey-recorder-state {
+  margin-top: 2px;
+  border-style: solid;
+  border-radius: 10px;
+  background: var(--color-navbar-bg-default, #F7F7F7);
+}
+
+#HotkeyRecorderDialog #hotkeyRecordStatus,
+#HotkeyRecorderDialog #hotkeyRecordReadable {
+  margin-left: 8px;
+}
+
+#HotkeyRecorderDialog #hotkeyRecordReadable {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-ui-border-default, #D8D8D8);
+  background: var(--color-ui-hover-strong, #EFEFEF);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  #HotkeyRecorderDialog .switch-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
 }
 
 
