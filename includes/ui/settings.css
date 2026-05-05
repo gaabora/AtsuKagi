@@ -651,39 +651,31 @@ body {
   color: var(--color-text-default, #000);
 }
 
-#HotkeyRecorderDialog .hotkey-advanced-panel {
-  border: 1px solid var(--color-ui-border-default, #D8D8D8);
-  border-radius: 10px;
-  background: var(--color-navbar-bg-default, #F7F7F7);
+#HotkeyRecorderDialog .hotkey-recorder-tabs {
+  display: inline-flex;
+  gap: 8px;
 }
 
-#HotkeyRecorderDialog .hotkey-advanced-panel > summary {
-  list-style: none;
-  cursor: pointer;
-  padding: 10px 12px;
-  font-weight: 600;
-  user-select: none;
+#HotkeyRecorderDialog .hotkey-tab {
+  min-width: 110px;
 }
 
-#HotkeyRecorderDialog .hotkey-advanced-panel > summary::-webkit-details-marker {
-  display: none;
+#HotkeyRecorderDialog .hotkey-tab.is-active {
+  border-color: var(--color-primary-adaptive, #0078D7);
+  box-shadow: inset 0 0 0 1px var(--color-primary-adaptive, #0078D7);
 }
 
-#HotkeyRecorderDialog .hotkey-advanced-panel > summary::before {
-  content: "▸";
-  margin-right: 8px;
-  transition: transform .15s ease;
-  display: inline-block;
-}
-
-#HotkeyRecorderDialog .hotkey-advanced-panel[open] > summary::before {
-  transform: rotate(90deg);
-}
-
-#HotkeyRecorderDialog .hotkey-advanced-content {
+#HotkeyRecorderDialog .hotkey-tab-panels {
   display: grid;
+}
+
+#HotkeyRecorderDialog .hotkey-tab-panel {
+  display: none;
   gap: 10px;
-  padding: 0 10px 10px;
+}
+
+#HotkeyRecorderDialog .hotkey-tab-panel.is-active {
+  display: grid;
 }
 
 #HotkeyRecorderDialog .hotkey-manual-builder {
@@ -782,6 +774,15 @@ body {
 }
 
 @media (max-width: 720px) {
+  #HotkeyRecorderDialog .hotkey-recorder-tabs {
+    width: 100%;
+  }
+
+  #HotkeyRecorderDialog .hotkey-tab {
+    flex: 1;
+    min-width: 0;
+  }
+
   #HotkeyRecorderDialog .hotkey-switch-row {
     grid-template-columns: auto minmax(0, 1fr);
   }

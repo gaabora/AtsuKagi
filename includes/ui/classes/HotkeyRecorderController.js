@@ -12,6 +12,7 @@ class HotkeyRecorderController {
     this.targetDisplayElement = null;
     this.pendingRaw = '';
     this.actionTarget = null;
+    this._activeTab = 'auto';
     this._manualKeyCatalog = this._buildManualKeyCatalog();
     this._manualModifierIdsGeneric = ['hotkeyManualModCtrl', 'hotkeyManualModAlt', 'hotkeyManualModShift', 'hotkeyManualModWin'];
     this._manualModifierIdsLr = [
@@ -126,10 +127,7 @@ class HotkeyRecorderController {
       optPassthrough.checked = this.pendingRaw.indexOf('~') !== -1;
     }
 
-    const advancedDetails = document.getElementById('hotkeyAdvancedDetails');
-    if (advancedDetails) {
-      advancedDetails.open = false;
-    }
+    this._setRecorderTab('auto', false);
 
     const manualFilter = document.getElementById('hotkeyManualKeyFilter');
     if (manualFilter) {
@@ -188,6 +186,46 @@ class HotkeyRecorderController {
       const el = document.getElementById(id);
       bindOnce(el, `bound${id}`, 'change', () => this._updateManualPreview());
     });
+
+    document.querySelectorAll('[data-hotkey-tab]').forEach((tabBtn, idx) => {
+      bindOnce(tabBtn, `boundHotkeyTab${idx}`, 'click', () => {
+        const tabName = `${tabBtn.getAttribute('data-hotkey-tab') || 'auto'}`.trim();
+        this._setRecorderTab(tabName, true);
+      });
+    });
+  }
+
+  _setRecorderTab(tabName, manageRecording = true) {
+    const wanted = (tabName === 'manual') ? 'manual' : 'auto';
+    this._activeTab = wanted;
+
+    document.querySelectorAll('[data-hotkey-tab]').forEach((tabBtn) => {
+      const isActive = `${tabBtn.getAttribute('data-hotkey-tab') || ''}` === wanted;
+      tabBtn.classList.toggle('is-active', isActive);
+      tabBtn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    document.querySelectorAll('[data-hotkey-tab-panel]').forEach((panel) => {
+      const isActive = `${panel.getAttribute('data-hotkey-tab-panel') || ''}` === wanted;
+      panel.classList.toggle('is-active', isActive);
+      panel.hidden = !isActive;
+    });
+
+    if (!manageRecording) return;
+
+    const statusEl = document.getElementById('hotkeyRecordStatus');
+    if (wanted === 'manual') {
+      this._stopAhkRecording();
+      if (statusEl) {
+        statusEl.textContent = 'Manual mode selected. Build a hotkey below.';
+      }
+      return;
+    }
+
+    this._startAhkRecording();
+    if (statusEl) {
+      statusEl.textContent = 'Recording... press a key combination.';
+    }
   }
 
   _restartRecordingIfActive() {
@@ -196,6 +234,11 @@ class HotkeyRecorderController {
   }
 
   _startAhkRecording() {
+    if (this._activeTab === 'manual') {
+      this.recording = false;
+      return;
+    }
+
     this._stopAhkRecording();
 
     const optLrModifiers = document.getElementById('hotkeyOptLrModifiers');

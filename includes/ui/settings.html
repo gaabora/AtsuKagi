@@ -181,9 +181,31 @@
           <div><strong>Hotkey:</strong><span id="hotkeyRecordReadable">(none)</span></div>
         </div>
 
-        <details id="hotkeyAdvancedDetails" class="hotkey-advanced-panel">
-          <summary>Advanced</summary>
-          <div class="hotkey-advanced-content">
+        <div class="hotkey-recorder-tabs" role="tablist" aria-label="Hotkey Input Mode">
+          <button class="app-btn hotkey-tab is-active" type="button" id="hotkeyTabAuto" data-hotkey-tab="auto" role="tab" aria-selected="true" aria-controls="hotkeyTabPanelAuto"><span>Auto</span></button>
+          <button class="app-btn hotkey-tab" type="button" id="hotkeyTabManual" data-hotkey-tab="manual" role="tab" aria-selected="false" aria-controls="hotkeyTabPanelManual"><span>Manual</span></button>
+        </div>
+
+        <div class="hotkey-tab-panels">
+          <section id="hotkeyTabPanelAuto" class="hotkey-tab-panel is-active" data-hotkey-tab-panel="auto" role="tabpanel" aria-labelledby="hotkeyTabAuto">
+            <div class="switch-row hotkey-switch-row">
+              <label class="app-switch">
+                <input type="checkbox" id="hotkeyOptMouseCapture" checked />
+                <div class="app-switch-view"></div>
+                <span class="app-switch-label" data-on="On" data-off="Off"></span>
+              </label>
+              <span>Capture Mouse</span>
+
+              <label class="app-switch">
+                <input type="checkbox" id="hotkeyOptGamepadCapture" checked />
+                <div class="app-switch-view"></div>
+                <span class="app-switch-label" data-on="On" data-off="Off"></span>
+              </label>
+              <span>Capture Gamepad</span>
+            </div>
+          </section>
+
+          <section id="hotkeyTabPanelManual" class="hotkey-tab-panel" data-hotkey-tab-panel="manual" role="tabpanel" aria-labelledby="hotkeyTabManual" hidden>
             <div class="switch-row hotkey-switch-row">
               <label class="app-switch">
                 <input type="checkbox" id="hotkeyOptLrModifiers" checked />
@@ -191,22 +213,6 @@
                 <span class="app-switch-label" data-on="On" data-off="Off"></span>
               </label>
               <span>Distinguish L/R Modifiers</span>
-
-              <label class="app-switch">
-                <input type="checkbox" id="hotkeyOptMouseCapture" checked />
-                <div class="app-switch-view"></div>
-                <span class="app-switch-label" data-on="On" data-off="Off"></span>
-              </label>
-              <span>Capture Mouse</span>
-            </div>
-
-            <div class="switch-row hotkey-switch-row">
-              <label class="app-switch">
-                <input type="checkbox" id="hotkeyOptGamepadCapture" checked />
-                <div class="app-switch-view"></div>
-                <span class="app-switch-label" data-on="On" data-off="Off"></span>
-              </label>
-              <span>Capture Gamepad</span>
 
               <label class="app-switch">
                 <input type="checkbox" id="hotkeyOptModifiersOnly" />
@@ -251,8 +257,8 @@
                 <button class="app-btn app-btn-primary" type="button" id="apply-manual-hotkey"><span>Use Manual Combination</span></button>
               </div>
             </div>
-          </div>
-        </details>
+          </section>
+        </div>
       </div>
       <div class="app-dialog-footer">
         <button class="app-btn" type="button" id="cancel-hotkey-record" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog"><span>Cancel</span></button>
