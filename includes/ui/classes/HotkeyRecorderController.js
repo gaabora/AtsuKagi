@@ -1,5 +1,6 @@
 /**
  * HotkeyRecorderController: Manages hotkey recording modal.
+ * Delegates key recording to AHK-level low-level keyboard hook.
  */
 class HotkeyRecorderController {
   constructor(dom, onActionHotkeyApplied = null) {
@@ -21,7 +22,8 @@ class HotkeyRecorderController {
       this._onRecordButtonClick(btn);
     });
 
-    document.addEventListener('keydown', (ev) => this._onRecordKey(ev), { capture: true });
+    // Global receiver for AHK hotkey updates (installed when recording starts)
+    window._onAhkHotkeyRecorded = (data) => this._onAhkHotkeyUpdate(data);
   }
 
   _onRecordButtonClick(btn) {
@@ -43,26 +45,8 @@ class HotkeyRecorderController {
       };
       this.pendingRaw = this.actionTarget.replaceHotkeyRaw;
 
-      const optWildcard = document.getElementById('hotkeyOptWildcard');
-      const optPassthrough = document.getElementById('hotkeyOptPassthrough');
-      if (optWildcard) {
-        optWildcard.checked = this.pendingRaw.indexOf('*') !== -1;
-      }
-      if (optPassthrough) {
-        optPassthrough.checked = this.pendingRaw.indexOf('~') !== -1;
-      }
-
-      const statusEl = document.getElementById('hotkeyRecordStatus');
-      const valueEl = document.getElementById('hotkeyRecordReadable');
-      if (statusEl) {
-        statusEl.textContent = 'Recording... press a key combination.';
-      }
-      if (valueEl) {
-        valueEl.textContent = this.pendingRaw ? AK_HumanizeAhkHotkey(this.pendingRaw) : '(listening...)';
-      }
-
-      this._stopRecording();
-      this.recording = true;
+      this._initializeRecorderUI();
+      this._startAhkRecording();
       return;
     }
 
@@ -77,15 +61,11 @@ class HotkeyRecorderController {
     this.targetDisplayElement = this._resolveDisplayElement(input);
     this.pendingRaw = input.value || '';
 
-    const optWildcard = document.getElementById('hotkeyOptWildcard');
-    const optPassthrough = document.getElementById('hotkeyOptPassthrough');
-    if (optWildcard) {
-      optWildcard.checked = this.pendingRaw.indexOf('*') !== -1;
-    }
-    if (optPassthrough) {
-      optPassthrough.checked = this.pendingRaw.indexOf('~') !== -1;
-    }
+    this._initializeRecorderUI();
+    this._startAhkRecording();
+  }
 
+  _initializeRecorderUI() {
     const statusEl = document.getElementById('hotkeyRecordStatus');
     const valueEl = document.getElementById('hotkeyRecordReadable');
     if (statusEl) {
@@ -94,55 +74,85 @@ class HotkeyRecorderController {
     if (valueEl) {
       valueEl.textContent = this.pendingRaw ? AK_HumanizeAhkHotkey(this.pendingRaw) : '(listening...)';
     }
-
-    this._stopRecording();
-    this.recording = true;
   }
 
-  _onRecordKey(ev) {
+  _startAhkRecording() {
+    // Note: wildcard and passthrough will be applied by JS at apply-time, not by AHK recorder
+    const options = {
+      keyboard: true,
+      mouse: true,
+      lrModifiers: true,
+      markOnly: false
+    };
+
+    try {
+      const result = window.chrome.webview.hostObjects.sync.StartHotkeyRecording(JSON.stringify(options));
+      const parsed = (typeof result === 'string') ? JSON.parse(result) : result;
+      this.recording = !!parsed?.success;
+    } catch (error) {
+      console.error('Failed to start AHK hotkey recording', error);
+      this.recording = false;
+    }
+  }
+
+  _onAhkHotkeyUpdate(data) {
     if (!this.recording) return;
 
-    const optWildcard = document.getElementById('hotkeyOptWildcard');
-    const optPassthrough = document.getElementById('hotkeyOptPassthrough');
-
-    ev.preventDefault();
-    ev.stopPropagation();
-
-    const raw = this._toAhkHotkey(ev, optWildcard?.checked || false, optPassthrough?.checked || false);
+    const { raw, display } = data;
     if (!raw) return;
 
+    // Store the raw hotkey
     this.pendingRaw = raw;
 
+    // Update UI
     const statusEl = document.getElementById('hotkeyRecordStatus');
     const valueEl = document.getElementById('hotkeyRecordReadable');
     if (statusEl) {
       statusEl.textContent = 'Captured. Press Apply to use it or keep pressing keys to change.';
     }
     if (valueEl) {
-      valueEl.textContent = AK_HumanizeAhkHotkey(raw);
+      valueEl.textContent = display;
     }
   }
 
-  _stopRecording() {
+  _stopAhkRecording() {
+    try {
+      window.chrome.webview.hostObjects.sync.StopHotkeyRecording();
+    } catch (error) {
+      console.error('Failed to stop AHK hotkey recording', error);
+    }
     this.recording = false;
   }
 
   apply() {
-    if (this.actionTarget && this.pendingRaw) {
+    // Apply wildcard and passthrough modifiers if enabled (done at JS level, not AHK)
+    let finalHotkey = this.pendingRaw;
+    const optWildcard = document.getElementById('hotkeyOptWildcard')?.checked || false;
+    const optPassthrough = document.getElementById('hotkeyOptPassthrough')?.checked || false;
+
+    // Add prefixes if not already present
+    if (optWildcard && !finalHotkey.startsWith('*')) {
+      finalHotkey = '*' + finalHotkey;
+    }
+    if (optPassthrough && !finalHotkey.startsWith('~')) {
+      finalHotkey = '~' + finalHotkey;
+    }
+
+    if (this.actionTarget && finalHotkey) {
       if (typeof this.onActionHotkeyApplied === 'function') {
-        this.onActionHotkeyApplied(this.actionTarget.actionName, this.pendingRaw, this.actionTarget.replaceHotkeyRaw || '');
+        this.onActionHotkeyApplied(this.actionTarget.actionName, finalHotkey, this.actionTarget.replaceHotkeyRaw || '');
       }
-      this._stopRecording();
+      this._stopAhkRecording();
       return;
     }
 
     const input = this.targetElement || this.dom.getField(this.targetId);
-    if (!input || !this.pendingRaw) return;
+    if (!input || !finalHotkey) return;
 
-    input.value = this.pendingRaw;
+    input.value = finalHotkey;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    this._stopRecording();
+    this._stopAhkRecording();
     if (this.targetId) {
       this.updatePreview(this.targetId);
     } else {
@@ -200,40 +210,12 @@ class HotkeyRecorderController {
     this._setDisplayText(display, txt ? AK_HumanizeAhkHotkey(txt) : '');
   }
 
-  _toAhkHotkey(ev, wildcard, passthrough) {
-    const key = ev.key;
-    if (!key) return '';
-    if (key === 'Control' || key === 'Shift' || key === 'Alt' || key === 'Meta') return '';
+  cancel() {
+    this._stopAhkRecording();
+  }
 
-    let prefix = '';
-    if (wildcard) prefix += '*';
-    if (passthrough) prefix += '~';
-    if (ev.ctrlKey) prefix += '^';
-    if (ev.altKey) prefix += '!';
-    if (ev.shiftKey) prefix += '+';
-    if (ev.metaKey) prefix += '#';
-
-    const keyMap = {
-      ' ': 'Space',
-      'Escape': 'Esc',
-      'ArrowUp': 'Up',
-      'ArrowDown': 'Down',
-      'ArrowLeft': 'Left',
-      'ArrowRight': 'Right',
-      'Backspace': 'Backspace',
-      'Delete': 'Delete',
-      'Insert': 'Insert',
-      'Home': 'Home',
-      'End': 'End',
-      'PageUp': 'PgUp',
-      'PageDown': 'PgDn',
-      'Enter': 'Enter',
-      'Tab': 'Tab'
-    };
-
-    let keyName = keyMap[key] || key;
-    if (keyName.length === 1) keyName = keyName.toUpperCase();
-    return prefix + keyName;
+  close() {
+    this._stopAhkRecording();
   }
 
 }
