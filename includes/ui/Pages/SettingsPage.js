@@ -310,8 +310,8 @@ class SettingsPage {
   }
 
   _bindHotkeyRecorderDialog() {
-    const applyBtn = document.getElementById('apply-hotkey-record');
-    const cancelBtn = document.getElementById('cancel-hotkey-record');
+    const applyBtn = document.getElementById('saveHotkey');
+    const cancelBtn = document.getElementById('canceHotkey');
 
     if (applyBtn && applyBtn.dataset.boundHotkeyApply !== '1') {
       applyBtn.dataset.boundHotkeyApply = '1';
@@ -342,7 +342,7 @@ class SettingsPage {
   }
 
   _bindDevToolsButton() {
-    const openDevToolsBtn = document.getElementById('open-dev-tools');
+    const openDevToolsBtn = document.getElementById('openDevTools');
     if (!openDevToolsBtn) return;
     if (openDevToolsBtn.dataset.boundDevTools === '1') return;
     openDevToolsBtn.dataset.boundDevTools = '1';

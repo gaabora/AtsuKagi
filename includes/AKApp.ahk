@@ -1025,7 +1025,7 @@ class AKApp extends AKBase {
         result[k] := v
       }
     }
-    return AK_ToJson(result)
+    return jsongo.Stringify(result)
   }
 
   _parseAtomicValue(payload) {

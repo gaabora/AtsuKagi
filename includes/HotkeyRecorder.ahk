@@ -91,7 +91,7 @@ class HotkeyRecorder {
             "keyboard", true,
             "mouse", true,
             "joystick", true,
-            "lrModifiers", true,
+            "lrModifiers", false,
             "wildcard", false,
             "passthrough", false,
             "markOnly", false

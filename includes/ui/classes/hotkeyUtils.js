@@ -1,8 +1,16 @@
 function AK_HumanizeAhkHotkey(hk) {
   if (!hk) return '';
 
-  const labels = [];
   const input = `${hk}`.trim();
+  const comboParts = input.split(/\s*&\s*/).map((part) => part.trim()).filter(Boolean);
+  if (comboParts.length >= 2) {
+    return comboParts.map((part) => {
+      const parsed = `${part || ''}`.trim().replace(/^[*~$]+/, '');
+      return AK_HumanizeAhkKeyName(parsed);
+    }).join(' & ');
+  }
+
+  const labels = [];
   let i = 0;
 
   while (i < input.length) {

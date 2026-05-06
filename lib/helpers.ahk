@@ -78,20 +78,21 @@ ExtractHotkeyInfo(hotkeyString) {
   MODIFIER_REGEX := "(<\^>!|<!|>!|<#|>#|<\^|>\^|<\+|>\+|!|#|\^|\+)"
 
   result := {}
-  result.special := RegexMatchGlobal(hotkeyString, SPECIAL_REGEX)
-  result.modifiers := RegexMatchGlobal(hotkeyString, MODIFIER_REGEX)
+  sourceHotkey := Trim("" hotkeyString)
+  result.special := RegexMatchGlobal(sourceHotkey, SPECIAL_REGEX)
+  result.modifiers := RegexMatchGlobal(sourceHotkey, MODIFIER_REGEX)
   result.customModifier := ""
 
-  cleanedHotkey := hotkeyString
+  cleanedHotkey := sourceHotkey
   for char in result.special
     cleanedHotkey := StrReplace(cleanedHotkey, char)
   for char in result.modifiers
     cleanedHotkey := StrReplace(cleanedHotkey, char)
+  cleanedHotkey := Trim(cleanedHotkey)
 
-  customCombination := StrSplit(cleanedHotkey, " & ")
-  if (customCombination.Length = 2) {
-    result.customModifier := customCombination[1]
-    result.key := customCombination[2]
+  if (RegExMatch(cleanedHotkey, "^\s*(.+?)\s*&\s*(.+)\s*$", &comboMatch)) {
+    result.customModifier := Trim(comboMatch[1])
+    result.key := Trim(comboMatch[2])
   } else {
     result.key := cleanedHotkey
   }
@@ -135,7 +136,21 @@ convertToReadableHotkey(KeyCombination) {
 
 }
 
-ConvertToUniversalVkHotkey(KeyCombination) {
+ConvertToUniversalVkHotkey(KeyCombination) { ; FIXME: review and simplify
+  normalizedInput := Trim("" KeyCombination)
+  if (RegExMatch(normalizedInput, "^\s*(.+?)\s*&\s*(.+)\s*$", &comboMatch)) {
+    comboPrefix := Trim(comboMatch[1])
+    comboSuffix := Trim(comboMatch[2])
+    if (comboPrefix = "" || comboSuffix = "")
+      return KeyCombination
+
+    if (StrLen(comboSuffix) = 1) {
+      comboSuffix := Format("vk{:X}", GetKeyVK(comboSuffix))
+    }
+
+    return comboPrefix . " & " . comboSuffix
+  }
+
   k := ExtractHotkeyInfo(KeyCombination)
   if (StrLen(k.key) = 1) {
     modifiersStr := ""
@@ -268,43 +283,3 @@ FormatCamelCaseToSentence(text) {
   return Join(results, " ")
 }
 
-AK_JsonEscape(text) {
-  escaped := "" text
-  escaped := StrReplace(escaped, "\\", "\\\\")
-  escaped := StrReplace(escaped, '"', '\"')
-  escaped := StrReplace(escaped, "`r", "\\r")
-  escaped := StrReplace(escaped, "`n", "\\n")
-  escaped := StrReplace(escaped, "`t", "\\t")
-  return escaped
-}
-
-AK_ToJson(value) { ; TODO: obsolete, replace calls with jsongo.ToJson and remove this function and AK_JsonEscape
-  if (value is Array) {
-    parts := ""
-    for item in value
-      parts .= AK_ToJson(item) ","
-    return "[" RTrim(parts, ",") "]"
-  }
-
-  if (value is Map) {
-    parts := ""
-    for key, item in value
-      parts .= '"' AK_JsonEscape("" key) '":' AK_ToJson(item) ","
-    return "{" RTrim(parts, ",") "}"
-  }
-
-  if (value is Integer || value is Float)
-    return "" value
-
-  if (!IsObject(value))
-    return '"' AK_JsonEscape(value) '"'
-
-  try {
-    parts := ""
-    for key, item in value.OwnProps()
-      parts .= '"' AK_JsonEscape("" key) '":' AK_ToJson(item) ","
-    return "{" RTrim(parts, ",") "}"
-  } catch {
-    return "null"
-  }
-}

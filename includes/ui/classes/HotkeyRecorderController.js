@@ -3,6 +3,50 @@
  * Delegates key recording to AHK-level low-level keyboard hook.
  */
 class HotkeyRecorderController {
+
+  // --- Modifier token maps (shared between parse and compose) ---
+
+  static MOD_TOKENS_GENERIC = {
+    '^': 'Ctrl', '!': 'Alt', '+': 'Shift', '#': 'Win',
+    '<^': 'Ctrl', '>^': 'Ctrl', '<!': 'Alt', '>!': 'Alt',
+    '<+': 'Shift', '>+': 'Shift', '<#': 'Win', '>#': 'Win'
+  };
+
+  static MOD_TOKENS_LR = {
+    '^': 'LCtrl', '!': 'LAlt', '+': 'LShift', '#': 'LWin',
+    '<^': 'LCtrl', '>^': 'RCtrl', '<!': 'LAlt', '>!': 'RAlt',
+    '<+': 'LShift', '>+': 'RShift', '<#': 'LWin', '>#': 'RWin'
+  };
+
+  static MOD_TO_TOKEN_GENERIC = { 'Ctrl': '^', 'Alt': '!', 'Shift': '+', 'Win': '#' };
+
+  static MOD_TO_TOKEN_LR = {
+    'LCtrl': '<^', 'RCtrl': '>^', 'LAlt': '<!', 'RAlt': '>!',
+    'LShift': '<+', 'RShift': '>+', 'LWin': '<#', 'RWin': '>#'
+  };
+
+  static RISKY_KEYS = new Set(['ESC', 'ENTER', 'LBUTTON', 'RBUTTON']);
+
+  static KEY_CATALOG_SPECIAL = [
+    ['Esc', 'Escape'], ['Tab', 'Tab'], ['Enter', 'Enter'], ['Space', 'Space'],
+    ['Backspace', 'Backspace'], ['Delete', 'Delete'], ['Insert', 'Insert'],
+    ['Home', 'Home'], ['End', 'End'], ['PgUp', 'Page Up'], ['PgDn', 'Page Down'],
+    ['Up', 'Arrow Up'], ['Down', 'Arrow Down'], ['Left', 'Arrow Left'], ['Right', 'Arrow Right'],
+    ['CapsLock', 'Caps Lock'], ['NumLock', 'Num Lock'], ['ScrollLock', 'Scroll Lock'],
+    ['PrintScreen', 'Print Screen'], ['Pause', 'Pause'], ['AppsKey', 'Context Menu'],
+    ['Numpad0', 'Numpad 0'], ['Numpad1', 'Numpad 1'], ['Numpad2', 'Numpad 2'],
+    ['Numpad3', 'Numpad 3'], ['Numpad4', 'Numpad 4'], ['Numpad5', 'Numpad 5'],
+    ['Numpad6', 'Numpad 6'], ['Numpad7', 'Numpad 7'], ['Numpad8', 'Numpad 8'],
+    ['Numpad9', 'Numpad 9'], ['NumpadDot', 'Numpad .'], ['NumpadAdd', 'Numpad +'],
+    ['NumpadSub', 'Numpad -'], ['NumpadMult', 'Numpad *'], ['NumpadDiv', 'Numpad /'],
+    ['NumpadEnter', 'Numpad Enter'], ['Volume_Mute', 'Volume Mute'],
+    ['Volume_Down', 'Volume Down'], ['Volume_Up', 'Volume Up'],
+    ['Media_Play_Pause', 'Media Play/Pause'], ['Media_Next', 'Media Next'],
+    ['Media_Prev', 'Media Previous'], ['Media_Stop', 'Media Stop'],
+    ['LButton', 'Mouse Left'], ['RButton', 'Mouse Right'], ['MButton', 'Mouse Middle'],
+    ['WheelUp', 'Mouse Wheel Up'], ['WheelDown', 'Mouse Wheel Down']
+  ];
+
   constructor(dom, onActionHotkeyApplied = null) {
     this.dom = dom;
     this.onActionHotkeyApplied = onActionHotkeyApplied;
@@ -13,59 +57,62 @@ class HotkeyRecorderController {
     this.pendingRaw = '';
     this.actionTarget = null;
     this._activeTab = 'auto';
-    this._autoRecordSeconds = 5;
-    this._autoRecordDeadline = 0;
-    this._autoRecordTickTimer = null;
-    this._autoRecordStopTimer = null;
+    this._recordSeconds = 5;
+    this._recordDeadline = 0;
+    this._recordTickTimer = null;
+    this._recordStopTimer = null;
     this._autoWindowCaptured = false;
+    this._customComboStep = 0;
+    this._pendingPrefixKey = '';
     this._manualKeyCatalog = this._buildManualKeyCatalog();
-    this._manualModifierIdsGeneric = ['hotkeyManualModCtrl', 'hotkeyManualModAlt', 'hotkeyManualModShift', 'hotkeyManualModWin'];
-    this._manualModifierIdsLr = [
-      'hotkeyManualModLCtrl', 'hotkeyManualModRCtrl',
-      'hotkeyManualModLAlt', 'hotkeyManualModRAlt',
-      'hotkeyManualModLShift', 'hotkeyManualModRShift',
-      'hotkeyManualModLWin', 'hotkeyManualModRWin'
-    ];
     this.init();
   }
+
+  // --- Helpers ---
+
+  _str(v) { return `${v || ''}`.trim(); }
+
+  _el(id) { return document.getElementById(id); }
+
+  _checked(id) { return this._el(id)?.checked || false; }
+
+  _lrEnabled() { return this._checked('hotkeyOptLrModifiers'); }
+
+  _humanize(raw) { return raw ? AK_HumanizeAhkHotkey(raw) : '(none)'; }
+
+  // --- Init ---
 
   init() {
     document.addEventListener('click', (ev) => {
       const btn = ev.target.closest('[data-hotkey-target], [data-hotkey-selector], [data-hotkey-action]');
-      if (!btn) return;
-      this._onRecordButtonClick(btn);
+      if (btn) this._onRecordButtonClick(btn);
     });
 
-    // Global receiver for AHK hotkey updates (installed when recording starts)
     window._onAhkHotkeyRecorded = (data) => this._onAhkHotkeyUpdate(data);
-
-    this._bindAdvancedControls();
+    this._bindControls();
   }
 
+  // --- Dialog open ---
+
   _onRecordButtonClick(btn) {
-    const dialog = document.getElementById('HotkeyRecorderDialog');
+    const dialog = this._el('HotkeyRecorderDialog');
     if (dialog) {
-      dialog.classList.add('active');
-      dialog.classList.add('show');
+      dialog.classList.add('active', 'show');
       dialog.style.display = 'flex';
     }
 
-    const actionName = `${btn.getAttribute('data-hotkey-action') || ''}`.trim();
+    const actionName = this._str(btn.getAttribute('data-hotkey-action'));
     if (actionName) {
       this.targetId = '';
       this.targetElement = null;
       this.targetDisplayElement = null;
-      const fullActionHandler = `${btn.getAttribute('data-hotkey-action-full') || ''}`.trim();
       this.actionTarget = {
         actionName,
-        fullActionHandler: fullActionHandler || actionName,
-        replaceHotkeyRaw: `${btn.getAttribute('data-hotkey-current') || ''}`.trim()
+        fullActionHandler: this._str(btn.getAttribute('data-hotkey-action-full')) || actionName,
+        replaceHotkeyRaw: this._str(btn.getAttribute('data-hotkey-current'))
       };
       this.pendingRaw = this.actionTarget.replaceHotkeyRaw;
-
-      const label = this._humanizeLabel(actionName);
-      this._setDialogTitle(`Assign ${label}`);
-
+      this._setDialogTitle(`Assign ${this._humanizeLabel(actionName)}`);
       this._initializeRecorderUI();
       return;
     }
@@ -80,40 +127,26 @@ class HotkeyRecorderController {
     this.targetElement = input;
     this.targetDisplayElement = this._resolveDisplayElement(input);
     this.pendingRaw = input.value || '';
-
-    const targetLabel = this._resolveTargetTitle(btn, input, targetId);
-    this._setDialogTitle(`Assign ${targetLabel}`);
-
+    this._setDialogTitle(`Assign ${this._resolveTargetTitle(btn, input, targetId)}`);
     this._initializeRecorderUI();
   }
 
-  _setDialogTitle(titleText) {
-    const title = document.getElementById('hotkeyDialogTitle');
-    if (title) {
-      title.textContent = titleText || 'Assign Hotkey';
-    }
+  _setDialogTitle(text) {
+    const el = this._el('hotkeyDialogTitle');
+    if (el) el.textContent = text || 'Assign Hotkey';
   }
 
   _resolveTargetTitle(btn, input, targetId) {
-    const direct = `${btn?.getAttribute('data-hotkey-label') || ''}`.trim();
-    if (direct) return direct;
-
-    const rowLabel = `${input?.closest('.setting-row')?.querySelector('.field-label')?.textContent || ''}`.trim();
-    if (rowLabel) return rowLabel;
-
-    const dataKey = `${input?.getAttribute('data-key') || ''}`.trim();
-    if (dataKey) return this._humanizeLabel(dataKey);
-
-    const inputId = `${targetId || input?.id || ''}`.trim();
-    if (inputId) return this._humanizeLabel(inputId);
-
-    return 'Hotkey';
+    return this._str(btn?.getAttribute('data-hotkey-label'))
+      || this._str(input?.closest('.setting-row')?.querySelector('.field-label')?.textContent)
+      || this._humanizeLabel(this._str(input?.getAttribute('data-key')))
+      || this._humanizeLabel(this._str(targetId || input?.id))
+      || 'Hotkey';
   }
 
   _humanizeLabel(value) {
-    const text = `${value || ''}`.trim();
+    const text = this._str(value);
     if (!text) return '';
-
     return text
       .replace(/[_-]+/g, ' ')
       .replace(/([a-z\d])([A-Z])/g, '$1 $2')
@@ -122,464 +155,310 @@ class HotkeyRecorderController {
       .replace(/\b\w/g, (ch) => ch.toUpperCase());
   }
 
-  _clearAutoRecordTimers() {
-    if (this._autoRecordTickTimer) {
-      clearInterval(this._autoRecordTickTimer);
-      this._autoRecordTickTimer = null;
-    }
-    if (this._autoRecordStopTimer) {
-      clearTimeout(this._autoRecordStopTimer);
-      this._autoRecordStopTimer = null;
-    }
-    this._autoRecordDeadline = 0;
+  // --- Recording timer management ---
+
+  _clearRecordTimers() {
+    if (this._recordTickTimer) { clearInterval(this._recordTickTimer); this._recordTickTimer = null; }
+    if (this._recordStopTimer) { clearTimeout(this._recordStopTimer); this._recordStopTimer = null; }
+    this._recordDeadline = 0;
   }
 
-  _getAutoRecordSecondsLeft() {
-    if (!this._autoRecordDeadline) return 0;
-    return Math.max(0, Math.ceil((this._autoRecordDeadline - Date.now()) / 1000));
+  _getRecordSecondsLeft() {
+    if (!this._recordDeadline) return 0;
+    return Math.max(0, Math.ceil((this._recordDeadline - Date.now()) / 1000));
   }
+
+  // --- UI state setters ---
 
   _setRecorderStatus(text, isError = false) {
-    const statusEl = document.getElementById('hotkeyRecordStatus');
-    if (!statusEl) return;
-    statusEl.textContent = text || '';
-    statusEl.classList.toggle('is-error', !!isError);
+    const el = this._el('hotkeyRecordHint');
+    if (!el) return;
+    el.textContent = text || '';
+    el.classList.toggle('is-error', !!isError);
   }
 
-  _setAutoHint(text) {
-    const hintEl = document.getElementById('hotkeyAutoRecordHint');
-    if (hintEl) {
-      hintEl.textContent = text || '';
-    }
+  _setSaveEnabled(enabled) {
+    const btn = this._el('saveHotkey');
+    if (btn) btn.disabled = !enabled;
   }
 
-  _setApplyEnabled(enabled) {
-    const applyBtn = document.getElementById('apply-hotkey-record');
-    if (applyBtn) {
-      applyBtn.disabled = !enabled;
-    }
-  }
-
-  _setAutoRecordButtonState() {
-    const btn = document.getElementById('hotkeyAutoRecordButton');
+  _setRecordButtonState() {
+    const btn = this._el('hotkeyRecordButton');
     if (!btn) return;
-    const seconds = this._getAutoRecordSecondsLeft();
-    const text = (this.recording && this._activeTab === 'auto')
-      ? `Stop (${Math.max(1, seconds)}s)`
-      : `Record (${this._autoRecordSeconds}s)`;
-    const labelNode = btn.querySelector('span');
-    if (labelNode) {
-      labelNode.textContent = text;
-    } else {
-      btn.textContent = text;
-    }
-    btn.classList.toggle('is-recording', this.recording && this._activeTab === 'auto');
+    const seconds = this._getRecordSecondsLeft();
+    btn.textContent = this.recording ? `Stop in ${seconds} second${seconds !== 1 ? 's' : ''}` : 'Record';
+    btn.classList.toggle('is-recording', this.recording);
   }
 
-  _stopAutoRecordingWindow(reason = 'timeout') {
+  _setReadableDisplay(raw) {
+    const el = this._el('hotkeyRecordReadable');
+    if (el) el.textContent = this._humanize(raw);
+  }
+
+  // --- Recording lifecycle ---
+
+  _stopRecordingWindow() {
     const wasRecording = this.recording;
-    const capturedInWindow = this._autoWindowCaptured;
+    const captured = this._autoWindowCaptured;
     this._stopAhkRecording();
-    this._clearAutoRecordTimers();
-    this._setApplyEnabled(true);
-    this._setAutoRecordButtonState();
+    this._customComboStep = 0;
+    this._pendingPrefixKey = '';
+    this._clearRecordTimers();
+    this._setSaveEnabled(true);
+    this._setRecordButtonState();
 
-    if (!wasRecording) {
+    if (!wasRecording || captured) {
       this._autoWindowCaptured = false;
-      this._setRecorderStatus('Auto mode: press Record to capture a hotkey (5 seconds).');
-      this._setAutoHint('Press Record to listen for 5 seconds.');
-      return;
+      this._setRecorderStatus('Press Record to capture a hotkey');
     }
-
-    if (reason === 'manual-stop') {
-      this._setRecorderStatus(capturedInWindow
-        ? 'Recording stopped. Press Apply to save, or Record to try again.'
-        : 'Recording stopped with no new capture. Press Record to try again.');
-      this._setAutoHint('Press Record to start another 5-second capture window.');
-      this._autoWindowCaptured = false;
-      return;
-    }
-
-    this._setRecorderStatus(capturedInWindow
-      ? 'Capture window ended. Press Apply to save, or Record to try again.'
-      : 'No hotkey captured in 5 seconds. Press Record to try again.');
-    this._setAutoHint('Press Record to start another 5-second capture window.');
-    this._autoWindowCaptured = false;
   }
 
-  _startAutoRecordingWindow() {
-    if (this._activeTab !== 'auto') {
-      this._setRecorderStatus('Switch to Auto tab to start timed recording.', true);
-      return;
-    }
+  _startRecordingWindow() {
+    if (this.recording) { this._stopRecordingWindow(); return; }
 
-    if (this.recording) {
-      this._stopAutoRecordingWindow('manual-stop');
-      return;
-    }
-
-    this._clearAutoRecordTimers();
+    this._clearRecordTimers();
     this._startAhkRecording();
 
     if (!this.recording) {
-      this._setRecorderStatus('Failed to start recording. Check host bridge.', true);
-      this._setAutoHint('Recording failed. Try again.');
-      this._setAutoRecordButtonState();
+      this._setRecorderStatus('Failed to start recording. Try restarting the app.', true);
+      this._setRecordButtonState();
       return;
     }
 
-    this._setApplyEnabled(false);
+    this._setSaveEnabled(false);
     this._autoWindowCaptured = false;
-    this._autoRecordDeadline = Date.now() + (this._autoRecordSeconds * 1000);
-    this._setRecorderStatus(`Recording... ${this._autoRecordSeconds}s left.`);
-    this._setAutoHint('Press keys now. Recording stops automatically after 5 seconds.');
-    this._setAutoRecordButtonState();
+    this._customComboStep = 0;
+    this._pendingPrefixKey = '';
+    this._recordDeadline = Date.now() + (this._recordSeconds * 1000);
+    this._setRecorderStatus('Recording started. Press your hotkey now.');
+    this._setRecordButtonState();
 
-    this._autoRecordTickTimer = setInterval(() => {
-      if (!this.recording) {
-        this._clearAutoRecordTimers();
-        this._setAutoRecordButtonState();
-        return;
-      }
-
-      const seconds = this._getAutoRecordSecondsLeft();
-      if (seconds <= 0) return;
-      this._setRecorderStatus(this._autoWindowCaptured
-        ? `Captured. ${seconds}s left in recording window.`
-        : `Recording... ${seconds}s left.`);
-      this._setAutoRecordButtonState();
+    this._recordTickTimer = setInterval(() => {
+      if (!this.recording) { this._clearRecordTimers(); }
+      this._setRecordButtonState();
     }, 250);
 
-    this._autoRecordStopTimer = setTimeout(() => {
-      this._stopAutoRecordingWindow('timeout');
-    }, this._autoRecordSeconds * 1000);
-  }
-
-  _initializeRecorderUI() {
-    this._clearAutoRecordTimers();
-    this._stopAhkRecording(false);
-    this._autoWindowCaptured = false;
-
-    const optWildcard = document.getElementById('hotkeyOptWildcard');
-    const optPassthrough = document.getElementById('hotkeyOptPassthrough');
-    const optAllowRisky = document.getElementById('hotkeyOptAllowRisky');
-    if (optWildcard) {
-      optWildcard.checked = this.pendingRaw.indexOf('*') !== -1;
-    }
-    if (optPassthrough) {
-      optPassthrough.checked = this.pendingRaw.indexOf('~') !== -1;
-    }
-    if (optAllowRisky) {
-      optAllowRisky.checked = false;
-    }
-
-    this._setRecorderTab('auto', false);
-
-    const manualFilter = document.getElementById('hotkeyManualKeyFilter');
-    if (manualFilter) {
-      manualFilter.value = '';
-    }
-
-    this._syncManualModifierMode();
-    this._renderManualKeyList();
-    this._setManualControlsFromRaw(this.pendingRaw);
-    this._updateManualPreview();
-
-    const valueEl = document.getElementById('hotkeyRecordReadable');
-    if (valueEl) {
-      valueEl.textContent = this.pendingRaw ? AK_HumanizeAhkHotkey(this.pendingRaw) : '(none)';
-    }
-
-    this._setRecorderStatus('Auto mode: press Record to capture a hotkey (5 seconds).');
-    this._setAutoHint('Listening for input...');
-    this._setApplyEnabled(true);
-    this._setAutoRecordButtonState();
-    this._updateKeySelectionVisibility();
-    this._updateAdvancedOptionsVisibility();
-  }
-
-  _bindAdvancedControls() {
-    const bindOnce = (el, marker, eventName, handler) => {
-      if (!el || el.dataset[marker] === '1') return;
-      el.dataset[marker] = '1';
-      el.addEventListener(eventName, handler);
-    };
-
-    const optionIds = ['hotkeyOptMouseCapture', 'hotkeyOptGamepadCapture', 'hotkeyOptModifiersOnly', 'hotkeyOptLrModifiers'];
-    optionIds.forEach((id) => {
-      const el = document.getElementById(id);
-      bindOnce(el, `bound${id}`, 'change', () => {
-        if (id === 'hotkeyOptLrModifiers') {
-          this._syncManualModifierMode();
-          this._setManualControlsFromRaw(this.pendingRaw);
-          this._updateManualPreview();
-        }
-        if (id === 'hotkeyOptModifiersOnly') {
-          this._updateKeySelectionVisibility();
-          this._updateManualPreview();
-        }
-        this._restartRecordingIfActive();
-      });
-    });
-
-    const manualFilter = document.getElementById('hotkeyManualKeyFilter');
-    bindOnce(manualFilter, 'boundHotkeyManualFilter', 'input', () => {
-      this._renderManualKeyList();
-      this._updateManualPreview();
-    });
-
-    const keyList = document.getElementById('hotkeyManualKeyList');
-    bindOnce(keyList, 'boundHotkeyManualKeyChange', 'change', () => this._updateManualPreview());
-    bindOnce(keyList, 'boundHotkeyManualKeyDblClick', 'dblclick', () => this._applyManualHotkey());
-
-    const recordBtn = document.getElementById('hotkeyAutoRecordButton');
-    bindOnce(recordBtn, 'boundHotkeyAutoRecord', 'click', () => this._startAutoRecordingWindow());
-
-    // Bind modifier buttons
-    document.querySelectorAll('.hotkey-mod-btn').forEach((btn, idx) => {
-      bindOnce(btn, `boundModBtn${idx}`, 'click', (ev) => {
-        ev.preventDefault();
-        btn.classList.toggle('active');
-        this._updateManualPreview();
-      });
-    });
-
-    // Tab switching
-    document.querySelectorAll('[data-hotkey-tab]').forEach((tabBtn, idx) => {
-      bindOnce(tabBtn, `boundHotkeyTab${idx}`, 'click', () => {
-        const tabName = `${tabBtn.getAttribute('data-hotkey-tab') || 'auto'}`.trim();
-        this._setRecorderTab(tabName, true);
-        this._updateAdvancedOptionsVisibility();
-      });
-    });
-  }
-
-  _setRecorderTab(tabName, manageRecording = true) {
-    const wanted = (tabName === 'manual') ? 'manual' : 'auto';
-    this._activeTab = wanted;
-
-    document.querySelectorAll('[data-hotkey-tab]').forEach((tabBtn) => {
-      const isActive = `${tabBtn.getAttribute('data-hotkey-tab') || ''}` === wanted;
-      tabBtn.classList.toggle('is-active', isActive);
-      tabBtn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    });
-
-    document.querySelectorAll('[data-hotkey-tab-panel]').forEach((panel) => {
-      const isActive = `${panel.getAttribute('data-hotkey-tab-panel') || ''}` === wanted;
-      panel.classList.toggle('is-active', isActive);
-      panel.hidden = !isActive;
-    });
-
-    if (!manageRecording) {
-      this._setAutoRecordButtonState();
-      return;
-    }
-
-    if (wanted === 'manual') {
-      this._stopAutoRecordingWindow('manual-stop');
-      this._setRecorderStatus('Manual mode selected. Build a hotkey below.');
-      return;
-    }
-
-    if (this.recording) {
-      const seconds = this._getAutoRecordSecondsLeft();
-      this._setRecorderStatus(`Recording... ${Math.max(1, seconds)}s left.`);
-      this._setAutoHint('Press keys now. Recording stops automatically after 5 seconds.');
-      this._setApplyEnabled(false);
-    } else {
-      this._setRecorderStatus('Auto mode: press Record to capture a hotkey (5 seconds).');
-      this._setAutoHint('Listening for input...');
-      this._setApplyEnabled(true);
-    }
-    this._setAutoRecordButtonState();
-    this._updateAdvancedOptionsVisibility();
-  }
-
-  _updateAdvancedOptionsVisibility() {
-    const autoSection = document.getElementById('hotkeyAdvancedAuto');
-    const manualSection = document.getElementById('hotkeyAdvancedManual');
-    if (autoSection) autoSection.hidden = this._activeTab !== 'auto';
-    if (manualSection) manualSection.hidden = this._activeTab !== 'manual';
-  }
-
-  _updateKeySelectionVisibility() {
-    const keySelection = document.getElementById('hotkeyKeySelection');
-    const modifiersOnly = document.getElementById('hotkeyOptModifiersOnly')?.checked || false;
-    if (keySelection) {
-      keySelection.hidden = modifiersOnly;
-    }
-  }
-
-  _restartRecordingIfActive() {
-    if (!this.recording) return;
-    this._startAhkRecording();
-    if (this.recording && this._activeTab === 'auto') {
-      const seconds = this._getAutoRecordSecondsLeft();
-      this._setRecorderStatus(`Recording... ${Math.max(1, seconds)}s left.`);
-      this._setAutoRecordButtonState();
-    }
+    this._recordStopTimer = setTimeout(() => this._stopRecordingWindow(), this._recordSeconds * 1000);
   }
 
   _startAhkRecording() {
-    if (this._activeTab === 'manual') {
-      this.recording = false;
-      return;
-    }
-
+    if (this._activeTab === 'manual') { this.recording = false; return; }
     this._stopAhkRecording(false);
 
-    const optLrModifiers = document.getElementById('hotkeyOptLrModifiers');
-    const optMouseCapture = document.getElementById('hotkeyOptMouseCapture');
-    const optGamepadCapture = document.getElementById('hotkeyOptGamepadCapture');
-    const optModifiersOnly = document.getElementById('hotkeyOptModifiersOnly');
-
-    // Note: wildcard and passthrough will be applied by JS at apply-time, not by AHK recorder
     const options = {
       keyboard: true,
-      mouse: optMouseCapture ? !!optMouseCapture.checked : true,
-      joystick: optGamepadCapture ? !!optGamepadCapture.checked : true,
-      lrModifiers: optLrModifiers ? !!optLrModifiers.checked : true,
-      markOnly: optModifiersOnly ? !!optModifiersOnly.checked : false
+      mouse: this._checked('hotkeyOptMouseCapture') ?? true,
+      joystick: this._checked('hotkeyOptGamepadCapture') ?? true,
+      lrModifiers: this._checked('hotkeyOptLrModifiers') ?? false,
+      markOnly: this._checked('hotkeyOptModifiersOnly') ?? false
     };
 
     try {
       const result = window.chrome.webview.hostObjects.sync.StartHotkeyRecording(JSON.stringify(options));
       const parsed = (typeof result === 'string') ? JSON.parse(result) : result;
       this.recording = !!parsed?.success;
-      this._setAutoRecordButtonState();
-    } catch (error) {
-      console.error('Failed to start AHK hotkey recording', error);
+    } catch (e) {
+      console.error('Failed to start AHK hotkey recording', e);
       this.recording = false;
-      this._setAutoRecordButtonState();
+    }
+    this._setRecordButtonState();
+  }
+
+  _stopAhkRecording(clearAutoWindow = true) {
+    try { window.chrome.webview.hostObjects.sync.StopHotkeyRecording(); }
+    catch (e) { console.error('Failed to stop AHK hotkey recording', e); }
+    this.recording = false;
+    if (clearAutoWindow) {
+      this._clearRecordTimers();
+      this._setSaveEnabled(true);
+      this._setRecordButtonState();
     }
   }
+
+  _restartRecordingIfActive() {
+    if (!this.recording) return;
+    this._startAhkRecording();
+    this._setRecordButtonState();
+    this._setSaveEnabled(!this.recording);
+  }
+
+  // --- AHK hotkey callback ---
 
   _onAhkHotkeyUpdate(data) {
     if (!this.recording) return;
-
     const { raw, display } = data;
     if (!raw) return;
 
-    this._autoWindowCaptured = true;
+    if (this._checked('hotkeyOptUseCustomModifier')) {
+      this._handleCustomComboCapture(raw);
+      return;
+    }
 
-    const seconds = this._getAutoRecordSecondsLeft();
-    const statusText = (this._activeTab === 'auto' && seconds > 0)
+    this._autoWindowCaptured = true;
+    const seconds = this._getRecordSecondsLeft();
+    const status = (this._activeTab === 'auto' && seconds > 0)
       ? `Captured. ${seconds}s left in recording window.`
       : 'Captured. Press Apply to use it or Record to retry.';
+    this._setCapturedDisplay(raw, display, status);
+  }
 
-    this._setCapturedDisplay(raw, display, statusText);
+  _handleCustomComboCapture(raw) {
+    const key = this._extractBaseKey(raw);
+    if (!key) return;
+
+    if (this._customComboStep === 0) {
+      this._pendingPrefixKey = key;
+      this._customComboStep = 1;
+      this._setRecorderStatus(`Custom Modifier captured: ${AK_HumanizeAhkKeyName(key)}. Now press the another key.`);
+      const el = this._el('hotkeyRecordReadable');
+      if (el) el.textContent = `${AK_HumanizeAhkKeyName(key)} & ...`;
+      return;
+    }
+
+    const composed = `${this._pendingPrefixKey} & ${key}`;
+    this._customComboStep = 0;
+    this._pendingPrefixKey = '';
+    this._setCapturedDisplay(composed, AK_HumanizeAhkHotkey(composed), 'Custom combination captured. Press Apply to use it or Record to retry.');
+    this._stopRecordingWindow();
   }
 
   _setCapturedDisplay(raw, display, statusText) {
-    this.pendingRaw = `${raw || ''}`.trim();
-
-    const valueEl = document.getElementById('hotkeyRecordReadable');
-    this._setRecorderStatus(statusText || 'Captured.');
-    if (valueEl) {
-      valueEl.textContent = display || (this.pendingRaw ? AK_HumanizeAhkHotkey(this.pendingRaw) : '(none)');
-    }
-
+    this.pendingRaw = this._str(raw);
+    this._setRecorderStatus(statusText || 'Hotkey captured. Press Apply to save, or Record to capture again.');
+    const el = this._el('hotkeyRecordReadable');
+    if (el) el.textContent = display || this._humanize(this.pendingRaw);
     this._setManualControlsFromRaw(this.pendingRaw);
     this._updateManualPreview();
   }
 
-  _stopAhkRecording(clearAutoWindow = true) {
-    try {
-      window.chrome.webview.hostObjects.sync.StopHotkeyRecording();
-    } catch (error) {
-      console.error('Failed to stop AHK hotkey recording', error);
-    }
-    this.recording = false;
-    if (clearAutoWindow) {
-      this._clearAutoRecordTimers();
-      this._setApplyEnabled(true);
-      this._setAutoRecordButtonState();
-    }
+  // --- Recorder UI initialization ---
+
+  _initializeRecorderUI() {
+    this._clearRecordTimers();
+    this._stopAhkRecording(false);
+    this._autoWindowCaptured = false;
+
+    const setChecked = (id, val) => { const el = this._el(id); if (el) el.checked = val; };
+    setChecked('hotkeyOptWildcard', this.pendingRaw.includes('*'));
+    setChecked('hotkeyOptPassthrough', this.pendingRaw.includes('~'));
+    setChecked('hotkeyOptAllowRisky', false);
+
+    this._setRecorderTab('auto', false);
+
+    const clearFilter = (id) => { const el = this._el(id); if (el) el.value = ''; };
+    clearFilter('hotkeyManualKeyFilter');
+    clearFilter('hotkeyManualPrefixKeyFilter');
+
+    this._syncManualModifierMode();
+    this._renderKeyList('hotkeyManualKeyList', 'hotkeyManualKeyFilter');
+    this._renderKeyList('hotkeyManualPrefixKeyList', 'hotkeyManualPrefixKeyFilter');
+    this._setManualControlsFromRaw(this.pendingRaw);
+    this._updateManualPreview();
+    this._setReadableDisplay(this.pendingRaw);
+    this._setRecorderStatus('Ready to record. Press Record to capture a hotkey');
+    this._setSaveEnabled(true);
+    this._setRecordButtonState();
+    this._updateKeySelectionVisibility();
   }
+
+  // --- Tab management ---
+
+  _setRecorderTab(tabName, manageRecording = true) {
+    const wanted = (tabName === 'manual') ? 'manual' : 'auto';
+    this._activeTab = wanted;
+
+    document.querySelectorAll('[data-hotkey-tab]').forEach((btn) => {
+      const active = btn.getAttribute('data-hotkey-tab') === wanted;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('[data-hotkey-tab-panel]').forEach((panel) => {
+      const active = panel.getAttribute('data-hotkey-tab-panel') === wanted;
+      panel.classList.toggle('is-active', active);
+      panel.hidden = !active;
+    });
+
+    if (manageRecording) this._stopRecordingWindow();
+    else this._setRecordButtonState();
+  }
+
+  // --- Control binding ---
+
+  _bindControls() {
+    const bound = new WeakSet();
+    const on = (el, event, handler) => {
+      if (!el || bound.has(el)) return;
+      bound.add(el);
+      el.addEventListener(event, handler);
+    };
+
+    // Option checkboxes
+    const optionHandlers = {
+      hotkeyOptLrModifiers: () => { this._syncManualModifierMode(); this._setManualControlsFromRaw(this.pendingRaw); this._updateManualPreview(); },
+      hotkeyOptModifiersOnly: () => { this._updateKeySelectionVisibility(); this._updateManualPreview(); },
+      hotkeyOptUseCustomModifier: () => { this._updatePrefixKeyVisibility(); this._updateManualPreview(); }
+    };
+    ['hotkeyOptMouseCapture', 'hotkeyOptGamepadCapture', 'hotkeyOptModifiersOnly', 'hotkeyOptLrModifiers', 'hotkeyOptUseCustomModifier'].forEach((id) => {
+      on(this._el(id), 'change', () => { optionHandlers[id]?.(); this._restartRecordingIfActive(); });
+    });
+
+    // Filters and lists
+    on(this._el('hotkeyManualKeyFilter'), 'input', () => { this._renderKeyList('hotkeyManualKeyList', 'hotkeyManualKeyFilter'); this._updateManualPreview(); });
+    on(this._el('hotkeyManualKeyList'), 'change', () => this._updateManualPreview());
+    on(this._el('hotkeyManualKeyList'), 'dblclick', () => this._applyManualHotkey());
+    on(this._el('hotkeyManualPrefixKeyFilter'), 'input', () => { this._renderKeyList('hotkeyManualPrefixKeyList', 'hotkeyManualPrefixKeyFilter'); this._updateManualPreview(); });
+    on(this._el('hotkeyManualPrefixKeyList'), 'change', () => this._updateManualPreview());
+    on(this._el('hotkeyRecordButton'), 'click', () => this._startRecordingWindow());
+
+    // Modifier buttons
+    document.querySelectorAll('.hotkey-mod-btn').forEach((btn) => {
+      on(btn, 'click', (ev) => { ev.preventDefault(); btn.classList.toggle('active'); this._updateManualPreview(); });
+    });
+
+    // Tab buttons
+    document.querySelectorAll('[data-hotkey-tab]').forEach((btn) => {
+      on(btn, 'click', () => this._setRecorderTab(this._str(btn.getAttribute('data-hotkey-tab')) || 'auto', true));
+    });
+  }
+
+  // --- Manual key catalog and list rendering ---
 
   _buildManualKeyCatalog() {
     const catalog = [];
-    const add = (value, label = value) => {
-      const item = {
-        value,
-        label,
-        search: `${value} ${label}`.toLowerCase()
-      };
-      catalog.push(item);
-    };
+    const add = (value, label) => catalog.push({ value, label, search: `${value} ${label}`.toLowerCase() });
 
-    for (let i = 65; i <= 90; i += 1) {
-      const ch = String.fromCharCode(i);
-      add(ch, ch);
-    }
-    for (let i = 0; i <= 9; i += 1) {
-      add(`${i}`, `${i}`);
-    }
-    for (let i = 1; i <= 24; i += 1) {
-      add(`F${i}`, `F${i}`);
-    }
-
-    [
-      ['Esc', 'Escape'], ['Tab', 'Tab'], ['Enter', 'Enter'], ['Space', 'Space'],
-      ['Backspace', 'Backspace'], ['Delete', 'Delete'], ['Insert', 'Insert'],
-      ['Home', 'Home'], ['End', 'End'], ['PgUp', 'Page Up'], ['PgDn', 'Page Down'],
-      ['Up', 'Arrow Up'], ['Down', 'Arrow Down'], ['Left', 'Arrow Left'], ['Right', 'Arrow Right'],
-      ['CapsLock', 'Caps Lock'], ['NumLock', 'Num Lock'], ['ScrollLock', 'Scroll Lock'],
-      ['PrintScreen', 'Print Screen'], ['Pause', 'Pause'], ['AppsKey', 'Context Menu'],
-      ['Numpad0', 'Numpad 0'], ['Numpad1', 'Numpad 1'], ['Numpad2', 'Numpad 2'],
-      ['Numpad3', 'Numpad 3'], ['Numpad4', 'Numpad 4'], ['Numpad5', 'Numpad 5'],
-      ['Numpad6', 'Numpad 6'], ['Numpad7', 'Numpad 7'], ['Numpad8', 'Numpad 8'],
-      ['Numpad9', 'Numpad 9'], ['NumpadDot', 'Numpad .'], ['NumpadAdd', 'Numpad +'],
-      ['NumpadSub', 'Numpad -'], ['NumpadMult', 'Numpad *'], ['NumpadDiv', 'Numpad /'],
-      ['NumpadEnter', 'Numpad Enter'], ['Volume_Mute', 'Volume Mute'],
-      ['Volume_Down', 'Volume Down'], ['Volume_Up', 'Volume Up'],
-      ['Media_Play_Pause', 'Media Play/Pause'], ['Media_Next', 'Media Next'],
-      ['Media_Prev', 'Media Previous'], ['Media_Stop', 'Media Stop'],
-      ['LButton', 'Mouse Left'], ['RButton', 'Mouse Right'], ['MButton', 'Mouse Middle'],
-      ['WheelUp', 'Mouse Wheel Up'], ['WheelDown', 'Mouse Wheel Down']
-    ].forEach(([value, label]) => add(value, label));
+    for (let i = 65; i <= 90; i++) { const ch = String.fromCharCode(i); add(ch, ch); }
+    for (let i = 0; i <= 9; i++) add(`${i}`, `${i}`);
+    for (let i = 1; i <= 24; i++) add(`F${i}`, `F${i}`);
+    HotkeyRecorderController.KEY_CATALOG_SPECIAL.forEach(([v, l]) => add(v, l));
 
     return catalog;
   }
 
-  _renderManualKeyList() {
-    const list = document.getElementById('hotkeyManualKeyList');
+  _renderKeyList(listId, filterId) {
+    const list = this._el(listId);
     if (!list) return;
 
-    const filterInput = document.getElementById('hotkeyManualKeyFilter');
-    const needle = `${filterInput?.value || ''}`.trim().toLowerCase();
-    const previousValue = `${list.value || ''}`.trim();
-
-    const filtered = this._manualKeyCatalog.filter((item) => {
-      if (!needle) return true;
-      return item.search.includes(needle);
-    });
+    const needle = this._str(this._el(filterId)?.value).toLowerCase();
+    const prev = this._str(list.value);
+    const filtered = needle
+      ? this._manualKeyCatalog.filter((item) => item.search.includes(needle))
+      : this._manualKeyCatalog;
 
     list.innerHTML = '';
-    filtered.forEach((item) => {
+    for (const item of filtered) {
       const opt = document.createElement('option');
       opt.value = item.value;
       opt.textContent = item.label;
       list.appendChild(opt);
-    });
-
-    if (previousValue) {
-      this._setManualKeySelection(previousValue);
     }
+
+    if (prev) this._ensureListSelection(list, prev);
   }
 
-  _setManualKeySelection(keyValue) {
-    const list = document.getElementById('hotkeyManualKeyList');
-    if (!list) return;
-
-    const value = `${keyValue || ''}`.trim();
-    if (!value) {
-      list.value = '';
-      return;
-    }
-
-    const existing = Array.from(list.options).find((opt) => `${opt.value}` === value);
-    if (!existing) {
+  _ensureListSelection(list, value) {
+    if (!value) { list.value = ''; return; }
+    if (!Array.from(list.options).some((o) => o.value === value)) {
       const opt = document.createElement('option');
       opt.value = value;
       const pretty = typeof AK_HumanizeAhkKeyName === 'function' ? AK_HumanizeAhkKeyName(value) : value;
@@ -587,182 +466,126 @@ class HotkeyRecorderController {
       opt.dataset.custom = '1';
       list.appendChild(opt);
     }
-
     list.value = value;
   }
 
+  // --- Manual mode: modifiers and composition ---
+
+  _updateKeySelectionVisibility() {
+    const el = this._el('hotkeyKeySelection');
+    if (el) el.hidden = this._checked('hotkeyOptModifiersOnly');
+  }
+
+  _updatePrefixKeyVisibility() {
+    const el = this._el('hotkeyPrefixKeySection');
+    if (el) el.hidden = !this._checked('hotkeyOptUseCustomModifier');
+  }
+
   _syncManualModifierMode() {
-    const lrEnabled = document.getElementById('hotkeyOptLrModifiers')?.checked || false;
-    const genericBox = document.getElementById('hotkeyManualModsGeneric');
-    const lrBox = document.getElementById('hotkeyManualModsLr');
-    if (genericBox) {
-      genericBox.classList.toggle('hidden', lrEnabled);
-      genericBox.hidden = lrEnabled;
-    }
-    if (lrBox) {
-      lrBox.classList.toggle('hidden', !lrEnabled);
-      lrBox.hidden = !lrEnabled;
-    }
+    const lr = this._lrEnabled();
+    const generic = this._el('hotkeyManualModsGeneric');
+    const lrBox = this._el('hotkeyManualModsLr');
+    if (generic) { generic.classList.toggle('hidden', lr); generic.hidden = lr; }
+    if (lrBox) { lrBox.classList.toggle('hidden', !lr); lrBox.hidden = !lr; }
   }
 
   _clearManualModifiers() {
-    document.querySelectorAll('.hotkey-mod-btn').forEach((btn) => {
-      btn.classList.remove('active');
-    });
+    document.querySelectorAll('.hotkey-mod-btn').forEach((btn) => btn.classList.remove('active'));
   }
 
-  _parseHotkey(rawHotkey) {
-    let input = `${rawHotkey || ''}`.trim();
-    input = input.replace(/\*/g, '').replace(/~/g, '');
+  _setManualControlsFromRaw(rawHotkey) {
+    this._clearManualModifiers();
+    const parsed = this._parseHotkey(rawHotkey);
+    const lr = this._lrEnabled();
 
+    const customCombo = this._el('hotkeyOptUseCustomModifier');
+    if (customCombo) customCombo.checked = !!parsed.prefixKey;
+    this._updatePrefixKeyVisibility();
+
+    const tokenMap = lr ? HotkeyRecorderController.MOD_TOKENS_LR : HotkeyRecorderController.MOD_TOKENS_GENERIC;
+    if (!parsed.prefixKey) {
+      for (const token of parsed.modifiers) {
+        const modName = tokenMap[token];
+        if (!modName) continue;
+        const btn = document.querySelector(`.hotkey-mod-btn[data-mod="${modName}"]`);
+        if (btn) btn.classList.add('active');
+      }
+    }
+
+    this._ensureListSelection(this._el('hotkeyManualKeyList'), parsed.key);
+    this._ensureListSelection(this._el('hotkeyManualPrefixKeyList'), parsed.prefixKey);
+  }
+
+  _collectManualModifiers() {
+    const lr = this._lrEnabled();
+    const modToToken = lr ? HotkeyRecorderController.MOD_TO_TOKEN_LR : HotkeyRecorderController.MOD_TO_TOKEN_GENERIC;
+    const box = this._el(lr ? 'hotkeyManualModsLr' : 'hotkeyManualModsGeneric');
+    if (!box) return '';
+
+    const parts = [];
+    box.querySelectorAll('.hotkey-mod-btn.active').forEach((btn) => {
+      const token = modToToken[btn.getAttribute('data-mod')];
+      if (token) parts.push(token);
+    });
+    return parts.join('');
+  }
+
+  _composeManualRaw() {
+    if (this._checked('hotkeyOptUseCustomModifier')) {
+      const prefix = this._str(this._el('hotkeyManualPrefixKeyList')?.value);
+      const key = this._str(this._el('hotkeyManualKeyList')?.value);
+      return (prefix && key) ? `${prefix} & ${key}` : '';
+    }
+
+    const mods = this._collectManualModifiers();
+    const key = this._str(this._el('hotkeyManualKeyList')?.value);
+    if (!key) return this._checked('hotkeyOptModifiersOnly') ? mods : '';
+    return `${mods}${key}`;
+  }
+
+  _updateManualPreview() {
+    this.pendingRaw = this._composeManualRaw();
+    this._setReadableDisplay(this.pendingRaw);
+  }
+
+  _applyManualHotkey() {
+    const raw = this._composeManualRaw();
+    if (!raw) return;
+    this._setCapturedDisplay(raw, AK_HumanizeAhkHotkey(raw), 'Composed manually. Press Apply to save or keep editing.');
+  }
+
+  // --- Hotkey parsing ---
+
+  _parseHotkey(rawHotkey) {
+    let input = this._str(rawHotkey).replace(/[*~$]/g, '');
     const modifiers = [];
     let i = 0;
 
     while (i < input.length) {
       const two = input.slice(i, i + 2);
-      const one = input[i];
       if (['<^', '>^', '<!', '>!', '<+', '>+', '<#', '>#'].includes(two)) {
-        modifiers.push(two);
-        i += 2;
-        continue;
+        modifiers.push(two); i += 2; continue;
       }
-      if (['^', '!', '+', '#'].includes(one)) {
-        modifiers.push(one);
-        i += 1;
-        continue;
+      if ('^!+#'.includes(input[i])) {
+        modifiers.push(input[i]); i += 1; continue;
       }
       break;
     }
 
+    const remaining = input.slice(i).trim();
+    const parts = remaining.split(/\s*&\s*/).filter(Boolean);
     return {
       modifiers,
-      key: input.slice(i).trim()
+      key: parts.length >= 2 ? parts.slice(1).join(' & ') : remaining,
+      prefixKey: parts.length >= 2 ? parts[0] : ''
     };
   }
 
-  _setManualControlsFromRaw(rawHotkey) {
-    this._clearManualModifiers();
-
-    const parsed = this._parseHotkey(rawHotkey);
-    const lrEnabled = document.getElementById('hotkeyOptLrModifiers')?.checked || false;
-
-    const tokenToModLr = {
-      '<^': 'LCtrl', '>^': 'RCtrl',
-      '<!': 'LAlt', '>!': 'RAlt',
-      '<+': 'LShift', '>+': 'RShift',
-      '<#': 'LWin', '>#': 'RWin',
-      '^': 'LCtrl', '!': 'LAlt',
-      '+': 'LShift', '#': 'LWin'
-    };
-
-    const tokenToModGeneric = {
-      '<^': 'Ctrl', '>^': 'Ctrl',
-      '<!': 'Alt', '>!': 'Alt',
-      '<+': 'Shift', '>+': 'Shift',
-      '<#': 'Win', '>#': 'Win',
-      '^': 'Ctrl', '!': 'Alt',
-      '+': 'Shift', '#': 'Win'
-    };
-
-    const tokenToMod = lrEnabled ? tokenToModLr : tokenToModGeneric;
-
-    parsed.modifiers.forEach((token) => {
-      const modName = tokenToMod[token];
-      if (!modName) return;
-      const btn = document.querySelector(`.hotkey-mod-btn[data-mod="${modName}"]`);
-      if (btn) btn.classList.add('active');
-    });
-
-    this._setManualKeySelection(parsed.key);
+  _extractBaseKey(rawHotkey) {
+    return this._str(this._parseHotkey(rawHotkey)?.key);
   }
 
-  _collectManualModifiers() {
-    const lrEnabled = document.getElementById('hotkeyOptLrModifiers')?.checked || false;
-
-    const modToTokenLr = {
-      'LCtrl': '<^', 'RCtrl': '>^',
-      'LAlt': '<!', 'RAlt': '>!',
-      'LShift': '<+', 'RShift': '>+',
-      'LWin': '<#', 'RWin': '>#'
-    };
-
-    const modToTokenGeneric = {
-      'Ctrl': '^', 'Alt': '!',
-      'Shift': '+', 'Win': '#'
-    };
-
-    const modToToken = lrEnabled ? modToTokenLr : modToTokenGeneric;
-    const parts = [];
-
-    const relevantBox = lrEnabled
-      ? document.getElementById('hotkeyManualModsLr')
-      : document.getElementById('hotkeyManualModsGeneric');
-
-    if (relevantBox) {
-      relevantBox.querySelectorAll('.hotkey-mod-btn.active').forEach((btn) => {
-        const modName = btn.getAttribute('data-mod');
-        const token = modToToken[modName];
-        if (token) parts.push(token);
-      });
-    }
-
-    return parts.join('');
-  }
-
-  _composeManualRaw() {
-    const modifiers = this._collectManualModifiers();
-    const keyList = document.getElementById('hotkeyManualKeyList');
-    const key = `${keyList?.value || ''}`.trim();
-    const modifiersOnly = document.getElementById('hotkeyOptModifiersOnly')?.checked || false;
-
-    if (!key) {
-      return modifiersOnly ? modifiers : '';
-    }
-    return `${modifiers}${key}`;
-  }
-
-  _updateManualPreview() {
-    const raw = this._composeManualRaw();
-    this.pendingRaw = raw;
-
-    const valueEl = document.getElementById('hotkeyRecordReadable');
-    if (valueEl) {
-      valueEl.textContent = raw ? AK_HumanizeAhkHotkey(raw) : '(none)';
-    }
-  }
-
-  _extractBaseHotkeyKey(rawHotkey) {
-    const parsed = this._parseHotkey(rawHotkey);
-    return `${parsed?.key || ''}`.trim();
-  }
-
-  _isRiskyBaseKey(keyName) {
-    const key = `${keyName || ''}`.trim().toUpperCase();
-    if (!key) return false;
-
-    const riskyKeys = new Set([
-      'ESC',
-      'ENTER',
-      'LBUTTON',
-      'RBUTTON'
-    ]);
-
-    return riskyKeys.has(key);
-  }
-
-  _applyManualHotkey() {
-    const raw = this._composeManualRaw();
-    if (!raw) {
-      this._setRecorderStatus('Manual mode: choose a key (or enable Modifiers-only and choose modifiers).', true);
-      return;
-    }
-
-    this._setCapturedDisplay(
-      raw,
-      AK_HumanizeAhkHotkey(raw),
-      'Composed manually. Press Apply to save or keep editing.'
-    );
-  }
+  // --- Apply ---
 
   apply() {
     if (this.recording) {
@@ -770,55 +593,46 @@ class HotkeyRecorderController {
       return false;
     }
 
-    // Apply wildcard and passthrough modifiers if enabled (done at JS level, not AHK)
     let finalHotkey = this.pendingRaw;
-    const optWildcard = document.getElementById('hotkeyOptWildcard')?.checked || false;
-    const optPassthrough = document.getElementById('hotkeyOptPassthrough')?.checked || false;
+    if (this._checked('hotkeyOptWildcard') && !finalHotkey.startsWith('*')) finalHotkey = '*' + finalHotkey;
+    if (this._checked('hotkeyOptPassthrough') && !finalHotkey.startsWith('~')) finalHotkey = '~' + finalHotkey;
+    finalHotkey = this._str(finalHotkey);
 
-    // Add prefixes if not already present
-    if (optWildcard && !finalHotkey.startsWith('*')) {
-      finalHotkey = '*' + finalHotkey;
-    }
-    if (optPassthrough && !finalHotkey.startsWith('~')) {
-      finalHotkey = '~' + finalHotkey;
-    }
-
-    finalHotkey = `${finalHotkey || ''}`.trim();
     if (!finalHotkey) {
       this._setRecorderStatus('No hotkey selected. Record or compose one first.', true);
       return false;
     }
 
-    const allowRiskyHotkeys = document.getElementById('hotkeyOptAllowRisky')?.checked || false;
-    const baseKey = this._extractBaseHotkeyKey(finalHotkey);
-    if (!allowRiskyHotkeys && this._isRiskyBaseKey(baseKey)) {
+    const allowRisky = this._checked('hotkeyOptAllowRisky');
+    const baseKey = this._extractBaseKey(finalHotkey);
+    if (!allowRisky && HotkeyRecorderController.RISKY_KEYS.has(baseKey.toUpperCase())) {
       this._setRecorderStatus('This hotkey is risky (Esc, Enter, Mouse Left/Right). Enable "Allow risky hotkeys" to use it.', true);
       return false;
     }
 
-    if (this.actionTarget) {
-      this._stopAhkRecording();
-      if (typeof this.onActionHotkeyApplied !== 'function') {
-        this._setRecorderStatus('Unable to save action hotkey: callback is missing.', true);
-        return false;
-      }
+    if (this.actionTarget) return this._applyToAction(finalHotkey, allowRisky);
+    return this._applyToField(finalHotkey);
+  }
 
-      const result = this.onActionHotkeyApplied(
-        this.actionTarget.actionName,
-        finalHotkey,
-        this.actionTarget.replaceHotkeyRaw || '',
-        allowRiskyHotkeys,
-        this.actionTarget.fullActionHandler || this.actionTarget.actionName
-      ) || { ok: false, error: 'Failed to save hotkey' };
-
-      if (!result?.ok) {
-        this._setRecorderStatus(result?.error || 'Failed to save hotkey.', true);
-        return false;
-      }
-
-      return true;
+  _applyToAction(finalHotkey, allowRisky) {
+    this._stopAhkRecording();
+    if (typeof this.onActionHotkeyApplied !== 'function') {
+      this._setRecorderStatus('Unable to save action hotkey: callback is missing.', true);
+      return false;
     }
 
+    const { actionName, replaceHotkeyRaw, fullActionHandler } = this.actionTarget;
+    const result = this.onActionHotkeyApplied(actionName, finalHotkey, replaceHotkeyRaw || '', allowRisky, fullActionHandler || actionName)
+      || { ok: false, error: 'Failed to save hotkey' };
+
+    if (!result?.ok) {
+      this._setRecorderStatus(result?.error || 'Failed to save hotkey.', true);
+      return false;
+    }
+    return true;
+  }
+
+  _applyToField(finalHotkey) {
     const input = this.targetElement || this.dom.getField(this.targetId);
     if (!input) {
       this._setRecorderStatus('Target field was not found.', true);
@@ -829,23 +643,20 @@ class HotkeyRecorderController {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
     this._stopAhkRecording();
-    if (this.targetId) {
-      this.updatePreview(this.targetId);
-    } else {
-      this._updateElementPreview(input, this.targetDisplayElement);
-    }
 
+    if (this.targetId) this.updatePreview(this.targetId);
+    else this._updateElementPreview(input, this.targetDisplayElement);
     return true;
   }
 
+  // --- Preview helpers ---
+
   updatePreview(inputId) {
     const input = this.dom.getField(inputId);
-    const display = this._resolveDisplayElement(input) || this.dom.getField(inputId + 'Display');
     if (!input) return;
-
+    const display = this._resolveDisplayElement(input) || this.dom.getField(inputId + 'Display');
     const txt = (input.value || '').trim();
-    const readable = txt ? AK_HumanizeAhkHotkey(txt) : '';
-    this._setDisplayText(display, readable);
+    this._setDisplayText(display, txt ? AK_HumanizeAhkHotkey(txt) : '');
   }
 
   updatePluginPreviews() {
@@ -857,12 +668,9 @@ class HotkeyRecorderController {
   _resolveDisplayElement(input) {
     if (!input) return null;
     const displayKey = input.getAttribute('data-display-for-plugin-hotkey');
-    if (displayKey)
-      return document.querySelector(`[data-plugin-hotkey-display="${displayKey}"]`);
-
+    if (displayKey) return document.querySelector(`[data-plugin-hotkey-display="${displayKey}"]`);
     const id = input.id || '';
-    if (!id) return null;
-    return document.querySelector(`[data-hotkey-display-for="${id}"]`);
+    return id ? document.querySelector(`[data-hotkey-display-for="${id}"]`) : null;
   }
 
   _setDisplayText(display, readable) {
@@ -872,13 +680,9 @@ class HotkeyRecorderController {
       display.value = readable || '';
       return;
     }
-
     const label = display.querySelector('.hotkey-badge-label');
-    if (label) {
-      label.textContent = text;
-    } else {
-      display.textContent = text;
-    }
+    if (label) label.textContent = text;
+    else display.textContent = text;
     display.classList.toggle('is-empty', !readable);
   }
 
@@ -888,12 +692,8 @@ class HotkeyRecorderController {
     this._setDisplayText(display, txt ? AK_HumanizeAhkHotkey(txt) : '');
   }
 
-  cancel() {
-    this._stopAhkRecording();
-  }
+  // --- Close/Cancel ---
 
-  close() {
-    this._stopAhkRecording();
-  }
-
+  cancel() { this._stopAhkRecording(); }
+  close() { this._stopAhkRecording(); }
 }

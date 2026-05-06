@@ -72,7 +72,7 @@ class AKGui extends AKBase {
     nw.AddCallbackToScript("StopHotkeyRecording", (wv, *) => this._stopHotkeyRecording())
     nw.AddCallbackToScript("TogglePlugin", (wv, pluginId:="", enabled:=1) => this._togglePlugin(pluginId, enabled))
     nw.AddCallbackToScript("SetLogPageActive", (wv, active:=0) => this._setLogPageActive(active))
-    nw.AddCallbackToScript("GetLogsSince", (wv, lastId:=0) => AK_ToJson(AKBase.GetUiLogsSince(Integer(lastId))))
+    nw.AddCallbackToScript("GetLogsSince", (wv, lastId:=0) => jsongo.Stringify(AKBase.GetUiLogsSince(Integer(lastId))))
     nw.AddCallbackToScript("ClearLogs", (wv, *) => AKBase.ClearLogs())
     nw.AddCallbackToScript("CloseSettings", (wv, *) => this._closeSettings())
     nw.AddCallbackToScript("BrowseForFile", (wv, currentPath:="") => this._browseForFile(currentPath))
@@ -147,7 +147,7 @@ class AKGui extends AKBase {
     }
 
     js := "(() => {`n"
-    js .= "  const state = " . AK_ToJson(state) . ";`n"
+    js .= "  const state = " . jsongo.Stringify(state) . ";`n"
     js .= "  if (window.SettingsPageBridge && typeof window.SettingsPageBridge.applyState === 'function') {`n"
     js .= "    try { window.SettingsPageBridge.applyState(state); } catch (error) { console.error('Failed to apply settings state', error); }`n"
     js .= "  }`n"
@@ -209,7 +209,7 @@ class AKGui extends AKBase {
     ; Start recording
     result := this._hotkeyRecorder.StartRecording(options)
     
-    return AK_ToJson(Map("success", result))
+    return jsongo.Stringify(Map("success", result))
   }
 
   _stopHotkeyRecording() {
@@ -217,7 +217,7 @@ class AKGui extends AKBase {
     
     ; Return final result
     finalResult := this._hotkeyRecorder.GetResult()
-    return AK_ToJson(Map(
+    return jsongo.Stringify(Map(
       "success", result,
       "raw", finalResult["raw"],
       "display", finalResult["display"]
@@ -229,7 +229,7 @@ class AKGui extends AKBase {
       return
 
     ; Build JSON payload
-    payload := AK_ToJson(Map(
+    payload := jsongo.Stringify(Map(
       "raw", rawHotkey,
       "display", displayString
     ))
@@ -260,7 +260,7 @@ class AKGui extends AKBase {
 
     js := "(() => {`n"
     js .= "  if (window.SettingsPageBridge && typeof window.SettingsPageBridge.appendLogs === 'function') {`n"
-    js .= "    try { window.SettingsPageBridge.appendLogs(" AK_ToJson([entry]) "); } catch (error) { console.error('Failed to append pushed logs', error); }`n"
+    js .= "    try { window.SettingsPageBridge.appendLogs(" jsongo.Stringify([entry]) "); } catch (error) { console.error('Failed to append pushed logs', error); }`n"
     js .= "  }`n"
     js .= "})();`n"
     try this._settingsGui.ExecuteScriptAsync(js)

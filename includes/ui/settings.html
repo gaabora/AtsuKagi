@@ -139,7 +139,7 @@
           </div>
           <div id="logs-content" class="console-box logs-container">No logs yet.</div>
           <div class="bottom-toolbar">
-            <button type="button" id="open-dev-tools" class="app-btn app-btn-subtle field-btn"><span>Open DevTools</span></button>
+            <button type="button" id="openDevTools" class="app-btn app-btn-subtle field-btn"><span>Open DevTools</span></button>
             <button type="button" id="logs-clear" class="app-btn app-btn-outline-danger">Clear</button>
           </div>
         </div>
@@ -153,7 +153,7 @@
     <div class="app-dialog-modal" aria-modal="true" role="dialog">
       <div class="app-dialog-body">
         <div class="color-picker-dialog-layout">
-          <div id="my-color-picker-container" class="color-picker-container"></div>
+          <div id="colorPickerContainer" class="color-picker-container"></div>
           <div class="color-picker-side">
             <div id="DialogColorPreview" class="color-swatch-large" aria-hidden="true"></div>
             <div class="dialog-form-grid">
@@ -188,13 +188,9 @@
           <h3 id="hotkeyDialogTitle">Record Hotkey</h3>
           <p class="hotkey-dialog-subtitle">Set a global shortcut for this action</p>
         </div>
-      </div>
-
-      <!-- New Hotkey Display -->
-      <div class="hotkey-display-area">
-        <div class="hotkey-display-label">Hotkey</div>
         <div class="hotkey-display-value" id="hotkeyRecordReadable">(none)</div>
       </div>
+
 
       <div class="app-dialog-body hotkey-recorder-body">
         <!-- Mode Selector -->
@@ -207,26 +203,18 @@
           <!-- AUTO MODE -->
           <section id="hotkeyTabPanelAuto" class="hotkey-tab-panel is-active" data-hotkey-tab-panel="auto" role="tabpanel" aria-labelledby="hotkeyTabAuto">
             <div class="hotkey-auto-section">
-              <div class="hotkey-auto-instruction">Press your shortcut</div>
-              <button class="app-btn app-btn-primary" type="button" id="hotkeyAutoRecordButton">Start Recording</button>
-              <div class="hotkey-auto-hint" id="hotkeyAutoRecordHint">Listening for input...</div>
-            </div>
-
-            <div class="hotkey-auto-recording-display">
-              <div id="hotkeyRecordStatus">Waiting to start recording...</div>
+              <button class="app-btn app-btn-primary" type="button" id="hotkeyRecordButton">Record</button>
+              <div class="hotkey-auto-hint" id="hotkeyRecordHint"></div>
             </div>
           </section>
 
           <!-- MANUAL MODE -->
-          <section id="hotkeyTabPanelManual" class="hotkey-tab-panel" data-hotkey-tab-panel="manual" role="tabpanel" aria-labelledby="hotkeyTabManual" hidden>
-            <!-- Step 1: Modifiers -->
+          <section id="hotkeyTabPanelManual" class="hotkey-tab-panel" data-hotkey-tab-panel="manual" role="tabpanel" aria-labelledby="hotkeyTabManual">
+
             <div class="hotkey-step">
+
               <div class="hotkey-step-header">
                 <div class="hotkey-step-title">Step 1: Modifiers</div>
-                <label class="hotkey-toggle-label">
-                  <input type="checkbox" id="hotkeyOptLrModifiers" checked />
-                  <span>Distinguish L/R</span>
-                </label>
               </div>
 
               <div class="hotkey-mod-buttons" id="hotkeyManualModsGeneric">
@@ -246,6 +234,17 @@
                 <button type="button" class="hotkey-mod-btn" data-mod="LWin">LWin</button>
                 <button type="button" class="hotkey-mod-btn" data-mod="RWin">RWin</button>
               </div>
+
+              <div id="hotkeyUseCustomModifierSection">
+                <div class="hotkey-step-header">
+                  <div class="hotkey-step-title">Custom Modifier</div>
+                </div>
+                <div id="hotkeyPrefixKeySection">
+                  <input class="app-input-text hotkey-key-filter" type="text" id="hotkeyManualPrefixKeyFilter" placeholder="Search prefix key..." />
+                  <select id="hotkeyManualPrefixKeyList" class="app-input-text hotkey-manual-key-list" size="6"></select>
+                </div>
+              </div>
+            
             </div>
 
             <!-- Step 2: Main Key -->
@@ -266,46 +265,64 @@
           </section>
         </div>
 
+        <div class="hotkey-advanced-section">
+
+          <label class="hotkey-toggle-label">
+            <input type="checkbox" id="hotkeyOptLrModifiers" />
+            <span>Distinguish L/R</span>
+          </label>
+        
+        </div>
+        <div class="hotkey-advanced-section">
+          
+          <label class="hotkey-toggle-label">
+            <input type="checkbox" id="hotkeyOptUseCustomModifier" />
+            <span>Use Custom Key as Modifier</span>
+          </label>
+
+        </div>
+
         <!-- Advanced Options (Collapsible) -->
         <details class="hotkey-advanced-options">
           <summary>Advanced Options</summary>
           <div class="hotkey-advanced-content">
-            <!-- Auto Mode Options -->
-            <div class="hotkey-advanced-section" id="hotkeyAdvancedAuto">
+            <div class="hotkey-advanced-section">
+
               <label class="hotkey-checkbox-label">
-                <input type="checkbox" id="hotkeyOptMouseCapture" checked />
+                <input type="checkbox" id="hotkeyOptMouseCapture" />
                 <span>Capture Mouse Input</span>
               </label>
-              <label class="hotkey-checkbox-label">
-                <input type="checkbox" id="hotkeyOptGamepadCapture" checked />
-                <span>Capture Gamepad Input</span>
-              </label>
-            </div>
 
-            <!-- Manual Mode Options -->
-            <div class="hotkey-advanced-section" id="hotkeyAdvancedManual" hidden>
+              <label class="hotkey-checkbox-label">
+                <input type="checkbox" id="hotkeyOptPassthrough" />
+                <span>Allow passthrough (~)</span>
+              </label>
+              
               <label class="hotkey-checkbox-label">
                 <input type="checkbox" id="hotkeyOptAllowRisky" />
                 <span>Allow risky hotkeys (Esc, Enter, Mouse, Wheel, etc.)</span>
               </label>
-            </div>
 
-            <!-- Shared Options -->
-            <label class="hotkey-checkbox-label">
-              <input type="checkbox" id="hotkeyOptWildcard" />
-              <span>Allow extra keys (Wildcard *)</span>
-            </label>
-            <label class="hotkey-checkbox-label">
-              <input type="checkbox" id="hotkeyOptPassthrough" />
-              <span>Allow passthrough (~)</span>
-            </label>
+            </div>
+            <div class="hotkey-advanced-section">
+
+              <label class="hotkey-checkbox-label">
+                <input type="checkbox" id="hotkeyOptGamepadCapture" />
+                <span>Capture Gamepad Input</span>
+              </label>
+
+              <label class="hotkey-checkbox-label">
+                <input type="checkbox" id="hotkeyOptWildcard" />
+                <span>Allow extra keys (Wildcard *)</span>
+              </label>
+            </div>
           </div>
         </details>
       </div>
 
       <div class="app-dialog-footer">
-        <button class="app-btn" type="button" id="cancel-hotkey-record" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Cancel</button>
-        <button class="app-btn app-btn-primary" type="button" id="apply-hotkey-record">Apply Hotkey</button>
+        <button class="app-btn" type="button" id="canceHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Cancel</button>
+        <button class="app-btn app-btn-primary" type="button" id="saveHotkey">Save Hotkey</button>
       </div>
     </div>
   </div>

@@ -21,7 +21,7 @@ class ColorPickerController {
       return;
     }
 
-    const container = document.getElementById('my-color-picker-container');
+    const container = document.getElementById('colorPickerContainer');
     if (!container) return;
 
     this.colorWheel = new LchColorWheel({
