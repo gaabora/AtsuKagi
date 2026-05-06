@@ -8,6 +8,21 @@ class SettingsFormPluginPagesRenderer {
     const content = document.querySelector('.settings-content');
     if (!nav || !content) return;
 
+    const createNavItem = () => {
+      const navListItem = document.createElement('li');
+      navListItem.className = 'app-navbar-list-item';
+
+      const navLink = document.createElement('a');
+      navLink.className = 'nav-item';
+      navLink.href = '#';
+      navLink.setAttribute('data-dynamic-plugin', '1');
+
+      navListItem.appendChild(navLink);
+      return navListItem;
+    };
+
+    const getNavLink = (node) => node?.matches?.('.nav-item') ? node : node?.querySelector?.('.nav-item');
+
     const sortedPages = [...(pages || [])].filter((page) => page && page.id).sort((a, b) => {
       const ao = Number.isFinite(Number(a?.navOrder)) ? Number(a.navOrder) : 100;
       const bo = Number.isFinite(Number(b?.navOrder)) ? Number(b.navOrder) : 100;
@@ -18,10 +33,11 @@ class SettingsFormPluginPagesRenderer {
     const wantedPageIds = new Set(sortedPages.map((page) => `${page.id}`));
 
     nav.querySelectorAll('[data-dynamic-plugin="1"]').forEach((el) => {
-      const sectionName = `${el.getAttribute('data-section') || ''}`;
+      const navLink = getNavLink(el);
+      const sectionName = `${navLink?.getAttribute('data-section') || ''}`;
       const pageId = sectionName.startsWith('plugin-') ? sectionName.slice(7) : '';
       if (!wantedPageIds.has(pageId)) {
-        el.remove();
+        el.closest('.app-navbar-list-item')?.remove() || el.remove();
       }
     });
 
@@ -35,18 +51,20 @@ class SettingsFormPluginPagesRenderer {
 
     const pluginsBtn = nav.querySelector('[data-section="plugins"]');
     const hotkeysBtn = nav.querySelector('[data-section="hotkeys"]');
+    const pluginsSlot = pluginsBtn?.closest('.app-navbar-list-item');
+    const hotkeysSlot = hotkeysBtn?.closest('.app-navbar-list-item');
 
     for (let i = sortedPages.length - 1; i >= 0; i -= 1) {
       const page = sortedPages[i];
       const pageId = `${page.id}`;
       const navSelector = `[data-dynamic-plugin="1"][data-section="plugin-${CSS.escape(pageId)}"]`;
-      let navItem = nav.querySelector(navSelector);
+      let navItem = nav.querySelector(navSelector)?.closest('.app-navbar-list-item');
       if (!navItem) {
-        navItem = document.createElement('button');
-        navItem.className = 'nav-item';
-        navItem.setAttribute('data-section', `plugin-${pageId}`);
-        navItem.setAttribute('data-dynamic-plugin', '1');
+        navItem = createNavItem();
       }
+
+      const navLink = getNavLink(navItem);
+      navLink.setAttribute('data-section', `plugin-${pageId}`);
 
       const navSig = SettingsFormSerializer.signature({
         id: pageId,
@@ -54,15 +72,15 @@ class SettingsFormPluginPagesRenderer {
         icon: page.icon || 'icons10-puzzle'
       });
 
-      if (navItem.dataset.navSig !== navSig) {
-        navItem.innerHTML = `<i class="${this.form._escapeHtml(page.icon || 'icons10-puzzle')}"></i><span>${this.form._escapeHtml(page.title || page.id)}</span>`;
-        navItem.dataset.navSig = navSig;
+      if (navLink.dataset.navSig !== navSig) {
+        navLink.innerHTML = `<i class="${this.form._escapeHtml(page.icon || 'icons10-puzzle')}"></i><span>${this.form._escapeHtml(page.title || page.id)}</span>`;
+        navLink.dataset.navSig = navSig;
       }
 
-      if (pluginsBtn && hotkeysBtn) {
-        pluginsBtn.parentNode.insertBefore(navItem, hotkeysBtn);
-      } else if (pluginsBtn) {
-        pluginsBtn.parentNode.appendChild(navItem);
+      if (pluginsSlot && hotkeysSlot) {
+        nav.insertBefore(navItem, hotkeysSlot);
+      } else if (pluginsSlot) {
+        nav.appendChild(navItem);
       }
     }
 

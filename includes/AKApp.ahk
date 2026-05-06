@@ -610,11 +610,12 @@ class AKApp extends AKBase {
   UpdateAppSuspendedStatus() {
     Tray:= A_TrayMenu
     if (A_IsSuspended) {
-      TraySetIcon(this.TrayIconDisabled,"1")
+      
+      TraySetIcon(this.TrayIconDisabled, 1, true)
       Tray.Check("Disable")
       this.ShowInfo(this.ScriptName " DISABLED")
     } else {
-      TraySetIcon(this.TrayIconDefault,"1")
+      TraySetIcon(this.TrayIconDefault, 1, false)
       Tray.Uncheck("Disable")
       this.ShowInfo(this.ScriptName " ENABLED")
     }

@@ -201,6 +201,9 @@ class SettingsPage {
       navRoot.addEventListener('click', (e) => {
         const item = e.target.closest('.nav-item');
         if (!item) return;
+        if (item.tagName === 'A') {
+          e.preventDefault();
+        }
         const sectionName = item.getAttribute('data-section') || item.getAttribute('onclick')?.match(/'([\w-]+)'/)?.[1];
         if (sectionName) {
           this._showSection(sectionName, item);
