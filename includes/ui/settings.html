@@ -203,6 +203,11 @@
               </label>
               <span>Capture Gamepad</span>
             </div>
+
+            <div class="hotkey-auto-controls">
+              <button class="app-btn app-btn-primary" type="button" id="hotkeyAutoRecordButton"><span>Record (5s)</span></button>
+              <span class="hotkey-auto-hint" id="hotkeyAutoRecordHint">Press Record to listen for 5 seconds.</span>
+            </div>
           </section>
 
           <section id="hotkeyTabPanelManual" class="hotkey-tab-panel" data-hotkey-tab-panel="manual" role="tabpanel" aria-labelledby="hotkeyTabManual" hidden>
@@ -221,6 +226,11 @@
               </label>
               <span>Modifiers-only Hotkey</span>
             </div>
+
+            <label class="hotkey-danger-toggle" for="hotkeyOptAllowRisky">
+              <input type="checkbox" id="hotkeyOptAllowRisky" />
+              <span>Allow risky hotkeys (LButton, RButton, wheel, Esc, Enter, etc.)</span>
+            </label>
 
             <div class="hotkey-manual-builder">
               <div class="hotkey-manual-title">Manual Hotkey Builder</div>

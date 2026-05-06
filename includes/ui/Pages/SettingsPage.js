@@ -4,7 +4,7 @@ class SettingsPage {
     this.hostBridge = new AhkHostBridge();
     this.form = new SettingsForm(this.dom);
     this.colorPicker = new ColorPickerController(this.dom);
-    this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw));
+    this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys));
     this.logs = new LogsController(this.hostBridge, (settingRef) => this._goToSetting(settingRef));
     this._isApplyingState = false;
     this._fieldSaveTimers = new Map();
@@ -313,8 +313,8 @@ class SettingsPage {
     if (applyBtn && applyBtn.dataset.boundHotkeyApply !== '1') {
       applyBtn.dataset.boundHotkeyApply = '1';
       applyBtn.addEventListener('click', () => {
-        this.hotkeyRecorder.apply();
-        if (cancelBtn) cancelBtn.click();
+        const ok = this.hotkeyRecorder.apply();
+        if (ok && cancelBtn) cancelBtn.click();
       });
     }
 
@@ -447,38 +447,45 @@ class SettingsPage {
     });
   }
 
-  _applyActionHotkey(actionName, hotkeyRaw, replaceRaw) {
+  _applyActionHotkey(actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys = false) {
     const newRaw = `${hotkeyRaw || ''}`.trim();
     const replaceWith = `${replaceRaw || ''}`.trim();
-    if (!newRaw) return;
+    if (!newRaw) return { ok: false, error: 'Hotkey cannot be empty' };
 
     let result;
     if (replaceWith) {
       const idx = this._findHotkeyIndexByRaw(replaceWith);
       if (idx !== -1) {
-        result = this.hostBridge.saveHotkey(idx, newRaw, actionName);
+        result = this.hostBridge.saveHotkey(idx, newRaw, actionName, allowRiskyHotkeys);
       } else {
-        result = this.hostBridge.addHotkey(newRaw, actionName);
+        result = this.hostBridge.addHotkey(newRaw, actionName, allowRiskyHotkeys);
       }
     } else {
       const existingIdx = this.form._hotkeyEntries.findIndex(
         (e) => this.form._extractActionName(e.action) === actionName
       );
       if (existingIdx !== -1) {
-        result = this.hostBridge.saveHotkey(existingIdx, newRaw, actionName);
+        result = this.hostBridge.saveHotkey(existingIdx, newRaw, actionName, allowRiskyHotkeys);
       } else {
-        result = this.hostBridge.addHotkey(newRaw, actionName);
+        result = this.hostBridge.addHotkey(newRaw, actionName, allowRiskyHotkeys);
       }
     }
 
     if (!result?.ok) {
-      console.error('Failed to save action hotkey', { actionName, hotkeyRaw: newRaw, error: result?.error });
-      return;
+      const problemList = Array.isArray(result?.problems)
+        ? result.problems.filter((msg) => `${msg || ''}`.trim() !== '')
+        : [];
+      const errorText = problemList.length
+        ? problemList.join('; ')
+        : `${result?.error || 'Failed to save hotkey'}`;
+      console.error('Failed to save action hotkey', { actionName, hotkeyRaw: newRaw, error: errorText });
+      return { ok: false, error: errorText, problems: problemList };
     }
 
     this.form.assignActionHotkey(actionName, newRaw, replaceWith);
     this._refreshActionHotkeys(actionName);
     this.form._renderHotkeys(this.form._hotkeyEntries);
+    return { ok: true };
   }
 
   _refreshActionHotkeys(actionName) {

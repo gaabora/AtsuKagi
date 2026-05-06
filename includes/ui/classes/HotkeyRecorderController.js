@@ -13,6 +13,11 @@ class HotkeyRecorderController {
     this.pendingRaw = '';
     this.actionTarget = null;
     this._activeTab = 'auto';
+    this._autoRecordSeconds = 5;
+    this._autoRecordDeadline = 0;
+    this._autoRecordTickTimer = null;
+    this._autoRecordStopTimer = null;
+    this._autoWindowCaptured = false;
     this._manualKeyCatalog = this._buildManualKeyCatalog();
     this._manualModifierIdsGeneric = ['hotkeyManualModCtrl', 'hotkeyManualModAlt', 'hotkeyManualModShift', 'hotkeyManualModWin'];
     this._manualModifierIdsLr = [
@@ -60,7 +65,6 @@ class HotkeyRecorderController {
       this._setDialogTitle(`Assign ${label}`);
 
       this._initializeRecorderUI();
-      this._startAhkRecording();
       return;
     }
 
@@ -79,7 +83,6 @@ class HotkeyRecorderController {
     this._setDialogTitle(`Assign ${targetLabel}`);
 
     this._initializeRecorderUI();
-    this._startAhkRecording();
   }
 
   _setDialogTitle(titleText) {
@@ -117,14 +120,155 @@ class HotkeyRecorderController {
       .replace(/\b\w/g, (ch) => ch.toUpperCase());
   }
 
+  _clearAutoRecordTimers() {
+    if (this._autoRecordTickTimer) {
+      clearInterval(this._autoRecordTickTimer);
+      this._autoRecordTickTimer = null;
+    }
+    if (this._autoRecordStopTimer) {
+      clearTimeout(this._autoRecordStopTimer);
+      this._autoRecordStopTimer = null;
+    }
+    this._autoRecordDeadline = 0;
+  }
+
+  _getAutoRecordSecondsLeft() {
+    if (!this._autoRecordDeadline) return 0;
+    return Math.max(0, Math.ceil((this._autoRecordDeadline - Date.now()) / 1000));
+  }
+
+  _setRecorderStatus(text, isError = false) {
+    const statusEl = document.getElementById('hotkeyRecordStatus');
+    if (!statusEl) return;
+    statusEl.textContent = text || '';
+    statusEl.classList.toggle('is-error', !!isError);
+  }
+
+  _setAutoHint(text) {
+    const hintEl = document.getElementById('hotkeyAutoRecordHint');
+    if (hintEl) {
+      hintEl.textContent = text || '';
+    }
+  }
+
+  _setApplyEnabled(enabled) {
+    const applyBtn = document.getElementById('apply-hotkey-record');
+    if (applyBtn) {
+      applyBtn.disabled = !enabled;
+    }
+  }
+
+  _setAutoRecordButtonState() {
+    const btn = document.getElementById('hotkeyAutoRecordButton');
+    if (!btn) return;
+    const seconds = this._getAutoRecordSecondsLeft();
+    const text = (this.recording && this._activeTab === 'auto')
+      ? `Stop (${Math.max(1, seconds)}s)`
+      : `Record (${this._autoRecordSeconds}s)`;
+    const labelNode = btn.querySelector('span');
+    if (labelNode) {
+      labelNode.textContent = text;
+    } else {
+      btn.textContent = text;
+    }
+    btn.classList.toggle('is-recording', this.recording && this._activeTab === 'auto');
+  }
+
+  _stopAutoRecordingWindow(reason = 'timeout') {
+    const wasRecording = this.recording;
+    const capturedInWindow = this._autoWindowCaptured;
+    this._stopAhkRecording();
+    this._clearAutoRecordTimers();
+    this._setApplyEnabled(true);
+    this._setAutoRecordButtonState();
+
+    if (!wasRecording) {
+      this._autoWindowCaptured = false;
+      this._setRecorderStatus('Auto mode: press Record to capture a hotkey (5 seconds).');
+      this._setAutoHint('Press Record to listen for 5 seconds.');
+      return;
+    }
+
+    if (reason === 'manual-stop') {
+      this._setRecorderStatus(capturedInWindow
+        ? 'Recording stopped. Press Apply to save, or Record to try again.'
+        : 'Recording stopped with no new capture. Press Record to try again.');
+      this._setAutoHint('Press Record to start another 5-second capture window.');
+      this._autoWindowCaptured = false;
+      return;
+    }
+
+    this._setRecorderStatus(capturedInWindow
+      ? 'Capture window ended. Press Apply to save, or Record to try again.'
+      : 'No hotkey captured in 5 seconds. Press Record to try again.');
+    this._setAutoHint('Press Record to start another 5-second capture window.');
+    this._autoWindowCaptured = false;
+  }
+
+  _startAutoRecordingWindow() {
+    if (this._activeTab !== 'auto') {
+      this._setRecorderStatus('Switch to Auto tab to start timed recording.', true);
+      return;
+    }
+
+    if (this.recording) {
+      this._stopAutoRecordingWindow('manual-stop');
+      return;
+    }
+
+    this._clearAutoRecordTimers();
+    this._startAhkRecording();
+
+    if (!this.recording) {
+      this._setRecorderStatus('Failed to start recording. Check host bridge.', true);
+      this._setAutoHint('Recording failed. Try again.');
+      this._setAutoRecordButtonState();
+      return;
+    }
+
+    this._setApplyEnabled(false);
+    this._autoWindowCaptured = false;
+    this._autoRecordDeadline = Date.now() + (this._autoRecordSeconds * 1000);
+    this._setRecorderStatus(`Recording... ${this._autoRecordSeconds}s left.`);
+    this._setAutoHint('Press keys now. Recording stops automatically after 5 seconds.');
+    this._setAutoRecordButtonState();
+
+    this._autoRecordTickTimer = setInterval(() => {
+      if (!this.recording) {
+        this._clearAutoRecordTimers();
+        this._setAutoRecordButtonState();
+        return;
+      }
+
+      const seconds = this._getAutoRecordSecondsLeft();
+      if (seconds <= 0) return;
+      this._setRecorderStatus(this._autoWindowCaptured
+        ? `Captured. ${seconds}s left in recording window.`
+        : `Recording... ${seconds}s left.`);
+      this._setAutoRecordButtonState();
+    }, 250);
+
+    this._autoRecordStopTimer = setTimeout(() => {
+      this._stopAutoRecordingWindow('timeout');
+    }, this._autoRecordSeconds * 1000);
+  }
+
   _initializeRecorderUI() {
+    this._clearAutoRecordTimers();
+    this._stopAhkRecording(false);
+    this._autoWindowCaptured = false;
+
     const optWildcard = document.getElementById('hotkeyOptWildcard');
     const optPassthrough = document.getElementById('hotkeyOptPassthrough');
+    const optAllowRisky = document.getElementById('hotkeyOptAllowRisky');
     if (optWildcard) {
       optWildcard.checked = this.pendingRaw.indexOf('*') !== -1;
     }
     if (optPassthrough) {
       optPassthrough.checked = this.pendingRaw.indexOf('~') !== -1;
+    }
+    if (optAllowRisky) {
+      optAllowRisky.checked = false;
     }
 
     this._setRecorderTab('auto', false);
@@ -139,14 +283,15 @@ class HotkeyRecorderController {
     this._setManualControlsFromRaw(this.pendingRaw);
     this._updateManualPreview();
 
-    const statusEl = document.getElementById('hotkeyRecordStatus');
     const valueEl = document.getElementById('hotkeyRecordReadable');
-    if (statusEl) {
-      statusEl.textContent = 'Recording... press a key combination.';
-    }
     if (valueEl) {
-      valueEl.textContent = this.pendingRaw ? AK_HumanizeAhkHotkey(this.pendingRaw) : '(listening...)';
+      valueEl.textContent = this.pendingRaw ? AK_HumanizeAhkHotkey(this.pendingRaw) : '(none)';
     }
+
+    this._setRecorderStatus('Auto mode: press Record to capture a hotkey (5 seconds).');
+    this._setAutoHint('Press Record to listen for 5 seconds.');
+    this._setApplyEnabled(true);
+    this._setAutoRecordButtonState();
   }
 
   _bindAdvancedControls() {
@@ -182,6 +327,9 @@ class HotkeyRecorderController {
     const applyManualBtn = document.getElementById('apply-manual-hotkey');
     bindOnce(applyManualBtn, 'boundHotkeyManualApply', 'click', () => this._applyManualHotkey());
 
+    const recordBtn = document.getElementById('hotkeyAutoRecordButton');
+    bindOnce(recordBtn, 'boundHotkeyAutoRecord', 'click', () => this._startAutoRecordingWindow());
+
     this._manualModifierIdsGeneric.concat(this._manualModifierIdsLr).forEach((id) => {
       const el = document.getElementById(id);
       bindOnce(el, `bound${id}`, 'change', () => this._updateManualPreview());
@@ -211,26 +359,38 @@ class HotkeyRecorderController {
       panel.hidden = !isActive;
     });
 
-    if (!manageRecording) return;
-
-    const statusEl = document.getElementById('hotkeyRecordStatus');
-    if (wanted === 'manual') {
-      this._stopAhkRecording();
-      if (statusEl) {
-        statusEl.textContent = 'Manual mode selected. Build a hotkey below.';
-      }
+    if (!manageRecording) {
+      this._setAutoRecordButtonState();
       return;
     }
 
-    this._startAhkRecording();
-    if (statusEl) {
-      statusEl.textContent = 'Recording... press a key combination.';
+    if (wanted === 'manual') {
+      this._stopAutoRecordingWindow('manual-stop');
+      this._setRecorderStatus('Manual mode selected. Build a hotkey below.');
+      return;
     }
+
+    if (this.recording) {
+      const seconds = this._getAutoRecordSecondsLeft();
+      this._setRecorderStatus(`Recording... ${Math.max(1, seconds)}s left.`);
+      this._setAutoHint('Press keys now. Recording stops automatically after 5 seconds.');
+      this._setApplyEnabled(false);
+    } else {
+      this._setRecorderStatus('Auto mode: press Record to capture a hotkey (5 seconds).');
+      this._setAutoHint('Press Record to listen for 5 seconds.');
+      this._setApplyEnabled(true);
+    }
+    this._setAutoRecordButtonState();
   }
 
   _restartRecordingIfActive() {
     if (!this.recording) return;
     this._startAhkRecording();
+    if (this.recording && this._activeTab === 'auto') {
+      const seconds = this._getAutoRecordSecondsLeft();
+      this._setRecorderStatus(`Recording... ${Math.max(1, seconds)}s left.`);
+      this._setAutoRecordButtonState();
+    }
   }
 
   _startAhkRecording() {
@@ -239,7 +399,7 @@ class HotkeyRecorderController {
       return;
     }
 
-    this._stopAhkRecording();
+    this._stopAhkRecording(false);
 
     const optLrModifiers = document.getElementById('hotkeyOptLrModifiers');
     const optMouseCapture = document.getElementById('hotkeyOptMouseCapture');
@@ -259,9 +419,11 @@ class HotkeyRecorderController {
       const result = window.chrome.webview.hostObjects.sync.StartHotkeyRecording(JSON.stringify(options));
       const parsed = (typeof result === 'string') ? JSON.parse(result) : result;
       this.recording = !!parsed?.success;
+      this._setAutoRecordButtonState();
     } catch (error) {
       console.error('Failed to start AHK hotkey recording', error);
       this.recording = false;
+      this._setAutoRecordButtonState();
     }
   }
 
@@ -271,17 +433,21 @@ class HotkeyRecorderController {
     const { raw, display } = data;
     if (!raw) return;
 
-    this._setCapturedDisplay(raw, display, 'Captured. Press Apply to use it or keep pressing keys to change.');
+    this._autoWindowCaptured = true;
+
+    const seconds = this._getAutoRecordSecondsLeft();
+    const statusText = (this._activeTab === 'auto' && seconds > 0)
+      ? `Captured. ${seconds}s left in recording window.`
+      : 'Captured. Press Apply to use it or Record to retry.';
+
+    this._setCapturedDisplay(raw, display, statusText);
   }
 
   _setCapturedDisplay(raw, display, statusText) {
     this.pendingRaw = `${raw || ''}`.trim();
 
-    const statusEl = document.getElementById('hotkeyRecordStatus');
     const valueEl = document.getElementById('hotkeyRecordReadable');
-    if (statusEl) {
-      statusEl.textContent = statusText || 'Captured.';
-    }
+    this._setRecorderStatus(statusText || 'Captured.');
     if (valueEl) {
       valueEl.textContent = display || (this.pendingRaw ? AK_HumanizeAhkHotkey(this.pendingRaw) : '(none)');
     }
@@ -290,13 +456,18 @@ class HotkeyRecorderController {
     this._updateManualPreview();
   }
 
-  _stopAhkRecording() {
+  _stopAhkRecording(clearAutoWindow = true) {
     try {
       window.chrome.webview.hostObjects.sync.StopHotkeyRecording();
     } catch (error) {
       console.error('Failed to stop AHK hotkey recording', error);
     }
     this.recording = false;
+    if (clearAutoWindow) {
+      this._clearAutoRecordTimers();
+      this._setApplyEnabled(true);
+      this._setAutoRecordButtonState();
+    }
   }
 
   _buildManualKeyCatalog() {
@@ -534,10 +705,7 @@ class HotkeyRecorderController {
   _applyManualHotkey() {
     const raw = this._composeManualRaw();
     if (!raw) {
-      const statusEl = document.getElementById('hotkeyRecordStatus');
-      if (statusEl) {
-        statusEl.textContent = 'Manual mode: choose a key (or enable Modifiers-only and choose modifiers).';
-      }
+      this._setRecorderStatus('Manual mode: choose a key (or enable Modifiers-only and choose modifiers).', true);
       return;
     }
 
@@ -549,6 +717,11 @@ class HotkeyRecorderController {
   }
 
   apply() {
+    if (this.recording) {
+      this._setRecorderStatus('Recording is active. Wait for countdown to finish or press Stop.', true);
+      return false;
+    }
+
     // Apply wildcard and passthrough modifiers if enabled (done at JS level, not AHK)
     let finalHotkey = this.pendingRaw;
     const optWildcard = document.getElementById('hotkeyOptWildcard')?.checked || false;
@@ -562,16 +735,40 @@ class HotkeyRecorderController {
       finalHotkey = '~' + finalHotkey;
     }
 
-    if (this.actionTarget && finalHotkey) {
-      if (typeof this.onActionHotkeyApplied === 'function') {
-        this.onActionHotkeyApplied(this.actionTarget.actionName, finalHotkey, this.actionTarget.replaceHotkeyRaw || '');
-      }
+    finalHotkey = `${finalHotkey || ''}`.trim();
+    if (!finalHotkey) {
+      this._setRecorderStatus('No hotkey selected. Record or compose one first.', true);
+      return false;
+    }
+
+    if (this.actionTarget) {
       this._stopAhkRecording();
-      return;
+      if (typeof this.onActionHotkeyApplied !== 'function') {
+        this._setRecorderStatus('Unable to save action hotkey: callback is missing.', true);
+        return false;
+      }
+
+      const allowRiskyHotkeys = document.getElementById('hotkeyOptAllowRisky')?.checked || false;
+      const result = this.onActionHotkeyApplied(
+        this.actionTarget.actionName,
+        finalHotkey,
+        this.actionTarget.replaceHotkeyRaw || '',
+        allowRiskyHotkeys
+      ) || { ok: false, error: 'Failed to save hotkey' };
+
+      if (!result?.ok) {
+        this._setRecorderStatus(result?.error || 'Failed to save hotkey.', true);
+        return false;
+      }
+
+      return true;
     }
 
     const input = this.targetElement || this.dom.getField(this.targetId);
-    if (!input || !finalHotkey) return;
+    if (!input) {
+      this._setRecorderStatus('Target field was not found.', true);
+      return false;
+    }
 
     input.value = finalHotkey;
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -582,6 +779,8 @@ class HotkeyRecorderController {
     } else {
       this._updateElementPreview(input, this.targetDisplayElement);
     }
+
+    return true;
   }
 
   updatePreview(inputId) {

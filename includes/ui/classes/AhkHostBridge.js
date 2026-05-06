@@ -49,9 +49,9 @@ class AhkHostBridge {
     return this._parseHostResult(this.host.SavePluginSetting(`${pluginId || ''}`, `${key || ''}`, JSON.stringify(value)));
   }
 
-  saveHotkey(index, hotKey, action) {
+  saveHotkey(index, hotKey, action, allowRiskyHotkeys = false) {
     this._checkHostFunction('SaveHotkey');
-    return this._parseHostResult(this.host.SaveHotkey(Number(index) || 0, `${hotKey || ''}`, `${action || ''}`));
+    return this._parseHostResult(this.host.SaveHotkey(Number(index) || 0, `${hotKey || ''}`, `${action || ''}`, allowRiskyHotkeys ? 1 : 0));
   }
 
   removeHotkey(index) {
@@ -59,9 +59,9 @@ class AhkHostBridge {
     return this._parseHostResult(this.host.RemoveHotkey(Number(index) || 0));
   }
 
-  addHotkey(hotKey, action) {
+  addHotkey(hotKey, action, allowRiskyHotkeys = false) {
     this._checkHostFunction('AddHotkey');
-    return this._parseHostResult(this.host.AddHotkey(`${hotKey || ''}`, `${action || ''}`));
+    return this._parseHostResult(this.host.AddHotkey(`${hotKey || ''}`, `${action || ''}`, allowRiskyHotkeys ? 1 : 0));
   }
 
   togglePlugin(pluginId, enabled) {

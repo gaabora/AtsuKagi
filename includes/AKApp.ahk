@@ -1159,10 +1159,66 @@ class AKApp extends AKBase {
       this._assignedHotkeys.Delete(universal)
   }
 
-  _validateHotkeyEntry(hotKey, actionText, entries, ignoreIndex := -1) {
+  _isDangerousMouseOnlyHotkey(hotKey) {
+    hk := Trim("" hotKey)
+    if (!hk)
+      return false
+
+    normalized := RegExReplace(hk, "\s+", "")
+
+    while (RegExMatch(normalized, "^[*~$]")) {
+      normalized := SubStr(normalized, 2)
+    }
+
+    hasModifier := false
+    loop {
+      if (RegExMatch(normalized, "^(<\^|>\^|<!|>!|<\+|>\+|<#|>#)", &m)) {
+        hasModifier := true
+        normalized := SubStr(normalized, StrLen(m[1]) + 1)
+        continue
+      }
+      if (RegExMatch(normalized, "^[\^!+#]")) {
+        hasModifier := true
+        normalized := SubStr(normalized, 2)
+        continue
+      }
+      break
+    }
+
+    if (hasModifier)
+      return false
+
+    if (InStr(normalized, "&"))
+      return false
+
+    keyName := StrUpper(Trim(normalized))
+    if (!keyName)
+      return false
+
+    dangerous := Map(
+      "LBUTTON", true,
+      "RBUTTON", true,
+      "MBUTTON", true,
+      "XBUTTON1", true,
+      "XBUTTON2", true,
+      "WHEELUP", true,
+      "WHEELDOWN", true,
+      "WHEELLEFT", true,
+      "WHEELRIGHT", true
+    )
+
+    return dangerous.Has(keyName)
+  }
+
+  _validateHotkeyEntry(hotKey, actionText, entries, ignoreIndex := -1, allowRiskyHotkeys := false) {
     problems := []
     hk := Trim("" hotKey)
     actionStr := Trim("" actionText)
+
+    allowDangerous := (allowRiskyHotkeys = true)
+    allowText := StrLower(Trim("" allowRiskyHotkeys))
+    if (allowText = "1" || allowText = "true")
+      allowDangerous := true
 
     if (!hk)
       problems.Push("Hotkey cannot be empty")
@@ -1193,10 +1249,14 @@ class AKApp extends AKBase {
       }
     }
 
+    if (hk && this._isDangerousMouseOnlyHotkey(hk) && !allowDangerous) {
+      problems.Push("Risky hotkey blocked: " hk ". Enable 'Allow risky hotkeys' in Manual mode to save it.")
+    }
+
     return problems
   }
 
-  SaveHotkey(index, hotKey, action) {
+  SaveHotkey(index, hotKey, action, allowRiskyHotkeys := false) {
     try idx := Integer(index)
     catch {
       return this._jsonAtomicResult(false, "Invalid hotkey index")
@@ -1206,7 +1266,7 @@ class AKApp extends AKBase {
     if (idx < 0 || idx >= entries.Length)
       return this._jsonAtomicResult(false, "Hotkey index out of range")
 
-    problems := this._validateHotkeyEntry(hotKey, action, entries, idx)
+    problems := this._validateHotkeyEntry(hotKey, action, entries, idx, allowRiskyHotkeys)
     if (problems.Length > 0)
       return this._jsonAtomicResult(false, "Hotkey validation failed", Map("problems", problems))
 
@@ -1251,9 +1311,9 @@ class AKApp extends AKBase {
     return this._jsonAtomicResult(true, "", Map("problems", []))
   }
 
-  AddHotkey(hotKey, action) {
+  AddHotkey(hotKey, action, allowRiskyHotkeys := false) {
     entries := this._hotkeyEntriesFromConfig()
-    problems := this._validateHotkeyEntry(hotKey, action, entries, -1)
+    problems := this._validateHotkeyEntry(hotKey, action, entries, -1, allowRiskyHotkeys)
     if (problems.Length > 0)
       return this._jsonAtomicResult(false, "Hotkey validation failed", Map("problems", problems))
 

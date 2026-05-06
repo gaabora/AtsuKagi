@@ -65,9 +65,9 @@ class AKGui extends AKBase {
     nw.AddCallbackToScript("SaveSettingsJson", (wv, payload:="") => this._saveSettingsJson(payload))
     nw.AddCallbackToScript("SaveGeneralSetting", (wv, key:="", value:="") => this._saveGeneralSetting(key, value))
     nw.AddCallbackToScript("SavePluginSetting", (wv, pluginId:="", key:="", value:="") => this._savePluginSetting(pluginId, key, value))
-    nw.AddCallbackToScript("SaveHotkey", (wv, index:=0, hotKey:="", action:="") => this._saveHotkey(index, hotKey, action))
+    nw.AddCallbackToScript("SaveHotkey", (wv, index:=0, hotKey:="", action:="", allowRiskyHotkeys:=0) => this._saveHotkey(index, hotKey, action, allowRiskyHotkeys))
     nw.AddCallbackToScript("RemoveHotkey", (wv, index:=0) => this._removeHotkey(index))
-    nw.AddCallbackToScript("AddHotkey", (wv, hotKey:="", action:="") => this._addHotkey(hotKey, action))
+    nw.AddCallbackToScript("AddHotkey", (wv, hotKey:="", action:="", allowRiskyHotkeys:=0) => this._addHotkey(hotKey, action, allowRiskyHotkeys))
     nw.AddCallbackToScript("StartHotkeyRecording", (wv, optionsJson:="") => this._startHotkeyRecording(nw, optionsJson))
     nw.AddCallbackToScript("StopHotkeyRecording", (wv, *) => this._stopHotkeyRecording())
     nw.AddCallbackToScript("TogglePlugin", (wv, pluginId:="", enabled:=1) => this._togglePlugin(pluginId, enabled))
@@ -173,16 +173,16 @@ class AKGui extends AKBase {
     return this.App.SavePluginSetting(pluginId, key, value)
   }
 
-  _saveHotkey(index, hotKey, action) {
-    return this.App.SaveHotkey(index, hotKey, action)
+  _saveHotkey(index, hotKey, action, allowRiskyHotkeys:=0) {
+    return this.App.SaveHotkey(index, hotKey, action, allowRiskyHotkeys)
   }
 
   _removeHotkey(index) {
     return this.App.RemoveHotkey(index)
   }
 
-  _addHotkey(hotKey, action) {
-    return this.App.AddHotkey(hotKey, action)
+  _addHotkey(hotKey, action, allowRiskyHotkeys:=0) {
+    return this.App.AddHotkey(hotKey, action, allowRiskyHotkeys)
   }
 
   _startHotkeyRecording(nw, optionsJson:="") {
