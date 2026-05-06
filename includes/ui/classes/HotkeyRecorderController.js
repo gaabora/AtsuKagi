@@ -55,8 +55,10 @@ class HotkeyRecorderController {
       this.targetId = '';
       this.targetElement = null;
       this.targetDisplayElement = null;
+      const fullActionHandler = `${btn.getAttribute('data-hotkey-action-full') || ''}`.trim();
       this.actionTarget = {
         actionName,
+        fullActionHandler: fullActionHandler || actionName,
         replaceHotkeyRaw: `${btn.getAttribute('data-hotkey-current') || ''}`.trim()
       };
       this.pendingRaw = this.actionTarget.replaceHotkeyRaw;
@@ -805,7 +807,8 @@ class HotkeyRecorderController {
         this.actionTarget.actionName,
         finalHotkey,
         this.actionTarget.replaceHotkeyRaw || '',
-        allowRiskyHotkeys
+        allowRiskyHotkeys,
+        this.actionTarget.fullActionHandler || this.actionTarget.actionName
       ) || { ok: false, error: 'Failed to save hotkey' };
 
       if (!result?.ok) {

@@ -382,10 +382,18 @@ class SettingsForm {
       .filter(Boolean);
   }
 
-  assignActionHotkey(actionName, newHotkeyRaw, replaceHotkeyRaw = '') {
+  getFullActionHandlerForHotkey(hotkeyRaw) {
+    const wanted = `${hotkeyRaw || ''}`.trim();
+    if (!wanted) return '';
+    const entry = this._hotkeyEntries.find((e) => `${e.hotKey || ''}`.trim() === wanted);
+    return entry ? `${entry.action || ''}`.trim() : '';
+  }
+
+  assignActionHotkey(actionName, newHotkeyRaw, replaceHotkeyRaw = '', fullActionHandler = '') {
     const wanted = `${actionName || ''}`.trim();
     const newRaw = `${newHotkeyRaw || ''}`.trim();
     const replaceRaw = `${replaceHotkeyRaw || ''}`.trim();
+    const handlerToStore = `${fullActionHandler || wanted || ''}`.trim();
     if (!wanted || !newRaw) return;
 
     this._hotkeyEntries = this._hotkeyEntries.filter((entry) => `${entry.hotKey || ''}`.trim() !== newRaw);
@@ -395,12 +403,12 @@ class SettingsForm {
       this._hotkeyEntries = this._hotkeyEntries.map((entry) => {
         if (`${entry.hotKey || ''}`.trim() === replaceRaw) {
           replaced = true;
-          return { hotKey: newRaw, action: entry.action || wanted };
+          return { hotKey: newRaw, action: handlerToStore };
         }
         return entry;
       });
       if (!replaced) {
-        this._hotkeyEntries.push({ hotKey: newRaw, action: wanted });
+        this._hotkeyEntries.push({ hotKey: newRaw, action: handlerToStore });
       }
       return;
     }

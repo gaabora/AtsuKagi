@@ -4,7 +4,7 @@ class SettingsPage {
     this.hostBridge = new AhkHostBridge();
     this.form = new SettingsForm(this.dom);
     this.colorPicker = new ColorPickerController(this.dom);
-    this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys));
+    this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys, fullActionHandler) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys, fullActionHandler));
     this.logs = new LogsController(this.hostBridge, (settingRef) => this._goToSetting(settingRef));
     this._isApplyingState = false;
     this._fieldSaveTimers = new Map();
@@ -450,27 +450,28 @@ class SettingsPage {
     });
   }
 
-  _applyActionHotkey(actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys = false) {
+  _applyActionHotkey(actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys = false, fullActionHandler = '') {
     const newRaw = `${hotkeyRaw || ''}`.trim();
     const replaceWith = `${replaceRaw || ''}`.trim();
+    const handlerToSave = `${fullActionHandler || actionName || ''}`.trim();
     if (!newRaw) return { ok: false, error: 'Hotkey cannot be empty' };
 
     let result;
     if (replaceWith) {
       const idx = this._findHotkeyIndexByRaw(replaceWith);
       if (idx !== -1) {
-        result = this.hostBridge.saveHotkey(idx, newRaw, actionName, allowRiskyHotkeys);
+        result = this.hostBridge.saveHotkey(idx, newRaw, handlerToSave, allowRiskyHotkeys);
       } else {
-        result = this.hostBridge.addHotkey(newRaw, actionName, allowRiskyHotkeys);
+        result = this.hostBridge.addHotkey(newRaw, handlerToSave, allowRiskyHotkeys);
       }
     } else {
       const existingIdx = this.form._hotkeyEntries.findIndex(
         (e) => this.form._extractActionName(e.action) === actionName
       );
       if (existingIdx !== -1) {
-        result = this.hostBridge.saveHotkey(existingIdx, newRaw, actionName, allowRiskyHotkeys);
+        result = this.hostBridge.saveHotkey(existingIdx, newRaw, handlerToSave, allowRiskyHotkeys);
       } else {
-        result = this.hostBridge.addHotkey(newRaw, actionName, allowRiskyHotkeys);
+        result = this.hostBridge.addHotkey(newRaw, handlerToSave, allowRiskyHotkeys);
       }
     }
 
@@ -485,7 +486,7 @@ class SettingsPage {
       return { ok: false, error: errorText, problems: problemList };
     }
 
-    this.form.assignActionHotkey(actionName, newRaw, replaceWith);
+    this.form.assignActionHotkey(actionName, newRaw, replaceWith, fullActionHandler);
     this._refreshActionHotkeys(actionName);
     this.form._renderHotkeys(this.form._hotkeyEntries);
     return { ok: true };
