@@ -19,8 +19,16 @@
 .gap-3  { gap: 12px; }
 .gap-4  { gap: 16px; }
 .gap-6  { gap: 24px; }
+.grid   { display: grid; }
 .col-2  { grid-template-columns: repeat(2, 1fr); display: grid; }
 .col-3  { grid-template-columns: repeat(3, 1fr); display: grid; }
+.w-full { width: 100%; }
+.text-xs { font-size: 12px; }
+.text-sm { font-size: 13px; }
+.text-center { text-align: center; }
+.font-semibold { font-weight: 600; }
+.opacity-75 { opacity: 0.75; }
+.hidden { display: none !important; }
 /* ─────────────────────────────────────────────────────────── */
 
 /* Highlight animation for go-to-setting */
@@ -333,12 +341,10 @@ body {
   margin: 12px 0;
 }
 
-.hotkey-preview {
-  margin-top: 6px;
-  opacity: 0.75;
-  font-size: 12px;
-  min-height: 18px;
-}
+/* UNUSED — hotkey-preview, dialog-kv not referenced in HTML
+.hotkey-preview { margin-top: 6px; opacity: 0.75; font-size: 12px; min-height: 18px; }
+.dialog-kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center; }
+*/
 
 .dialog-form-grid {
   display: grid;
@@ -362,30 +368,11 @@ body {
   opacity: 0.82;
 }
 
-.dialog-kv {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 8px;
-  align-items: center;
-}
-
-.hotkey-display-input {
-  background: var(--color-ui-hover-strong, #F1F1F1);
-}
-
-.hotkey-recorder-state {
-  border: 1px dashed var(--color-ui-border-default, #D8D8D8);
-  border-radius: 6px;
-  padding: 10px;
-  margin-top: 10px;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.hotkey-recorder-state strong {
-  display: inline-block;
-  margin-right: 8px;
-}
+/* UNUSED after hotkey dialog refactor — kept for reference
+.hotkey-display-input { background: var(--color-ui-hover-strong, #F1F1F1); }
+.hotkey-recorder-state { border: 1px dashed var(--color-ui-border-default, #D8D8D8); border-radius: 6px; padding: 10px; margin-top: 10px; font-size: 13px; line-height: 1.4; }
+.hotkey-recorder-state strong { display: inline-block; margin-right: 8px; }
+*/
 
 .plugin-item {
   display: flex;
@@ -618,320 +605,89 @@ body {
   max-height: none;
 }
 
-.settings-dialog {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.28);
-  z-index: 9999;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
+/* UNUSED — settings-dialog, switch-row not referenced
+.settings-dialog { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.28); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
+.settings-dialog.active { display: flex; }
+.settings-dialog .app-dialog-modal { width: min(720px, calc(100vw - 40px)); max-height: calc(100vh - 40px); overflow: auto; }
+.switch-row { margin-bottom: 10px; display: flex; gap: 16px; align-items: center; }
+*/
 
-.settings-dialog.active {
+/* ── Hotkey Recorder Dialog ─────────────────────────────────────────────── */
+.hk-dialog { width: min(700px, calc(100vw - 40px)); }
+
+.hk-header {
   display: flex;
-}
-
-.settings-dialog .app-dialog-modal {
-  width: min(720px, calc(100vw - 40px));
-  max-height: calc(100vh - 40px);
-  overflow: auto;
-}
-
-.switch-row {
-  margin-bottom: 10px;
-  display: flex;
-  gap: 16px;
+  justify-content: space-between;
   align-items: center;
-}
-
-#HotkeyRecorderDialog .app-dialog-modal {
-  width: min(700px, calc(100vw - 40px));
-}
-
-/* Header */
-#HotkeyRecorderDialog .hotkey-dialog-header {
   padding: 12px 20px 8px;
   border-bottom: 1px solid var(--color-ui-border-default, #E3E3E3);
-  display: flex;
-  justify-content: space-between;
 }
+.hk-header h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
 
-#HotkeyRecorderDialog .hotkey-dialog-header h3 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-#HotkeyRecorderDialog .hotkey-dialog-subtitle {
-  margin: 0;
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-#HotkeyRecorderDialog .hotkey-display-value {
-  font-size: 18px;
-  font-weight: 600;
-  font-family: Consolas, "Cascadia Mono", monospace;
+.hk-display {
+  font: 600 18px/1 Consolas, "Cascadia Mono", monospace;
   color: var(--color-primary-adaptive, #0078D7);
-  min-height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* Mode Selector Tabs */
-#HotkeyRecorderDialog .hotkey-mode-selector {
-  display: flex;
-  gap: 8px;
-  margin: 0 20px 20px 20px;
+.hk-body { display: grid; gap: 16px; padding: 20px 20px 0; }
+
+/* Tabs */
+.hk-tabs {
+  display: flex; gap: 8px;
   background: var(--color-navbar-bg-default, #F3F3F3);
-  padding: 4px;
-  border-radius: 8px;
+  padding: 4px; border-radius: 8px;
 }
-
-#HotkeyRecorderDialog .hotkey-mode-tab {
-  flex: 1;
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s ease;
+.hk-tab {
+  flex: 1; padding: 8px 12px;
+  background: transparent; border: 1px solid transparent; border-radius: 6px;
+  cursor: pointer; font-size: 13px; font-weight: 500; transition: all .2s;
 }
+.hk-tab:hover { background: var(--color-ui-hover-strong, #E8E8E8); }
+.hk-tab.is-active { background: var(--color-button-default, #777); border-color: var(--color-ui-border-default, #D8D8D8); font-weight: 600; }
 
-#HotkeyRecorderDialog .hotkey-mode-tab:hover {
-  background: var(--color-ui-hover-strong, #E8E8E8);
-}
+/* Panels */
+.hk-panels { display: grid; }
+.hk-panel { display: none; gap: 16px; }
+.hk-panel.is-active { display: grid; }
 
-#HotkeyRecorderDialog .hotkey-mode-tab.is-active {
-  background: var(--color-button-default, #777);
-  border-color: var(--color-ui-border-default, #D8D8D8);
-  font-weight: 600;
-}
+/* Steps (fieldsets) */
+.hk-step { border: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.hk-step legend { display: contents; }
+.hk-step-title { font-size: 13px; font-weight: 600; }
 
-/* Dialog Body */
-#HotkeyRecorderDialog .hotkey-recorder-body {
-  display: grid;
-  gap: 16px;
-  padding: 20px 20px 0 20px;
-}
-
-/* Tab Panels */
-#HotkeyRecorderDialog .hotkey-tab-panels {
-  display: grid;
-}
-
-#HotkeyRecorderDialog .hotkey-tab-panel {
-  display: none;
-  gap: 16px;
-}
-
-#HotkeyRecorderDialog .hotkey-tab-panel.is-active {
-  display: grid;
-}
-
-/* Auto Mode Section */
-#HotkeyRecorderDialog .hotkey-auto-section {
-  display: grid;
-  gap: 12px;
-  text-align: center;
-}
-
-#HotkeyRecorderDialog .hotkey-auto-hint {
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-/* Manual Mode: Steps */
-#HotkeyRecorderDialog .hotkey-step {
-  display: grid;
-  gap: 10px;
-}
-
-#HotkeyRecorderDialog .hotkey-step-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  justify-content: space-between;
-}
-
-#HotkeyRecorderDialog .hotkey-step-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-default, #000);
-}
-
-/* Modifier Buttons */
-#HotkeyRecorderDialog .hotkey-mod-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-#HotkeyRecorderDialog .hotkey-mod-buttons.hidden {
-  display: none;
-}
-
-#HotkeyRecorderDialog .hotkey-mod-btn {
+/* Mod buttons */
+.hotkey-mod-btn {
   padding: 6px 12px;
   background: var(--color-button-default, #777);
   border: 1px solid var(--color-ui-border-default, #D8D8D8);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.15s ease;
-  user-select: none;
+  border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-weight: 500;
+  transition: all .15s; user-select: none;
 }
+.hotkey-mod-btn:hover { background: var(--color-ui-hover-strong, #F0F0F0); border-color: #C0C0C0; }
+.hotkey-mod-btn.active { background: var(--color-primary-adaptive, #0078D7); color: #fff; border-color: var(--color-primary-adaptive, #0078D7); }
 
-#HotkeyRecorderDialog .hotkey-mod-btn:hover {
-  background: var(--color-ui-hover-strong, #F0F0F0);
-  border-color: var(--color-ui-border-default, #C0C0C0);
-}
+/* Key list */
+.hk-key-list { width: 100%; min-height: 120px; font: 12px Consolas, "Cascadia Mono", monospace; }
 
-#HotkeyRecorderDialog .hotkey-mod-btn.active {
-  background: var(--color-primary-adaptive, #0078D7);
-  color: white;
-  border-color: var(--color-primary-adaptive, #0078D7);
-}
+/* Checkbox label */
+.hk-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; user-select: none; white-space: nowrap; }
+.hk-check input { cursor: pointer; }
 
-/* Key Selection */
-#HotkeyRecorderDialog .hotkey-key-selection {
-  display: grid;
-  gap: 8px;
-}
+/* Details/advanced */
+.hk-details { user-select: none; }
+.hk-details summary { cursor: pointer; padding: 8px 0; font-size: 12px; font-weight: 500; color: var(--color-primary-adaptive, #0078D7); }
+.hk-details summary:hover { color: #106ebe; }
+.hk-details[open] summary { margin-bottom: 8px; }
+.hk-details > .col-2 { padding: 12px; background: var(--color-navbar-bg-default, #F7F7F7); border-radius: 6px; margin-bottom: 12px; }
 
-#HotkeyRecorderDialog .hotkey-key-filter {
-  width: 100%;
-}
-
-#HotkeyRecorderDialog .hotkey-manual-key-list {
-  width: 100%;
-  min-height: 140px;
-  font-family: Consolas, "Cascadia Mono", monospace;
-  font-size: 12px;
-}
-
-#HotkeyRecorderDialog #hotkeyPrefixKeySection {
-  display: grid;
-  gap: 8px;
-}
-
-#HotkeyRecorderDialog #hotkeyManualPrefixKeyList {
-  min-height: 120px;
-}
-
-/* Advanced Options */
-#HotkeyRecorderDialog .hotkey-advanced-options {
-  user-select: none;
-}
-
-#HotkeyRecorderDialog .hotkey-advanced-options summary {
-  cursor: pointer;
-  padding: 8px 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-primary-adaptive, #0078D7);
-  transition: color 0.2s ease;
-}
-
-#HotkeyRecorderDialog .hotkey-advanced-options summary:hover {
-  color: #106ebe;
-}
-
-#HotkeyRecorderDialog .hotkey-advanced-options[open] summary {
-  margin-bottom: 8px;
-}
-
-#HotkeyRecorderDialog .hotkey-advanced-content {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px 16px;
-  padding: 12px;
-  margin-bottom: 12px;
-  background: var(--color-navbar-bg-default, #F7F7F7);
-  border-radius: 6px;
-}
-
-#HotkeyRecorderDialog .hotkey-advanced-section {
-  display: grid;
-  gap: 8px;
-}
-
-#HotkeyRecorderDialog .hotkey-advanced-section.hidden {
-  display: none;
-}
-
-/* Toggle & Checkbox Labels */
-#HotkeyRecorderDialog .hotkey-toggle-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-}
-
-#HotkeyRecorderDialog .hotkey-toggle-label input[type="checkbox"] {
-  cursor: pointer;
-}
-
-#HotkeyRecorderDialog .hotkey-checkbox-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-  line-height: 1.4;
-}
-
-#HotkeyRecorderDialog .hotkey-checkbox-label input[type="checkbox"] {
-  flex-shrink: 0;
-  margin-top: 2px;
-  cursor: pointer;
-}
+/* ── end hotkey dialog ─────────────────────────────────────────────────── */
 
 @media (max-width: 720px) {
-  .settings-sidebar-shell {
-    height: auto;
-  }
-
-  .settings-page-shell {
-    padding-top: 16px;
-  }
-
-  .settings-content {
-    padding-right: 0;
-  }
-
-  #HotkeyRecorderDialog .hotkey-recorder-tabs {
-    width: 100%;
-  }
-
-  #HotkeyRecorderDialog .hotkey-tab {
-    flex: 1;
-    min-width: 0;
-  }
-
-  #HotkeyRecorderDialog .hotkey-switch-row {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  #HotkeyRecorderDialog .hotkey-manual-footer {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  #HotkeyRecorderDialog .hotkey-auto-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  .settings-sidebar-shell { height: auto; }
+  .settings-page-shell { padding-top: 16px; }
+  .settings-content { padding-right: 0; }
+  .hk-dialog { width: calc(100vw - 20px); }
 }
 
 
@@ -1026,25 +782,6 @@ body {
   margin: 0;
 }
 
-.logs-filter-dropdown .log-level-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 68px;
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-
-.logs-toggle-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  user-select: none;
-}
-
 .logs-container {
   height: calc(100vh - 270px);
   max-height: none;
@@ -1109,4 +846,3 @@ body {
 [data-theme="dark"] .log-level-notice .log-level-badge { color: #90caf9; background: rgba(25,118,210,.25); }
 [data-theme="dark"] .log-level-info   .log-level-badge { color: #b0bec5; }
 [data-theme="dark"] .log-level-debug  .log-level-badge { color: #78909c; }
-.app-dialog .app-dialog-modal { width: auto; }

@@ -181,50 +181,52 @@
   </div>
 
   <div class="app-dialog" id="HotkeyRecorderDialog" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog" tabindex="-1">
-    <div class="app-dialog-modal" aria-modal="true" role="dialog">
-      <!-- Header & Display -->
-      <div class="hotkey-dialog-header">
+    <div class="app-dialog-modal hk-dialog" aria-modal="true" role="dialog">
+
+      <!-- Header -->
+      <div class="hk-header">
         <div>
           <h3 id="hotkeyDialogTitle">Record Hotkey</h3>
-          <p class="hotkey-dialog-subtitle">Set a global shortcut for this action</p>
+          <p class="text-xs opacity-75">Set a global shortcut for this action</p>
         </div>
-        <div class="hotkey-display-value" id="hotkeyRecordReadable">(none)</div>
+        <div class="hk-display" id="hotkeyRecordReadable">(none)</div>
       </div>
 
+      <!-- Body -->
+      <div class="app-dialog-body hk-body">
 
-      <div class="app-dialog-body hotkey-recorder-body">
-        <!-- Mode Selector -->
-        <div class="hotkey-mode-selector">
-          <button class="hotkey-mode-tab is-active" type="button" id="hotkeyTabAuto" data-hotkey-tab="auto" role="tab" aria-selected="true" aria-controls="hotkeyTabPanelAuto">Auto Detect</button>
-          <button class="hotkey-mode-tab" type="button" id="hotkeyTabManual" data-hotkey-tab="manual" role="tab" aria-selected="false" aria-controls="hotkeyTabPanelManual">Manual Setup</button>
+        <!-- Tab bar -->
+        <div class="hk-tabs">
+          <button class="hk-tab is-active" type="button" id="hotkeyTabAuto" data-hotkey-tab="auto" role="tab" aria-selected="true" aria-controls="hotkeyTabPanelAuto">Auto Detect</button>
+          <button class="hk-tab" type="button" id="hotkeyTabManual" data-hotkey-tab="manual" role="tab" aria-selected="false" aria-controls="hotkeyTabPanelManual">Manual Setup</button>
         </div>
 
-        <div class="hotkey-tab-panels">
-          <!-- AUTO MODE -->
-          <section id="hotkeyTabPanelAuto" class="hotkey-tab-panel is-active" data-hotkey-tab-panel="auto" role="tabpanel" aria-labelledby="hotkeyTabAuto">
-            <div class="hotkey-auto-section">
+        <!-- Tab panels -->
+        <div class="hk-panels">
+
+          <!-- AUTO -->
+          <section id="hotkeyTabPanelAuto" class="hk-panel is-active" data-hotkey-tab-panel="auto" role="tabpanel" aria-labelledby="hotkeyTabAuto">
+            <div class="grid gap-3 text-center">
               <button class="app-btn app-btn-primary" type="button" id="hotkeyRecordButton">Record</button>
-              <div class="hotkey-auto-hint" id="hotkeyRecordHint"></div>
+              <p class="text-xs opacity-75" id="hotkeyRecordHint"></p>
             </div>
           </section>
 
-          <!-- MANUAL MODE -->
-          <section id="hotkeyTabPanelManual" class="hotkey-tab-panel" data-hotkey-tab-panel="manual" role="tabpanel" aria-labelledby="hotkeyTabManual">
+          <!-- MANUAL -->
+          <section id="hotkeyTabPanelManual" class="hk-panel" data-hotkey-tab-panel="manual" role="tabpanel" aria-labelledby="hotkeyTabManual">
 
-            <div class="hotkey-step">
+            <!-- Modifiers -->
+            <fieldset class="hk-step">
+              <legend class="hk-step-title">Modifiers</legend>
 
-              <div class="hotkey-step-header">
-                <div class="hotkey-step-title">Step 1: Modifiers</div>
-              </div>
-
-              <div class="hotkey-mod-buttons" id="hotkeyManualModsGeneric">
+              <div class="flex flex-wrap gap-2" id="hotkeyManualModsGeneric">
                 <button type="button" class="hotkey-mod-btn" data-mod="Ctrl">Ctrl</button>
                 <button type="button" class="hotkey-mod-btn" data-mod="Alt">Alt</button>
                 <button type="button" class="hotkey-mod-btn" data-mod="Shift">Shift</button>
                 <button type="button" class="hotkey-mod-btn" data-mod="Win">Win</button>
               </div>
 
-              <div class="hotkey-mod-buttons hidden" id="hotkeyManualModsLr">
+              <div class="flex flex-wrap gap-2 hidden" id="hotkeyManualModsLr">
                 <button type="button" class="hotkey-mod-btn" data-mod="LCtrl">LCtrl</button>
                 <button type="button" class="hotkey-mod-btn" data-mod="RCtrl">RCtrl</button>
                 <button type="button" class="hotkey-mod-btn" data-mod="LAlt">LAlt</button>
@@ -235,91 +237,53 @@
                 <button type="button" class="hotkey-mod-btn" data-mod="RWin">RWin</button>
               </div>
 
-              <div id="hotkeyUseCustomModifierSection">
-                <div class="hotkey-step-header">
-                  <div class="hotkey-step-title">Custom Modifier</div>
-                </div>
-                <div id="hotkeyPrefixKeySection">
-                  <input class="app-input-text hotkey-key-filter" type="text" id="hotkeyManualPrefixKeyFilter" placeholder="Search prefix key..." />
-                  <select id="hotkeyManualPrefixKeyList" class="app-input-text hotkey-manual-key-list" size="6"></select>
-                </div>
+              <div id="hotkeyPrefixKeySection" class="grid gap-2" hidden>
+                <span class="hk-step-title">Custom Modifier Key</span>
+                <input class="app-input-text" type="text" id="hotkeyManualPrefixKeyFilter" placeholder="Search prefix key..." />
+                <select id="hotkeyManualPrefixKeyList" class="app-input-text hk-key-list" size="6"></select>
               </div>
-            
-            </div>
+            </fieldset>
 
-            <!-- Step 2: Main Key -->
-            <div class="hotkey-step">
-              <div class="hotkey-step-header">
-                <div class="hotkey-step-title">Step 2: Main Key</div>
-                <label class="hotkey-toggle-label">
-                  <input type="checkbox" id="hotkeyOptModifiersOnly" />
-                  <span>Modifiers only</span>
-                </label>
-              </div>
+            <!-- Main Key -->
+            <fieldset class="hk-step">
+              <legend class="flex items-center justify-between w-full">
+                <span class="hk-step-title">Main Key</span>
+                <label class="hk-check"><input type="checkbox" id="hotkeyOptModifiersOnly" /> Modifiers only</label>
+              </legend>
 
-              <div id="hotkeyKeySelection" class="hotkey-key-selection">
-                <input class="app-input-text hotkey-key-filter" type="text" id="hotkeyManualKeyFilter" placeholder="Search key..." />
-                <select id="hotkeyManualKeyList" class="app-input-text hotkey-manual-key-list" size="9"></select>
+              <div id="hotkeyKeySelection" class="grid gap-2">
+                <input class="app-input-text" type="text" id="hotkeyManualKeyFilter" placeholder="Search key..." />
+                <select id="hotkeyManualKeyList" class="app-input-text hk-key-list" size="9"></select>
               </div>
-            </div>
+            </fieldset>
+
           </section>
         </div>
 
-        <div class="hotkey-advanced-section">
-
-          <label class="hotkey-toggle-label">
-            <input type="checkbox" id="hotkeyOptLrModifiers" />
-            <span>Distinguish L/R</span>
-          </label>
-        
-        </div>
-        <div class="hotkey-advanced-section">
-          
-          <label class="hotkey-toggle-label">
-            <input type="checkbox" id="hotkeyOptUseCustomModifier" />
-            <span>Use Custom Key as Modifier</span>
-          </label>
-
+        <!-- Quick toggles -->
+        <div class="flex flex-wrap gap-4">
+          <label class="hk-check"><input type="checkbox" id="hotkeyOptLrModifiers" /> Distinguish L/R</label>
+          <label class="hk-check"><input type="checkbox" id="hotkeyOptUseCustomModifier" /> Custom modifier key</label>
         </div>
 
-        <!-- Advanced Options (Collapsible) -->
-        <details class="hotkey-advanced-options">
+        <!-- Advanced (collapsible) -->
+        <details class="hk-details">
           <summary>Advanced Options</summary>
-          <div class="hotkey-advanced-content">
-            <div class="hotkey-advanced-section">
-
-              <label class="hotkey-checkbox-label">
-                <input type="checkbox" id="hotkeyOptMouseCapture" />
-                <span>Capture Mouse Input</span>
-              </label>
-
-              <label class="hotkey-checkbox-label">
-                <input type="checkbox" id="hotkeyOptPassthrough" />
-                <span>Allow passthrough (~)</span>
-              </label>
-              
-              <label class="hotkey-checkbox-label">
-                <input type="checkbox" id="hotkeyOptAllowRisky" />
-                <span>Allow risky hotkeys (Esc, Enter, Mouse, Wheel, etc.)</span>
-              </label>
-
+          <div class="col-2 gap-2">
+            <div class="grid gap-2">
+              <label class="hk-check"><input type="checkbox" id="hotkeyOptMouseCapture" /> Capture Mouse</label>
+              <label class="hk-check"><input type="checkbox" id="hotkeyOptPassthrough" /> Passthrough (~)</label>
+              <label class="hk-check"><input type="checkbox" id="hotkeyOptAllowRisky" /> Allow risky hotkeys</label>
             </div>
-            <div class="hotkey-advanced-section">
-
-              <label class="hotkey-checkbox-label">
-                <input type="checkbox" id="hotkeyOptGamepadCapture" />
-                <span>Capture Gamepad Input</span>
-              </label>
-
-              <label class="hotkey-checkbox-label">
-                <input type="checkbox" id="hotkeyOptWildcard" />
-                <span>Allow extra keys (Wildcard *)</span>
-              </label>
+            <div class="grid gap-2">
+              <label class="hk-check"><input type="checkbox" id="hotkeyOptGamepadCapture" /> Capture Gamepad</label>
+              <label class="hk-check"><input type="checkbox" id="hotkeyOptWildcard" /> Wildcard (*)</label>
             </div>
           </div>
         </details>
       </div>
 
+      <!-- Footer -->
       <div class="app-dialog-footer">
         <button class="app-btn" type="button" id="canceHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Cancel</button>
         <button class="app-btn app-btn-primary" type="button" id="saveHotkey">Save Hotkey</button>
