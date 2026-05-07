@@ -4,6 +4,7 @@ class AKGui extends AKBase {
   _settingsGui := 0
   _isLogPageActive := false
   _hotkeyRecorder := unset
+  _recordingSuspendedByRecorder := false
 
   __New(App) {
     this.App := App
@@ -81,7 +82,7 @@ class AKGui extends AKBase {
     ; Populate form after page finishes loading
     nw.DOMContentLoaded((ICoreWebView2, Args) => this._populateSettingsPage(nw))
 
-    nw.OnEvent("Close", (*) => (this._isLogPageActive := false, AKBase.SetLogPushHandler(0), this.outputDebugLine("Settings window closed", 4, Map("source", "core")), this._settingsGui := 0))
+    nw.OnEvent("Close", (*) => this._onSettingsClosed())
     nw.Navigate("includes/ui/settings.html")
     nw.Show("w820 h560")
     if (this.App.Config.GENERAL.DebugLevel >= 4)
@@ -202,18 +203,25 @@ class AKGui extends AKBase {
     }
 
     this._hotkeyRecorder.StopRecording()
+    this._resumeHotkeysAfterRecording()
 
     ; Set the callback to push updates to JS
     this._hotkeyRecorder.OnKeyRecorded := (rawHotkey, displayString) => this._pushHotkeyUpdate(nw, rawHotkey, displayString)
 
+    ; Suspend app hotkeys while recording so captured keys do not trigger actions.
+    this._suspendHotkeysForRecording()
+
     ; Start recording
     result := this._hotkeyRecorder.StartRecording(options)
+    if (!result)
+      this._resumeHotkeysAfterRecording()
     
     return jsongo.Stringify(Map("success", result))
   }
 
   _stopHotkeyRecording() {
     result := this._hotkeyRecorder.StopRecording()
+    this._resumeHotkeysAfterRecording()
     
     ; Return final result
     finalResult := this._hotkeyRecorder.GetResult()
@@ -299,9 +307,34 @@ class AKGui extends AKBase {
       nw := this._settingsGui
       this._isLogPageActive := false
       AKBase.SetLogPushHandler(0)
+      this._hotkeyRecorder.StopRecording()
+      this._resumeHotkeysAfterRecording()
       this._settingsGui := 0
       try nw.Destroy()
     }
+  }
+
+  _onSettingsClosed() {
+    this._isLogPageActive := false
+    AKBase.SetLogPushHandler(0)
+    this._hotkeyRecorder.StopRecording()
+    this._resumeHotkeysAfterRecording()
+    this.outputDebugLine("Settings window closed", 4, Map("source", "core"))
+    this._settingsGui := 0
+  }
+
+  _suspendHotkeysForRecording() {
+    if (A_IsSuspended)
+      return
+    Suspend(true)
+    this._recordingSuspendedByRecorder := true
+  }
+
+  _resumeHotkeysAfterRecording() {
+    if (!this._recordingSuspendedByRecorder)
+      return
+    Suspend(false)
+    this._recordingSuspendedByRecorder := false
   }
 
   _applyUIScaling(percent) {

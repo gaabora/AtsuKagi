@@ -187,7 +187,7 @@ body {
 .settings-content {
   min-height: 0;
   overflow-y: auto;
-  padding: 0 8px 24px 0;
+  padding: 24px 0;
 }
 
 .settings-section {
@@ -341,11 +341,6 @@ body {
   margin: 12px 0;
 }
 
-/* UNUSED — hotkey-preview, dialog-kv not referenced in HTML
-.hotkey-preview { margin-top: 6px; opacity: 0.75; font-size: 12px; min-height: 18px; }
-.dialog-kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center; }
-*/
-
 .dialog-form-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -367,12 +362,6 @@ body {
   margin-bottom: 5px;
   opacity: 0.82;
 }
-
-/* UNUSED after hotkey dialog refactor — kept for reference
-.hotkey-display-input { background: var(--color-ui-hover-strong, #F1F1F1); }
-.hotkey-recorder-state { border: 1px dashed var(--color-ui-border-default, #D8D8D8); border-radius: 6px; padding: 10px; margin-top: 10px; font-size: 13px; line-height: 1.4; }
-.hotkey-recorder-state strong { display: inline-block; margin-right: 8px; }
-*/
 
 .plugin-item {
   display: flex;
@@ -605,15 +594,8 @@ body {
   max-height: none;
 }
 
-/* UNUSED — settings-dialog, switch-row not referenced
-.settings-dialog { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.28); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
-.settings-dialog.active { display: flex; }
-.settings-dialog .app-dialog-modal { width: min(720px, calc(100vw - 40px)); max-height: calc(100vh - 40px); overflow: auto; }
-.switch-row { margin-bottom: 10px; display: flex; gap: 16px; align-items: center; }
-*/
-
 /* ── Hotkey Recorder Dialog ─────────────────────────────────────────────── */
-.hk-dialog { width: min(700px, calc(100vw - 40px)); }
+.hk-dialog { width: min(700px, calc(100vw - 40px)) !important; }
 
 .hk-header {
   display: flex;
@@ -846,3 +828,19 @@ body {
 [data-theme="dark"] .log-level-notice .log-level-badge { color: #90caf9; background: rgba(25,118,210,.25); }
 [data-theme="dark"] .log-level-info   .log-level-badge { color: #b0bec5; }
 [data-theme="dark"] .log-level-debug  .log-level-badge { color: #78909c; }
+
+/* UNUSED — hotkey-preview, dialog-kv not referenced in HTML
+.hotkey-preview { margin-top: 6px; opacity: 0.75; font-size: 12px; min-height: 18px; }
+.dialog-kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: center; }
+*/
+/* UNUSED after hotkey dialog refactor — kept for reference
+.hotkey-display-input { background: var(--color-ui-hover-strong, #F1F1F1); }
+.hotkey-recorder-state { border: 1px dashed var(--color-ui-border-default, #D8D8D8); border-radius: 6px; padding: 10px; margin-top: 10px; font-size: 13px; line-height: 1.4; }
+.hotkey-recorder-state strong { display: inline-block; margin-right: 8px; }
+*/
+/* UNUSED — settings-dialog, switch-row not referenced
+.settings-dialog { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.28); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
+.settings-dialog.active { display: flex; }
+.settings-dialog .app-dialog-modal { width: min(720px, calc(100vw - 40px)); max-height: calc(100vh - 40px); overflow: auto; }
+.switch-row { margin-bottom: 10px; display: flex; gap: 16px; align-items: center; }
+*/

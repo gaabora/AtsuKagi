@@ -186,8 +186,15 @@ class HotkeyRecorderController {
     const btn = this._el('hotkeyRecordButton');
     if (!btn) return;
     const seconds = this._getRecordSecondsLeft();
-    btn.textContent = this.recording ? `Stop in ${seconds} second${seconds !== 1 ? 's' : ''}` : 'Record';
-    btn.classList.toggle('is-recording', this.recording);
+    if (this.recording) {
+      btn.textContent = `Stop in ${seconds} second${seconds !== 1 ? 's' : ''}`;
+      btn.classList.add('app-btn-danger');
+      btn.classList.remove('app-btn-primary');
+    } else {
+      btn.textContent = 'Record';
+      btn.classList.add('app-btn-primary');
+      btn.classList.remove('app-btn-danger');
+    }
   }
 
   _setReadableDisplay(raw) {
@@ -207,8 +214,8 @@ class HotkeyRecorderController {
     this._setSaveEnabled(true);
     this._setRecordButtonState();
 
-    if (!wasRecording || captured) {
-      this._autoWindowCaptured = false;
+    this._autoWindowCaptured = false;
+    if (!wasRecording && !captured) {
       this._setRecorderStatus('Press Record to capture a hotkey');
     }
   }
@@ -247,10 +254,10 @@ class HotkeyRecorderController {
 
     const options = {
       keyboard: true,
-      mouse: this._checked('hotkeyOptMouseCapture') ?? true,
-      joystick: this._checked('hotkeyOptGamepadCapture') ?? true,
-      lrModifiers: this._checked('hotkeyOptLrModifiers') ?? false,
-      markOnly: this._checked('hotkeyOptModifiersOnly') ?? false
+      mouse: this._checkedOr('hotkeyOptMouseCapture', true),
+      joystick: this._checkedOr('hotkeyOptGamepadCapture', true),
+      lrModifiers: this._checkedOr('hotkeyOptLrModifiers', false),
+      markOnly: this._checkedOr('hotkeyOptModifiersOnly', false)
     };
 
     try {
@@ -309,9 +316,15 @@ class HotkeyRecorderController {
     if (this._customComboStep === 0) {
       this._pendingPrefixKey = key;
       this._customComboStep = 1;
+      this._recordDeadline = Date.now() + (this._recordSeconds * 1000);
       this._setRecorderStatus(`Custom Modifier captured: ${AK_HumanizeAhkKeyName(key)}. Now press the another key.`);
       const el = this._el('hotkeyRecordReadable');
       if (el) el.textContent = `${AK_HumanizeAhkKeyName(key)} & ...`;
+      return;
+    }
+
+    if (key.toLowerCase() === this._pendingPrefixKey.toLowerCase()) {
+      this._setRecorderStatus('Second key must differ from the modifier key. Press a different key.', true);
       return;
     }
 
@@ -328,7 +341,7 @@ class HotkeyRecorderController {
     const el = this._el('hotkeyRecordReadable');
     if (el) el.textContent = display || this._humanize(this.pendingRaw);
     this._setManualControlsFromRaw(this.pendingRaw);
-    this._updateManualPreview();
+    // Don't call _updateManualPreview() here — it would recompose and potentially corrupt pendingRaw
   }
 
   // --- Recorder UI initialization ---
@@ -384,11 +397,18 @@ class HotkeyRecorderController {
 
   // --- Control binding ---
 
+  _checkedOr(id, fallback) {
+    const el = this._el(id);
+    return el ? el.checked : fallback;
+  }
+
   _bindControls() {
-    const bound = new WeakSet();
+    const bound = new Set();
     const on = (el, event, handler) => {
-      if (!el || bound.has(el)) return;
-      bound.add(el);
+      if (!el) return;
+      const key = `${el.id || el.className}_${event}`;
+      if (bound.has(key)) return;
+      bound.add(key);
       el.addEventListener(event, handler);
     };
 
@@ -534,6 +554,7 @@ class HotkeyRecorderController {
     if (this._checked('hotkeyOptUseCustomModifier')) {
       const prefix = this._str(this._el('hotkeyManualPrefixKeyList')?.value);
       const key = this._str(this._el('hotkeyManualKeyList')?.value);
+      if (prefix && key && prefix.toLowerCase() === key.toLowerCase()) return '';
       return (prefix && key) ? `${prefix} & ${key}` : '';
     }
 
