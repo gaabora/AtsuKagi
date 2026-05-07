@@ -554,7 +554,7 @@ class SettingsPage {
       if (!host) return;
 
       if (!hotkeys.length) {
-        host.innerHTML = `<button type="button" class="app-btn plugin-hotkey-badge plugin-hotkey-badge-empty" data-hotkey-action="${this.form._escapeHtml(wanted)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Assign hotkey</button>`;
+        host.innerHTML = this.form._renderActionHotkeyBadge(pluginId, wanted, '');
         return;
       }
 

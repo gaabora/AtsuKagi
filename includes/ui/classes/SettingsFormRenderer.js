@@ -57,10 +57,11 @@ class SettingsFormRenderer {
         const readable = AK_HumanizeAhkHotkey(`${value || ''}`) || 'Assign hotkey';
         const hotkeyFieldId = isGeneral ? key : `pluginHotkey_${pluginId || 'plugin'}_${key}`.replace(/[^A-Za-z0-9_\-]/g, '_');
         const hotkeyBadgeClass = isGeneral ? 'hotkey-badge-large' : 'hotkey-badge-medium';
+        const defaultHotkey = `${defaultValue || ''}`;
         controlHtml = `
           <div class="field-with-actions">
             <input type="hidden" class="${fieldClass}" id="${this.form._escapeHtml(hotkeyFieldId)}" ${fieldAttrs} value="${this.form._escapeHtml(`${value || ''}`)}" />
-            <button type="button" class="app-btn hotkey-badge ${hotkeyBadgeClass}" data-hotkey-target="${this.form._escapeHtml(hotkeyFieldId)}" data-hotkey-display-for="${this.form._escapeHtml(hotkeyFieldId)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">
+            <button type="button" class="app-btn hotkey-badge ${hotkeyBadgeClass}" data-hotkey-target="${this.form._escapeHtml(hotkeyFieldId)}" data-hotkey-display-for="${this.form._escapeHtml(hotkeyFieldId)}" data-hotkey-default="${this.form._escapeHtml(defaultHotkey)}" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">
               <span class="hotkey-badge-label">${this.form._escapeHtml(readable)}</span>
             </button>
           </div>

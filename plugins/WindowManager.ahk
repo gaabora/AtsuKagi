@@ -28,10 +28,9 @@ class WindowManager extends AKPlugin {
         "id", "WindowManager",
         "title", "Window Manager",
         "description", "Manage windows: move, resize, minimize, transparency, maximize, fullscreen, and top-most behavior.",
-        "icon", "icons10-window",
         "category", "Window Management"
       ),
-      "settingsPage", Map(
+      "page", Map(
         "description", "Configure window-management behavior and action-related settings.",
         "icon", "icons10-window"
       ),

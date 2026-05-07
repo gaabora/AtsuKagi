@@ -40,13 +40,16 @@ class SettingsFormActionsRenderer {
   renderActionHotkeyBadge(pluginId, actionName, hotkeyRaw) {
     const readable = AK_HumanizeAhkHotkey(hotkeyRaw);
     const fullActionHandler = hotkeyRaw ? this.form.getFullActionHandlerForHotkey(hotkeyRaw) : '';
+    const defaultHotkey = this.form.getDefaultHotkeyForAction(actionName);
+    const emptyClass = hotkeyRaw ? '' : ' plugin-hotkey-badge-empty';
     return `
       <button
         type="button"
-        class="app-btn plugin-hotkey-badge"
+        class="app-btn plugin-hotkey-badge${emptyClass}"
         data-hotkey-action="${this.form._escapeHtml(actionName)}"
         data-hotkey-action-full="${this.form._escapeHtml(fullActionHandler)}"
         data-hotkey-current="${this.form._escapeHtml(hotkeyRaw)}"
+        data-hotkey-default="${this.form._escapeHtml(defaultHotkey)}"
         data-plugin-id="${this.form._escapeHtml(pluginId || '')}"
         data-win-toggle="modal"
         data-win-target="#HotkeyRecorderDialog"

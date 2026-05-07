@@ -91,10 +91,9 @@ class TouchGesturesSimulator extends AKPlugin {
         "id", "TouchGesturesSimulator",
         "title", "Touch Gestures Simulator",
         "description", "Simulate touchpad input with mouse. Make touchpad gestures using mouse movement and buttons.",
-        "icon", "icons10-touch",
         "category", "Input Management"
       ),
-      "settingsPage", Map(
+      "page", Map(
         "description", "Configure touch input injection and gesture parameters.",
         "icon", "icons10-touch"
       ),

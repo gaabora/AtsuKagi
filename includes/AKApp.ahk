@@ -319,10 +319,10 @@ class AKApp extends AKBase {
     disabledPlugins := this._getDisabledPlugins()
     
     for pluginId, descriptor in this._pluginRegistry {
-      if (!descriptor.Has("settingsPage"))
+      if (!descriptor.Has("page"))
         continue
       
-      settingsPage := descriptor["settingsPage"]
+      settingsPage := descriptor["page"]
       if (settingsPage.Has("hidden") && settingsPage["hidden"])
         continue
       
@@ -1135,6 +1135,24 @@ class AKApp extends AKBase {
       entries.Push(Map("hotKey", "" hk, "action", "" actionText))
     }
     return entries
+  }
+
+  GetDefaultActionHotkeys() {
+    defaults := Map()
+    defaultHotkeys := GetDefaultHotkeysConfig()
+
+    for hotkey, actionText in defaultHotkeys {
+      actionInfo := this._parseActionInfo(actionText)
+      actionName := Trim("" actionInfo.fnName)
+      if (actionName = "")
+        continue
+
+      if (!defaults.Has(actionName))
+        defaults[actionName] := []
+      defaults[actionName].Push("" hotkey)
+    }
+
+    return defaults
   }
 
   _saveHotkeyEntries(entries) {

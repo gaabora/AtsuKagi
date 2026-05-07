@@ -45,13 +45,12 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
         "id", "ShellMessageHook",
         "title", "Shell Message Hook",
         "description", "Internal hook system for window creation/destruction/activation events. Plugins can register listeners via AddEventListener().",
-        "icon", "icons10-window",
         "category", "Window Management"
       ),
-      "settingsPage", Map(
-        "description", "Configure shell hook event monitoring.",
-        "icon", "icons10-window"
-      ),
+      ; "page", Map(
+      ;   "description", "Configure shell hook event monitoring.",
+      ;   "icon", "icons10-window"
+      ; ),
       "config", [],
       "actions", [],
       "hooks", [

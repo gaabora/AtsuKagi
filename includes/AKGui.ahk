@@ -56,6 +56,9 @@ class AKGui extends AKBase {
 
     webViewSettings := this._getWebViewSettings()
     nw := WebViewGui("+Resize -Caption",,, webViewSettings)
+    ; Lock down built-in browser UI chrome for app-like behavior.
+    try nw.AreDefaultContextMenusEnabled := false
+    try nw.IsStatusBarEnabled := false
     nw.Title := this.App.ScriptName " — Settings"
     this._settingsGui := nw
     this._isLogPageActive := false
@@ -136,6 +139,7 @@ class AKGui extends AKBase {
         "disabled", disabledPlugins,
         "pages", this.App.GetPluginSettingsPages()
       ),
+      "defaultActionHotkeys", this.App.GetDefaultActionHotkeys(),
       "hotkeys", hotkeys,
       "logs", AKBase.GetUiLogs(),
       "theme", theme,

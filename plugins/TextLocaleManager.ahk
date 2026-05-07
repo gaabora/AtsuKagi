@@ -17,12 +17,11 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
         "id", "TextLocaleManager",
         "title", "Text Locale Manager",
         "description", "Manage multiple keyboard layouts: detect current layout, switch layouts, fix mistyped text between layouts.",
-        "icon", "icons10-language",
         "category", "Input Management"
       ),
-      "settingsPage", Map(
+      "page", Map(
         "description", "Configure keyboard layout switching and text conversion.",
-        "icon", "icons10-language"
+        "icon", "icons10-translation"
       ),
       "config", [],
       "actions", [

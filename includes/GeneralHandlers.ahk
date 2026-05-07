@@ -69,7 +69,8 @@ class GeneralHandlers extends AKPlugin {
   }
 
   Run(cmdLine) { ;;;
-    ; TODO
+    this.outputDebugLine('Run(' cmdLine ')', 4)
+    Run(cmdLine)
   }
 
   ; SetTimer, CheckIdle, 5000

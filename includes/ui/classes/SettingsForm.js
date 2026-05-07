@@ -6,6 +6,7 @@ class SettingsForm {
   constructor(dom) {
     this.dom = dom;
     this._hotkeyEntries = [];
+    this._defaultActionHotkeys = new Map();
     this.logsController = null;
     this.renderer = new SettingsFormRenderer(this);
     this.pluginPagesRenderer = new SettingsFormPluginPagesRenderer(this);
@@ -111,6 +112,18 @@ class SettingsForm {
     }
 
     try {
+      this._defaultActionHotkeys = new Map();
+      const defaults = state?.defaultActionHotkeys;
+      if (defaults && typeof defaults === 'object') {
+        Object.keys(defaults).forEach((actionName) => {
+          const key = `${actionName || ''}`.trim();
+          if (!key) return;
+          const raw = defaults[actionName];
+          const arr = Array.isArray(raw) ? raw.map((hk) => `${hk || ''}`.trim()).filter(Boolean) : [];
+          this._defaultActionHotkeys.set(key, arr);
+        });
+      }
+
       if (hotkeysChanged) {
         this._hotkeyEntries = Array.isArray(state.hotkeys)
           ? state.hotkeys
@@ -387,6 +400,13 @@ class SettingsForm {
     if (!wanted) return '';
     const entry = this._hotkeyEntries.find((e) => `${e.hotKey || ''}`.trim() === wanted);
     return entry ? `${entry.action || ''}`.trim() : '';
+  }
+
+  getDefaultHotkeyForAction(actionName) {
+    const wanted = `${actionName || ''}`.trim();
+    if (!wanted || !this._defaultActionHotkeys.has(wanted)) return '';
+    const values = this._defaultActionHotkeys.get(wanted);
+    return Array.isArray(values) && values.length ? `${values[0] || ''}`.trim() : '';
   }
 
   assignActionHotkey(actionName, newHotkeyRaw, replaceHotkeyRaw = '', fullActionHandler = '') {

@@ -55,7 +55,7 @@ class HotkeyRecorderController {
     this.targetElement = null;
     this.targetDisplayElement = null;
     this.pendingRaw = '';
-    this._originalRaw = '';
+    this._defaultRaw = '';
     this.actionTarget = null;
     this._activeTab = 'auto';
     this._recordSeconds = 5;
@@ -121,10 +121,11 @@ class HotkeyRecorderController {
       this.actionTarget = {
         actionName,
         fullActionHandler: this._str(btn.getAttribute('data-hotkey-action-full')) || actionName,
-        replaceHotkeyRaw: this._str(btn.getAttribute('data-hotkey-current'))
+        replaceHotkeyRaw: this._str(btn.getAttribute('data-hotkey-current')),
+        defaultHotkeyRaw: this._str(btn.getAttribute('data-hotkey-default'))
       };
       this.pendingRaw = this.actionTarget.replaceHotkeyRaw;
-      this._originalRaw = this.pendingRaw;
+      this._defaultRaw = this.actionTarget.defaultHotkeyRaw;
       this._setDialogTitle(`Assign ${this._humanizeLabel(actionName)}`);
       this._initializeRecorderUI();
       return;
@@ -140,7 +141,7 @@ class HotkeyRecorderController {
     this.targetElement = input;
     this.targetDisplayElement = this._resolveDisplayElement(input);
     this.pendingRaw = input.value || '';
-    this._originalRaw = this.pendingRaw;
+    this._defaultRaw = this._str(btn.getAttribute('data-hotkey-default'));
     this._setDialogTitle(`Assign ${this._resolveTargetTitle(btn, input, targetId)}`);
     this._initializeRecorderUI();
   }
@@ -742,12 +743,12 @@ class HotkeyRecorderController {
 
   reset() {
     this._stopAhkRecording();
-    this.pendingRaw = this._str(this._originalRaw);
+    this.pendingRaw = this._str(this._defaultRaw);
     this._setManualControlsFromRaw(this.pendingRaw, true);
     this._updateKeySelectionVisibility();
     this._setReadableDisplay(this.pendingRaw);
     this._setError('');
-    this._setRecorderStatus('Reset to original hotkey.');
+    this._setRecorderStatus('Reset to default hotkey.');
   }
 
   // --- Preview helpers ---

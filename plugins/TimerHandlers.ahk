@@ -8,10 +8,9 @@ class TimerHandlers extends AKPlugin { ; TODO: not yet fully implemented, needs 
         "id", "TimerHandlers",
         "title", "Timer Handlers",
         "description", "Cron-like scheduled tasks and system event handling based on time and idle state triggers.",
-        "icon", "icons10-clock",
         "category", "System Events"
       ),
-      "settingsPage", Map(
+      "page", Map(
         "description", "Configure scheduled tasks and system monitoring triggers.",
         "icon", "icons10-clock"
       ),

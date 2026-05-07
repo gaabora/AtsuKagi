@@ -12,12 +12,11 @@ class VirtualDesktopManager extends AKPlugin {
         "id", "VirtualDesktopManager",
         "title", "Virtual Desktop Manager",
         "description", "Manage Windows 10+ virtual desktops: switch between desktops, move windows, create/remove/rename desktops. Uses VirtualDesktopAccessor.dll https://github.com/Ciantic/VirtualDesktopAccessor/releases. Requires Windows 10 or later",
-        "icon", "icons10-square",
         "category", "Window Management"
       ),
-      "settingsPage", Map(
+      "page", Map(
         "description", "Configure virtual desktop management and navigation.",
-        "icon", "icons10-square"
+        "icon", "icons10-grid-2"
       ),
       "config", [],
       "actions", [

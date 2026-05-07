@@ -6,10 +6,9 @@ class SwapButtonsHandler extends AKPlugin { ; TODO: not yet implemented. some mo
         "id", "SwapButtonsHandler",
         "title", "Swap Buttons Handler",
         "description", "Mouse button remapping and layout switching. Remap mouse buttons X1/X2 (4th and 5th buttons) for different mouse types.",
-        "icon", "icons10-mouse",
         "category", "Input Management"
       ),
-      "settingsPage", Map(
+      "page", Map(
         "description", "Configure mouse button remapping and quick layout switching.",
         "icon", "icons10-mouse"
       ),

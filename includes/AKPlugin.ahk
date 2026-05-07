@@ -48,10 +48,10 @@ class AKPlugin extends AKBase {
   ; Get settings page definition
   __GetSettingsPageDefinition() {
     descriptor := this.__GetPluginDescriptor()
-    if (!descriptor.Has("settingsPage"))
+    if (!descriptor.Has("page"))
       return Map()
     
-    page := descriptor["settingsPage"]
+    page := descriptor["page"]
     
     ; Apply defaults
     if (!page.Has("visible"))

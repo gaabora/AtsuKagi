@@ -60,10 +60,9 @@ class RDPWindowHandler extends AKPlugin { ; FIXME: UNTESTED
         "id", "RDPWindowHandler",
         "title", "RDP Window Handler",
         "description", "Manage RDP client windows: minimize, restore, loop through sessions, switch to next connection. Handles keyboard hook conflicts.",
-        "icon", "icons10-monitor",
         "category", "Window Management"
       ),
-      "settingsPage", Map(
+      "page", Map(
         "description", "Configure RDP window management actions.",
         "icon", "icons10-monitor"
       ),

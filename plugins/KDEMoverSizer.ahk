@@ -9,12 +9,11 @@ class KDEMoverSizer extends AKPlugin {
         "id", "KDEMoverSizer",
         "title", "KDE Mover-Sizer",
         "description", "Enhanced window moving/resizing with drag from any place on window instead of titlebar/borders.",
-        "icon", "icons10-keyboard",
         "category", "Window Management"
       ),
-      "settingsPage", Map(
+      "page", Map(
         "description", "Configure drag-anywhere movement, resizing, snapping, and preview behavior.",
-        "icon", "icons10-keyboard"
+        "icon", "icons10-resize-four-directions"
       ),
       "config", [
         Map(
