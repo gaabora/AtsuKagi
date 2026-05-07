@@ -312,6 +312,8 @@ class SettingsPage {
   _bindHotkeyRecorderDialog() {
     const applyBtn = document.getElementById('saveHotkey');
     const cancelBtn = document.getElementById('canceHotkey');
+    const removeBtn = document.getElementById('removeHotkey');
+    const resetBtn = document.getElementById('resetHotkey');
 
     if (applyBtn && applyBtn.dataset.boundHotkeyApply !== '1') {
       applyBtn.dataset.boundHotkeyApply = '1';
@@ -325,6 +327,56 @@ class SettingsPage {
       cancelBtn.dataset.boundHotkeyCancel = '1';
       cancelBtn.addEventListener('click', () => {
         this.hotkeyRecorder.cancel();
+      });
+    }
+
+    if (removeBtn && removeBtn.dataset.boundHotkeyRemove !== '1') {
+      removeBtn.dataset.boundHotkeyRemove = '1';
+      removeBtn.addEventListener('click', () => {
+        this.hotkeyRecorder.remove();
+
+        if (this.hotkeyRecorder.actionTarget) {
+          const actionName = `${this.hotkeyRecorder.actionTarget.actionName || ''}`.trim();
+          const replaceRaw = `${this.hotkeyRecorder.actionTarget.replaceHotkeyRaw || ''}`.trim();
+
+          let idx = -1;
+          if (replaceRaw) {
+            idx = this._findHotkeyIndexByRaw(replaceRaw);
+          }
+          if (idx === -1) {
+            idx = this.form._hotkeyEntries.findIndex(
+              (e) => this.form._extractActionName(e.action) === actionName
+            );
+          }
+
+          if (idx !== -1) {
+            const removedRaw = `${this.form._hotkeyEntries[idx]?.hotKey || ''}`.trim();
+            const result = this.hostBridge.removeHotkey(idx);
+            if (result?.ok) {
+              if (removedRaw) this.form.removeHotkeyByRaw(removedRaw);
+              this._refreshActionHotkeys(actionName);
+              this.form._renderHotkeys(this.form._hotkeyEntries);
+              if (cancelBtn) cancelBtn.click();
+            }
+          }
+          return;
+        }
+
+        const input = this.hotkeyRecorder.targetElement
+          || (this.hotkeyRecorder.targetId ? this.dom.getField(this.hotkeyRecorder.targetId) : null);
+        if (!input) return;
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        if (this.hotkeyRecorder.targetId) this.hotkeyRecorder.updatePreview(this.hotkeyRecorder.targetId);
+        if (cancelBtn) cancelBtn.click();
+      });
+    }
+
+    if (resetBtn && resetBtn.dataset.boundHotkeyReset !== '1') {
+      resetBtn.dataset.boundHotkeyReset = '1';
+      resetBtn.addEventListener('click', () => {
+        this.hotkeyRecorder.reset();
       });
     }
 

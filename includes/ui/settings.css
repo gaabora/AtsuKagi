@@ -679,6 +679,32 @@ body {
 .hk-details[open] summary { margin-bottom: 8px; }
 .hk-details > .col-2 { padding: 12px; background: var(--color-navbar-bg-default, #F7F7F7); border-radius: 6px; margin-bottom: 12px; }
 
+.hk-error-bar {
+  padding: 8px 20px;
+  background: rgba(211, 47, 47, 0.1);
+  border-top: 2px solid #d32f2f;
+  color: #c62828;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .hk-error-bar {
+  color: #ef9a9a;
+  background: rgba(211, 47, 47, 0.15);
+}
+
+.hk-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hk-footer-left,
+.hk-footer-right {
+  display: flex;
+  gap: 8px;
+}
+
 /* ── end hotkey dialog ─────────────────────────────────────────────────── */
 
 @media (max-width: 720px) {
@@ -689,6 +715,9 @@ body {
   .hk-panel.hk-manual-layout.is-active { grid-template-columns: 1fr; gap: 16px; }
   #hotkeyManualModsGeneric { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .hk-mod-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hk-footer { flex-direction: column; align-items: stretch; gap: 10px; }
+  .hk-footer-left,
+  .hk-footer-right { justify-content: flex-end; }
 }
 
 

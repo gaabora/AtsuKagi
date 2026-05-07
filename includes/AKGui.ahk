@@ -155,7 +155,7 @@ class AKGui extends AKBase {
     js .= "})();`n"
 
     if (this.App.Config.GENERAL.DebugLevel >= 4)
-      FileOpen(A_ScriptDir "\ak_settings_debug.js", "w", "UTF-8").Write(js)
+      FileOpen(A_ScriptDir "\_debug.js", "w", "UTF-8").Write(js)
     nw.ExecuteScriptAsync(js)
   }
 

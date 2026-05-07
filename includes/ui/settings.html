@@ -282,10 +282,24 @@
         </details>
       </div>
 
+      <div class="hk-error-bar hiden" id="hotkeyValidationError"></div>
+
       <!-- Footer -->
       <div class="app-dialog-footer">
-        <button class="app-btn" type="button" id="canceHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Cancel</button>
-        <button class="app-btn app-btn-primary" type="button" id="saveHotkey">Save Hotkey</button>
+        <div class="hk-footer">
+          <div class="hk-footer-left">
+            <button class="app-btn app-btn-subtle" type="button" id="removeHotkey" title="Remove hotkey">
+              <i class="icons10-trash"></i>
+            </button>
+            <button class="app-btn app-btn-subtle" type="button" id="resetHotkey" title="Reset to original">
+              <i class="icons10-undo"></i>
+            </button>
+          </div>
+          <div class="hk-footer-right">
+            <button class="app-btn" type="button" id="canceHotkey" data-win-toggle="modal" data-win-target="#HotkeyRecorderDialog">Cancel</button>
+            <button class="app-btn app-btn-primary" type="button" id="saveHotkey">Save Hotkey</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
