@@ -416,7 +416,7 @@ class HotkeyRecorderController {
     const optionHandlers = {
       hotkeyOptLrModifiers: () => { this._syncManualModifierMode(); this._setManualControlsFromRaw(this.pendingRaw); this._updateManualPreview(); },
       hotkeyOptModifiersOnly: () => { this._updateKeySelectionVisibility(); this._updateManualPreview(); },
-      hotkeyOptUseCustomModifier: () => { this._updatePrefixKeyVisibility(); this._updateManualPreview(); }
+      hotkeyOptUseCustomModifier: () => { this._updateModifiersVisibility(); this._updatePrefixKeyVisibility(); this._updateManualPreview(); }
     };
     ['hotkeyOptMouseCapture', 'hotkeyOptGamepadCapture', 'hotkeyOptModifiersOnly', 'hotkeyOptLrModifiers', 'hotkeyOptUseCustomModifier'].forEach((id) => {
       on(this._el(id), 'change', () => { optionHandlers[id]?.(); this._restartRecordingIfActive(); });
@@ -493,12 +493,27 @@ class HotkeyRecorderController {
 
   _updateKeySelectionVisibility() {
     const el = this._el('hotkeyKeySelection');
+    debugger
     if (el) el.hidden = this._checked('hotkeyOptModifiersOnly');
+  }
+
+  _updateModifiersVisibility() {
+    const els = [this._el('hotkeyManualModsGeneric'), this._el('hotkeyManualModsLr')].filter(Boolean);
+    if (els.length === 0) return;
+    const isVisible = !this._checked('hotkeyOptUseCustomModifier');
+    if (isVisible) {
+      this._syncManualModifierMode();
+    } else {
+      els.forEach((el) => { el.hidden = !isVisible; el.classList.toggle('hidden', !isVisible); });
+    }
   }
 
   _updatePrefixKeyVisibility() {
     const el = this._el('hotkeyPrefixKeySection');
-    if (el) el.hidden = !this._checked('hotkeyOptUseCustomModifier');
+    if (!el) return;
+    const isVisible = this._checked('hotkeyOptUseCustomModifier');
+    el.hidden = !isVisible;
+    el.classList.toggle('hidden', !isVisible);
   }
 
   _syncManualModifierMode() {

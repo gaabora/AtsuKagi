@@ -631,6 +631,12 @@ body {
 .hk-panels { display: grid; }
 .hk-panel { display: none; gap: 16px; }
 .hk-panel.is-active { display: grid; }
+.hk-panel.hk-manual-layout.is-active {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr);
+  align-items: start;
+  gap: 20px;
+}
 
 /* Steps (fieldsets) */
 .hk-step { border: none; padding: 0; margin: 0; display: grid; gap: 10px; }
@@ -648,6 +654,13 @@ body {
 }
 .hotkey-mod-btn:hover { background: var(--color-ui-hover-strong, #F0F0F0); border-color: #C0C0C0; }
 .hotkey-mod-btn.active { background: var(--color-primary-adaptive, #0078D7); color: #fff; border-color: var(--color-primary-adaptive, #0078D7); }
+
+.hk-mod-grid { display: grid; gap: 8px; }
+#hotkeyManualModsGeneric { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#hotkeyManualModsLr { grid-template-columns: 1fr; }
+.hk-mod-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.hk-mod-grid .hotkey-mod-btn,
+.hk-mod-row .hotkey-mod-btn { width: 100%; }
 
 /* Key list */
 .hk-key-list { width: 100%; min-height: 120px; font: 12px Consolas, "Cascadia Mono", monospace; }
@@ -670,6 +683,9 @@ body {
   .settings-page-shell { padding-top: 16px; }
   .settings-content { padding-right: 0; }
   .hk-dialog { width: calc(100vw - 20px); }
+  .hk-panel.hk-manual-layout.is-active { grid-template-columns: 1fr; gap: 16px; }
+  #hotkeyManualModsGeneric { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hk-mod-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 

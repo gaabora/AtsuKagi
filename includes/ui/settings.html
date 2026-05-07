@@ -213,42 +213,46 @@
           </section>
 
           <!-- MANUAL -->
-          <section id="hotkeyTabPanelManual" class="hk-panel" data-hotkey-tab-panel="manual" role="tabpanel" aria-labelledby="hotkeyTabManual">
+          <section id="hotkeyTabPanelManual" class="hk-panel hk-manual-layout" data-hotkey-tab-panel="manual" role="tabpanel" aria-labelledby="hotkeyTabManual">
 
             <!-- Modifiers -->
             <fieldset class="hk-step">
+              
               <legend class="hk-step-title">Modifiers</legend>
-
-              <div class="flex flex-wrap gap-2" id="hotkeyManualModsGeneric">
-                <button type="button" class="hotkey-mod-btn" data-mod="Ctrl">Ctrl</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="Alt">Alt</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="Shift">Shift</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="Win">Win</button>
-              </div>
-
-              <div class="flex flex-wrap gap-2 hidden" id="hotkeyManualModsLr">
-                <button type="button" class="hotkey-mod-btn" data-mod="LCtrl">LCtrl</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="RCtrl">RCtrl</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="LAlt">LAlt</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="RAlt">RAlt</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="LShift">LShift</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="RShift">RShift</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="LWin">LWin</button>
-                <button type="button" class="hotkey-mod-btn" data-mod="RWin">RWin</button>
-              </div>
-
+              
               <div id="hotkeyPrefixKeySection" class="grid gap-2" hidden>
-                <span class="hk-step-title">Custom Modifier Key</span>
-                <input class="app-input-text" type="text" id="hotkeyManualPrefixKeyFilter" placeholder="Search prefix key..." />
+                <input class="app-input-text" type="text" id="hotkeyManualPrefixKeyFilter" placeholder="Search Custom modifier key..." />
                 <select id="hotkeyManualPrefixKeyList" class="app-input-text hk-key-list" size="6"></select>
               </div>
+
+              <div class="hk-mod-grid" id="hotkeyManualModsGeneric">
+                <button type="button" class="hotkey-mod-btn" data-mod="Shift">Shift</button>
+                <button type="button" class="hotkey-mod-btn" data-mod="Ctrl">Ctrl</button>
+                <button type="button" class="hotkey-mod-btn" data-mod="Win">Win</button>
+                <button type="button" class="hotkey-mod-btn" data-mod="Alt">Alt</button>
+              </div>
+
+              <div class="hk-mod-grid hidden" id="hotkeyManualModsLr">
+                <div class="hk-mod-row">
+                  <button type="button" class="hotkey-mod-btn" data-mod="LShift">LShift</button>
+                  <button type="button" class="hotkey-mod-btn" data-mod="LCtrl">LCtrl</button>
+                  <button type="button" class="hotkey-mod-btn" data-mod="LWin">LWin</button>
+                  <button type="button" class="hotkey-mod-btn" data-mod="LAlt">LAlt</button>
+                </div>
+                <div class="hk-mod-row">
+                  <button type="button" class="hotkey-mod-btn" data-mod="RShift">RShift</button>
+                  <button type="button" class="hotkey-mod-btn" data-mod="RCtrl">RCtrl</button>
+                  <button type="button" class="hotkey-mod-btn" data-mod="RWin">RWin</button>
+                  <button type="button" class="hotkey-mod-btn" data-mod="RAlt">RAlt</button>
+                </div>
+              </div>
+
             </fieldset>
 
             <!-- Main Key -->
             <fieldset class="hk-step">
-              <legend class="flex items-center justify-between w-full">
-                <span class="hk-step-title">Main Key</span>
-                <label class="hk-check"><input type="checkbox" id="hotkeyOptModifiersOnly" /> Modifiers only</label>
+              <legend class="hk-step-title">Main Key</legend>
+
               </legend>
 
               <div id="hotkeyKeySelection" class="grid gap-2">
@@ -274,6 +278,7 @@
             <label class="hk-check"><input type="checkbox" id="hotkeyOptGamepadCapture" /> Capture Gamepad</label>
             <label class="hk-check"><input type="checkbox" id="hotkeyOptPassthrough" /> Passthrough (~)</label>
             <label class="hk-check"><input type="checkbox" id="hotkeyOptWildcard" /> Wildcard (*)</label>
+            <label class="hk-check"><input type="checkbox" id="hotkeyOptModifiersOnly" />Modifiers only key</label>
             <label class="hk-check"><input type="checkbox" id="hotkeyOptAllowRisky" /> Allow risky hotkeys</label>
           </div>
         </details>
