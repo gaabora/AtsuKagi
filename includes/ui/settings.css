@@ -29,6 +29,9 @@
 .font-semibold { font-weight: 600; }
 .opacity-75 { opacity: 0.75; }
 .hidden { display: none !important; }
+.hiden {
+  display: none !important;
+}
 /* ─────────────────────────────────────────────────────────── */
 
 /* Highlight animation for go-to-setting */

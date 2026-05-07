@@ -340,7 +340,7 @@ class HotkeyRecorderController {
     this._setRecorderStatus(statusText || 'Hotkey captured. Press Apply to save, or Record to capture again.');
     const el = this._el('hotkeyRecordReadable');
     if (el) el.textContent = display || this._humanize(this.pendingRaw);
-    this._setManualControlsFromRaw(this.pendingRaw);
+    this._setManualControlsFromRaw(this.pendingRaw, true);
     // Don't call _updateManualPreview() here — it would recompose and potentially corrupt pendingRaw
   }
 
@@ -362,16 +362,18 @@ class HotkeyRecorderController {
     clearFilter('hotkeyManualKeyFilter');
     clearFilter('hotkeyManualPrefixKeyFilter');
 
-    this._syncManualModifierMode();
+    this._updateModifiersVisibility();
     this._renderKeyList('hotkeyManualKeyList', 'hotkeyManualKeyFilter');
     this._renderKeyList('hotkeyManualPrefixKeyList', 'hotkeyManualPrefixKeyFilter');
-    this._setManualControlsFromRaw(this.pendingRaw);
+    this._setManualControlsFromRaw(this.pendingRaw, true);
     this._updateManualPreview();
     this._setReadableDisplay(this.pendingRaw);
     this._setRecorderStatus('Ready to record. Press Record to capture a hotkey');
     this._setSaveEnabled(true);
     this._setRecordButtonState();
     this._updateKeySelectionVisibility();
+    this._updatePrefixKeyVisibility();
+    this._updateModifiersVisibility();
   }
 
   // --- Tab management ---
@@ -388,7 +390,7 @@ class HotkeyRecorderController {
     document.querySelectorAll('[data-hotkey-tab-panel]').forEach((panel) => {
       const active = panel.getAttribute('data-hotkey-tab-panel') === wanted;
       panel.classList.toggle('is-active', active);
-      panel.hidden = !active;
+      panel.classList.toggle('hiden', !active);
     });
 
     if (manageRecording) this._stopRecordingWindow();
@@ -414,7 +416,7 @@ class HotkeyRecorderController {
 
     // Option checkboxes
     const optionHandlers = {
-      hotkeyOptLrModifiers: () => { this._syncManualModifierMode(); this._setManualControlsFromRaw(this.pendingRaw); this._updateManualPreview(); },
+      hotkeyOptLrModifiers: () => { this._updateModifiersVisibility(); this._setManualControlsFromRaw(this.pendingRaw); this._updateManualPreview(); },
       hotkeyOptModifiersOnly: () => { this._updateKeySelectionVisibility(); this._updateManualPreview(); },
       hotkeyOptUseCustomModifier: () => { this._updateModifiersVisibility(); this._updatePrefixKeyVisibility(); this._updateManualPreview(); }
     };
@@ -493,8 +495,7 @@ class HotkeyRecorderController {
 
   _updateKeySelectionVisibility() {
     const el = this._el('hotkeyKeySelection');
-    debugger
-    if (el) el.hidden = this._checked('hotkeyOptModifiersOnly');
+    if (el) el.classList.toggle('hiden', this._checked('hotkeyOptModifiersOnly'));
   }
 
   _updateModifiersVisibility() {
@@ -504,7 +505,7 @@ class HotkeyRecorderController {
     if (isVisible) {
       this._syncManualModifierMode();
     } else {
-      els.forEach((el) => { el.hidden = !isVisible; el.classList.toggle('hidden', !isVisible); });
+      els.forEach((el) => el.classList.add('hiden'));
     }
   }
 
@@ -512,30 +513,32 @@ class HotkeyRecorderController {
     const el = this._el('hotkeyPrefixKeySection');
     if (!el) return;
     const isVisible = this._checked('hotkeyOptUseCustomModifier');
-    el.hidden = !isVisible;
-    el.classList.toggle('hidden', !isVisible);
+    el.classList.toggle('hiden', !isVisible);
   }
 
   _syncManualModifierMode() {
     const lr = this._lrEnabled();
     const generic = this._el('hotkeyManualModsGeneric');
     const lrBox = this._el('hotkeyManualModsLr');
-    if (generic) { generic.classList.toggle('hidden', lr); generic.hidden = lr; }
-    if (lrBox) { lrBox.classList.toggle('hidden', !lr); lrBox.hidden = !lr; }
+    if (generic) generic.classList.toggle('hiden', lr);
+    if (lrBox) lrBox.classList.toggle('hiden', !lr);
   }
 
   _clearManualModifiers() {
     document.querySelectorAll('.hotkey-mod-btn').forEach((btn) => btn.classList.remove('active'));
   }
 
-  _setManualControlsFromRaw(rawHotkey) {
+  _setManualControlsFromRaw(rawHotkey, syncCustomModifier = false) {
     this._clearManualModifiers();
     const parsed = this._parseHotkey(rawHotkey);
     const lr = this._lrEnabled();
 
-    const customCombo = this._el('hotkeyOptUseCustomModifier');
-    if (customCombo) customCombo.checked = !!parsed.prefixKey;
+    if (syncCustomModifier) {
+      const customCombo = this._el('hotkeyOptUseCustomModifier');
+      if (customCombo) customCombo.checked = !!parsed.prefixKey;
+    }
     this._updatePrefixKeyVisibility();
+    this._updateModifiersVisibility();
 
     const tokenMap = lr ? HotkeyRecorderController.MOD_TOKENS_LR : HotkeyRecorderController.MOD_TOKENS_GENERIC;
     if (!parsed.prefixKey) {
@@ -574,8 +577,9 @@ class HotkeyRecorderController {
     }
 
     const mods = this._collectManualModifiers();
+    if (this._checked('hotkeyOptModifiersOnly')) return mods;
     const key = this._str(this._el('hotkeyManualKeyList')?.value);
-    if (!key) return this._checked('hotkeyOptModifiersOnly') ? mods : '';
+    if (!key) return '';
     return `${mods}${key}`;
   }
 

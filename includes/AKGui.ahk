@@ -90,7 +90,7 @@ class AKGui extends AKBase {
   }
 
   _getWebViewSettings() {
-    settings := {DefaultWidth: 820, DefaultHeight: 560}
+    settings := {DefaultWidth: 820, DefaultHeight: 560} ;FIXME: refactor to use configurable default size and save size position on close, but on restore also check is it visible on monitor where mouse pointer is and if not move there
     bits := A_PtrSize * 8
     dllRelPath :=  bits "bit\\WebView2Loader.dll"
 
