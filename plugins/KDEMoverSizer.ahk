@@ -67,9 +67,27 @@ class KDEMoverSizer extends AKPlugin {
           "scope", "plugin"
         ),
         Map(
-          "key", "ShowWindowContent",
-          "label", "Show window content while dragging",
+          "key", "ShowWindowContentOnMove",
+          "label", "Show window content while moving",
           "description", "When disabled, show only a frame preview instead of moving the live window.",
+          "type", "boolean",
+          "default", true,
+          "section", "Visuals",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "ShowWindowContentOnResize",
+          "label", "Show window content while resizing",
+          "description", "When disabled, show only a frame preview instead of resizing the live window.",
+          "type", "boolean",
+          "default", true,
+          "section", "Visuals",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "ShowWindowContentOnQuickPosition",
+          "label", "Show window content on quick position",
+          "description", "When disabled, show only a frame preview when using quick position snap.",
           "type", "boolean",
           "default", true,
           "section", "Visuals",
@@ -101,7 +119,7 @@ class KDEMoverSizer extends AKPlugin {
           "description", "Move a window by dragging from anywhere on it.",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "ShowWindowContent", "UseSetWindowPos", "BringToFront"]
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
         ),
         Map(
           "action", "EnterWindowResizingMode",
@@ -109,7 +127,7 @@ class KDEMoverSizer extends AKPlugin {
           "description", "Resize a window by dragging from anywhere on it.",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "ShowWindowContent", "UseSetWindowPos", "BringToFront"]
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
         )
       ],
       "hooks", []
@@ -155,7 +173,7 @@ class KDEMoverSizer extends AKPlugin {
     this.saveOriginalWindowState(hwnd)
     this.enableEscapeHook()
 
-    if (!this.Config.ShowWindowContent)
+    if (!this.Config.ShowWindowContentOnMove)
       this._createOverlay()
     this._createInfoTip()
 
@@ -248,7 +266,8 @@ class KDEMoverSizer extends AKPlugin {
         }
       }
 
-      if (this.Config.ShowWindowContent) {
+      showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnMove
+      if (showContent) {
         if (isQuickPositioning)
           this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
         else
@@ -260,7 +279,8 @@ class KDEMoverSizer extends AKPlugin {
       this._updateInfoTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst/2, yWinDst + hWinDst/2)
     }
 
-    if (!this.Config.ShowWindowContent) {
+    showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnMove
+    if (!showContent) {
       this._destroyOverlay()
       if (EscButtonState = "U")
         if (isQuickPositioning)
@@ -293,6 +313,10 @@ class KDEMoverSizer extends AKPlugin {
     if (!hwnd || this._isSystemWindow(hwnd))
       return
 
+    style := WinGetStyle("ahk_id " hwnd)
+    if (!(style & WindowFlags.WS_SIZEBOX))
+      return ; Only allow resizing windows that have a sizing border
+
     if (this.IsWindowBlocklisted(hwnd, A_ThisFunc)) {
       SendEvent("{Blind}{" MouseButton " down}")
       KeyWait(MouseButton, "U")
@@ -303,17 +327,12 @@ class KDEMoverSizer extends AKPlugin {
     this.saveOriginalWindowState(hwnd)
     this.enableEscapeHook()
 
-    if (!this.Config.ShowWindowContent)
+    if (!this.Config.ShowWindowContentOnResize)
       this._createOverlay()
     this._createInfoTip()
 
     if (this.Config.BringToFront)
       WinActivate("ahk_id " hwnd)
-
-; TODO: ; exclude non resizable windows?
-; WinGet, style, Style, ahk_id %winId%
-; if !(style & 0x40000)  ; WS_SIZEBOX
-;     return
 
     IsMaximized := WinGetMinMax("ahk_id " hwnd)
     if (IsMaximized) {
@@ -445,7 +464,8 @@ class KDEMoverSizer extends AKPlugin {
         hWinDst := (hWinSrc - yMultiplier * yMouDif)
       }
 
-      if (this.Config.ShowWindowContent) {
+      showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnResize
+      if (showContent) {
         if (isQuickPositioning)
           this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
         else
@@ -457,7 +477,8 @@ class KDEMoverSizer extends AKPlugin {
       ; Sleep, 1
     }
 
-    if (!this.Config.ShowWindowContent) {
+    showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnResize
+    if (!showContent) {
       this._destroyOverlay()
       if (EscButtonState = "U")
         if (isQuickPositioning)
@@ -831,6 +852,9 @@ class WindowFlags {
   static SWP_NOSIZE := 0x0001 ; Retains the current size (ignores the cx and cy parameters).
   static SWP_NOZORDER := 0x0004 ; Retains the current Z order (ignores the hWndInsertAfter parameter).
   static SWP_SHOWWINDOW := 0x0040 ; Displays the window. 
+
+  ; Window Styles (WS_*)
+  static WS_SIZEBOX := 0x40000 ; Window has a sizing border
 
   ; Extended Window Styles (WS_EX_*)
   static WS_EX_TOOLWINDOW := 0x80
