@@ -50,6 +50,25 @@ if (APP.Config.GENERAL.WelcomeMessage) {
 
 ; APP.SoundPlay(APP.Config.GENERAL.StartupSound)
 
-; ; Resources for compiled builds (needed by settings WebView in .exe mode)
-; ;@Ahk2Exe-AddResource lib\WebViewToo-main\Lib\32bit\WebView2Loader.dll, 32bit\WebView2Loader.dll
-; ;@Ahk2Exe-AddResource lib\WebViewToo-main\Lib\64bit\WebView2Loader.dll, 64bit\WebView2Loader.dll
+; Resources for compiled builds (needed by settings WebView in .exe mode)
+;@Ahk2Exe-AddResource lib\WebViewToo-main\Lib\32bit\WebView2Loader.dll, 32bit\WebView2Loader.dll
+;@Ahk2Exe-AddResource lib\WebViewToo-main\Lib\64bit\WebView2Loader.dll, 64bit\WebView2Loader.dll
+;@Ahk2Exe-AddResource includes\ui\classes\AhkHostBridge.js, includes\ui\classes\AhkHostBridge.js
+;@Ahk2Exe-AddResource includes\ui\app.js, includes\ui\app.js
+;@Ahk2Exe-AddResource includes\ui\classes\ColorPickerController.js, includes\ui\classes\ColorPickerController.js
+;@Ahk2Exe-AddResource includes\ui\classes\HotkeyRecorderController.js, includes\ui\classes\HotkeyRecorderController.js
+;@Ahk2Exe-AddResource includes\ui\classes\hotkeyUtils.js, includes\ui\classes\hotkeyUtils.js
+;@Ahk2Exe-AddResource includes\ui\vendor\lch-color-wheel.js, includes\ui\vendor\lch-color-wheel.js
+;@Ahk2Exe-AddResource includes\ui\classes\LogsController.js, includes\ui\classes\LogsController.js
+;@Ahk2Exe-AddResource includes\ui\settings.css, includes\ui\settings.css
+;@Ahk2Exe-AddResource includes\ui\settings.html, includes\ui\settings.html
+;@Ahk2Exe-AddResource includes\ui\classes\SettingsForm.js, includes\ui\classes\SettingsForm.js
+;@Ahk2Exe-AddResource includes\ui\classes\SettingsFormActionsRenderer.js, includes\ui\classes\SettingsFormActionsRenderer.js
+;@Ahk2Exe-AddResource includes\ui\classes\SettingsFormPluginPagesRenderer.js, includes\ui\classes\SettingsFormPluginPagesRenderer.js
+;@Ahk2Exe-AddResource includes\ui\classes\SettingsFormRenderer.js, includes\ui\classes\SettingsFormRenderer.js
+;@Ahk2Exe-AddResource includes\ui\classes\SettingsFormSerializer.js, includes\ui\classes\SettingsFormSerializer.js
+;@Ahk2Exe-AddResource includes\ui\Pages\SettingsPage.js, includes\ui\Pages\SettingsPage.js
+;@Ahk2Exe-AddResource includes\ui\vendor\windows-ui.min.css, includes\ui\vendor\windows-ui.min.css
+;@Ahk2Exe-AddResource includes\ui\vendor\windows-ui.min.js, includes\ui\vendor\windows-ui.min.js
+;@Ahk2Exe-AddResource includes\ui\vendor\winui-icons.min.css, includes\ui\vendor\winui-icons.min.css
+;@Ahk2Exe-AddResource includes\ui\vendor\winui-icons.slim.css, includes\ui\vendor\winui-icons.slim.css

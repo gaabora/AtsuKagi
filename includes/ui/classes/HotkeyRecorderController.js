@@ -126,7 +126,7 @@ class HotkeyRecorderController {
       };
       this.pendingRaw = this.actionTarget.replaceHotkeyRaw;
       this._defaultRaw = this.actionTarget.defaultHotkeyRaw;
-      this._setDialogTitle(`Assign ${this._humanizeLabel(actionName)}`);
+      this._setDialogTitle(`Assign ${this._humanizeLabel(this.actionTarget.fullActionHandler)}`);
       this._initializeRecorderUI();
       return;
     }
@@ -682,8 +682,7 @@ class HotkeyRecorderController {
     }
 
     const allowRisky = this._checked('hotkeyOptAllowRisky');
-    const baseKey = this._extractBaseKey(finalHotkey);
-    if (!allowRisky && HotkeyRecorderController.RISKY_KEYS.has(baseKey.toUpperCase())) {
+    if (!allowRisky && HotkeyRecorderController.RISKY_KEYS.has(finalHotkey.toUpperCase())) {
       this._setError('This hotkey is risky (Esc, Enter, Mouse Left/Right). Enable "Allow risky hotkeys" to use it.');
       return false;
     }

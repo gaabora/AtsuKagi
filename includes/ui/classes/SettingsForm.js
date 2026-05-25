@@ -390,7 +390,8 @@ class SettingsForm {
     const wanted = `${actionName || ''}`.trim();
     if (!wanted) return [];
     return this._hotkeyEntries
-      .filter((entry) => this._extractActionName(entry.action) === wanted)
+      // .filter((entry) => this._extractActionName(entry.action) === wanted)
+      .filter((entry) => entry.action.includes(wanted))
       .map((entry) => entry.hotKey)
       .filter(Boolean);
   }

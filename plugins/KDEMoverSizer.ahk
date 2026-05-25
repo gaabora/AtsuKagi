@@ -164,7 +164,7 @@ class KDEMoverSizer extends AKPlugin {
       if (NOT LockAxisHotkey_wasUp)
         LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P")
       
-      if (QuickPositionHotkey_wasUp AND GetKeyState(this.Config.QuickPositionHotkey , "P")) {
+      if (QuickPositionHotkey_wasUp && GetKeyState(this.Config.QuickPositionHotkey , "P")) {
         this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
       } else {
 
@@ -172,7 +172,7 @@ class KDEMoverSizer extends AKPlugin {
         xMouDif := xMouLst - xMouSrc
         yMouDif := yMouLst - yMouSrc
         
-        if (LockAxisHotkey_wasUp AND GetKeyState(this.Config.LockAxisHotkey , "P")) {
+        if (LockAxisHotkey_wasUp && GetKeyState(this.Config.LockAxisHotkey , "P")) {
           if (abs(xMouDif) - abs(yMouDif) > 0)
             yMouDif := 0 ; lock Y
           else
@@ -187,16 +187,16 @@ class KDEMoverSizer extends AKPlugin {
         GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
 
         if (this.Config.EnableSnapping) {
-          if (xWinDst < CurScrLeft + SnappingDistance) AND (xWinDst > CurScrLeft - SnappingDistance)
+          if (xWinDst < CurScrLeft + SnappingDistance) && (xWinDst > CurScrLeft - SnappingDistance)
             xWinDst := CurScrLeft 
 
-          if (yWinDst < CurScrTop + SnappingDistance) AND (yWinDst > CurScrTop - SnappingDistance)
+          if (yWinDst < CurScrTop + SnappingDistance) && (yWinDst > CurScrTop - SnappingDistance)
             yWinDst := CurScrTop
 
-          if (xWinDst + wWinSrc > CurScrRight - SnappingDistance) AND (xWinDst + wWinSrc < CurScrRight + SnappingDistance)
+          if (xWinDst + wWinSrc > CurScrRight - SnappingDistance) && (xWinDst + wWinSrc < CurScrRight + SnappingDistance)
             xWinDst := CurScrRight - wWinSrc
 
-          if (yWinDst + hWinSrc > CurScrBottom - SnappingDistance) AND (yWinDst + hWinSrc < CurScrBottom + SnappingDistance)
+          if (yWinDst + hWinSrc > CurScrBottom - SnappingDistance) && (yWinDst + hWinSrc < CurScrBottom + SnappingDistance)
             yWinDst := CurScrBottom - hWinSrc
         }
       }
@@ -325,7 +325,7 @@ class KDEMoverSizer extends AKPlugin {
       xMouDif := xMouLst - xMouSrc
       yMouDif := yMouLst - yMouSrc
 
-      if (LockAxisHotkey_wasUp AND GetKeyState(this.Config.LockAxisHotkey , "P")) {
+      if (LockAxisHotkey_wasUp && GetKeyState(this.Config.LockAxisHotkey , "P")) {
         ; locking for default Resizing
         if (abs(xMouDif) - abs(yMouDif) > 0)
           yMouDif := 0 ; lock Y
@@ -333,7 +333,7 @@ class KDEMoverSizer extends AKPlugin {
           xMouDif := 0 ; lock X
       }
       
-      if (LockAxisHotkey_wasUp AND NOT GetKeyState(this.Config.LockAxisHotkey , "P") AND locked != 0) {
+      if (LockAxisHotkey_wasUp && NOT GetKeyState(this.Config.LockAxisHotkey , "P") && locked != 0) {
         locked := 0
       }
 
@@ -348,8 +348,8 @@ class KDEMoverSizer extends AKPlugin {
       if (NOT LockAxisHotkey_wasUp)
         LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P")
 
-      if (QuickPositionHotkey_wasUp AND GetKeyState(this.Config.QuickPositionHotkey, "P")) {
-        ; save mouse and window position to allow clean switch between magnetic resizing and QuickPositioning
+      if (QuickPositionHotkey_wasUp && GetKeyState(this.Config.QuickPositionHotkey, "P")) {
+        ; save mouse and window position to allow clean switch between magnetic resizing && QuickPositioning
         if (NOT QuickPosition_wasOn) {
           xMouLstQP := xMouLst
           yMouLstQP := yMouLst
@@ -367,18 +367,18 @@ class KDEMoverSizer extends AKPlugin {
         wWinDst := (wWinSrc - xMultiplier * xMouDif)
         hWinDst := (hWinSrc - yMultiplier * yMouDif)
 
-        if (xWinDst < CurScrLeft + SnappingDistance) AND (xWinDst > CurScrLeft - SnappingDistance) AND (xMultiplier > 0) {
+        if (xWinDst < CurScrLeft + SnappingDistance) && (xWinDst > CurScrLeft - SnappingDistance) && (xMultiplier > 0) {
           wWinDst := wWinSrc + xWinSrc - CurScrLeft
           xWinDst := CurScrLeft
         }
-        if (yWinDst < CurScrTop + SnappingDistance) AND (yWinDst > CurScrTop - SnappingDistance) AND (yMultiplier > 0) {
+        if (yWinDst < CurScrTop + SnappingDistance) && (yWinDst > CurScrTop - SnappingDistance) && (yMultiplier > 0) {
           hWinDst := hWinSrc + yWinSrc - CurScrTop
           yWinDst := CurScrTop
         }
-        if (xWinDst + wWinDst > CurScrRight - SnappingDistance) AND (xWinDst + wWinDst < CurScrRight + SnappingDistance)  AND (xMultiplier < 0) {
+        if (xWinDst + wWinDst > CurScrRight - SnappingDistance) && (xWinDst + wWinDst < CurScrRight + SnappingDistance) && (xMultiplier < 0) {
           wWinDst := - xWinSrc + CurScrRight
         }
-        if (yWinDst + hWinDst > CurScrBottom - SnappingDistance) AND (yWinDst + hWinDst < CurScrBottom + SnappingDistance) AND (yMultiplier < 0) {
+        if (yWinDst + hWinDst > CurScrBottom - SnappingDistance) && (yWinDst + hWinDst < CurScrBottom + SnappingDistance) && (yMultiplier < 0) {
           hWinDst := - yWinSrc + CurScrBottom
         }
       } else {

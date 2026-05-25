@@ -100,8 +100,49 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
   onShellMessage(wParam, lParam, msg, hwnd) {
     eventId := wParam
     targetHwnd := lParam
-    this.outputDebugLine("msgId=" eventId " hwnd=" targetHwnd)
+    this.outputDebugLine(this.formatShellEventDebug(eventId, targetHwnd))
     this.processMessage(eventId, targetHwnd)
+  }
+
+  formatShellEventDebug(msgId, hwnd) {
+    eventName := ShellMessageHook.messageNames.Has(msgId)
+      ? ShellMessageHook.messageNames[msgId]
+      : "UNKNOWN"
+    return "shell event=" eventName " (" msgId ") " this.formatWindowDebugInfo(hwnd)
+  }
+
+  formatWindowDebugInfo(hwnd) {
+    if (!hwnd)
+      return "hwnd=0"
+
+    winSelector := "ahk_id " hwnd
+
+    try title := WinGetTitle(winSelector)
+    catch
+      title := ""
+
+    try winClass := WinGetClass(winSelector)
+    catch
+      winClass := ""
+
+    try processName := WinGetProcessName(winSelector)
+    catch
+      processName := ""
+
+    try pid := WinGetPID(winSelector)
+    catch
+      pid := ""
+
+    if (title = "")
+      title := "<no title>"
+    if (winClass = "")
+      winClass := "<unknown class>"
+    if (processName = "")
+      processName := "<unknown process>"
+    if (pid = "")
+      pid := "?"
+
+    return "hwnd=" hwnd " pid=" pid " proc=" processName " class=" winClass " title='" title "'"
   }
 
   processMessage(msgId, hwnd) {
@@ -109,9 +150,9 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
       case ShellMessageHook.HSHELL_WINDOWCREATED:
         return this.runMessageCallbacks("WindowCreated", hwnd)
       case ShellMessageHook.HSHELL_WINDOWDESTROYED:
-        return this.runMessageCallbacks("WindowActivated", hwnd)
-      case ShellMessageHook.HSHELL_WINDOWACTIVATED:
         return this.runMessageCallbacks("WindowDestroyed", hwnd)
+      case ShellMessageHook.HSHELL_WINDOWACTIVATED:
+        return this.runMessageCallbacks("WindowActivated", hwnd)
       case ShellMessageHook.HSHELL_ACTIVATESHELLWINDOW:
       case ShellMessageHook.HSHELL_GETMINRECT:
       case ShellMessageHook.HSHELL_REDRAW:
