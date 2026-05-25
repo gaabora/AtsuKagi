@@ -44,6 +44,15 @@ class KDEMoverSizer extends AKPlugin {
           "scope", "plugin"
         ),
         Map(
+          "key", "SnappingDistance",
+          "label", "Magnetic snap distance (px)",
+          "description", "Pixel distance threshold for magnetic edge snapping during drag.",
+          "type", "number",
+          "default", 10,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
           "key", "ShowWindowContent",
           "label", "Show window content while dragging",
           "description", "When disabled, show only a frame preview instead of moving the live window.",
@@ -96,7 +105,7 @@ class KDEMoverSizer extends AKPlugin {
   
   EnterWindowMovingMode() { ;;;
     FrameDrawWidth := 1
-    SnappingDistance := 10
+    SnappingDistance := Number(this.Config.SnappingDistance)
     
     CoordMode("Mouse", "Screen")
     CoordMode("Pixel", "Screen")
@@ -121,7 +130,7 @@ class KDEMoverSizer extends AKPlugin {
     this.saveOriginalWindowState(hwnd)
     this.enableEscapeHook()
     
-    if (NOT this.Config.ShowWindowContent)
+    if (!this.Config.ShowWindowContent)
       this.drawRectFrame_Prepare()
 
     
@@ -137,8 +146,8 @@ class KDEMoverSizer extends AKPlugin {
       this.windowState.max := 1
     }
 
-    QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
-    LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P") ; check that button was released once before movement is locked
+    QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
+    LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P") ; check that button was released once before movement is locked
 
     WinGetPos(&xWinSrc, &yWinSrc, &wWinSrc, &hWinSrc, "ahk_id " hwnd)
 
@@ -147,11 +156,10 @@ class KDEMoverSizer extends AKPlugin {
 
     toolTipId := this.ToolTip("...",,, 100)
 
-    Loop{
+    Loop {
       MouseButtonState := GetKeyState(MouseButton, "P") ? "D" : "U"
-      if (MouseButtonState = "U") {
+      if (MouseButtonState = "U")
         break
-      }
 
       EscButtonState := GetKeyState("Escape", "P") ? "D" : "U"
       if (EscButtonState = "D") {
@@ -159,10 +167,10 @@ class KDEMoverSizer extends AKPlugin {
         break
       }
 
-      if (NOT QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P")
-      if (NOT LockAxisHotkey_wasUp)
-        LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P")
+      if (!QuickPositionHotkey_wasUp)
+        QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P")
+      if (!LockAxisHotkey_wasUp)
+        LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P")
       
       if (QuickPositionHotkey_wasUp && GetKeyState(this.Config.QuickPositionHotkey , "P")) {
         this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
@@ -173,14 +181,14 @@ class KDEMoverSizer extends AKPlugin {
         yMouDif := yMouLst - yMouSrc
         
         if (LockAxisHotkey_wasUp && GetKeyState(this.Config.LockAxisHotkey , "P")) {
-          if (abs(xMouDif) - abs(yMouDif) > 0)
+          if (Abs(xMouDif) - Abs(yMouDif) > 0)
             yMouDif := 0 ; lock Y
           else
             xMouDif := 0 ; lock X
         }
 
         ; Apply this offset to the window position.
-        xWinDst := (xWinSrc + xMouDif) 
+        xWinDst := (xWinSrc + xMouDif)
         yWinDst := (yWinSrc + yMouDif)
 
         ; allow snapping on all monitors without releasing button
@@ -188,7 +196,7 @@ class KDEMoverSizer extends AKPlugin {
 
         if (this.Config.EnableSnapping) {
           if (xWinDst < CurScrLeft + SnappingDistance) && (xWinDst > CurScrLeft - SnappingDistance)
-            xWinDst := CurScrLeft 
+            xWinDst := CurScrLeft
 
           if (yWinDst < CurScrTop + SnappingDistance) && (yWinDst > CurScrTop - SnappingDistance)
             yWinDst := CurScrTop
@@ -206,10 +214,10 @@ class KDEMoverSizer extends AKPlugin {
       else
         this.drawRectFrame_Show(xWinDst, yWinDst, wWinDst, hWinDst, FrameDrawWidth)
 
-      this.ToolTip(this.formatWindowGeomertyInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst/2, yWinDst + hWinDst/2, 100, toolTipId)
+      this.ToolTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst/2, yWinDst + hWinDst/2, 100, toolTipId)
     }
 
-    if (NOT this.Config.ShowWindowContent) {
+    if (!this.Config.ShowWindowContent) {
       this.drawRectFrame_Cancel()
       if (EscButtonState = "U")
         WinMove(xWinDst, yWinDst, wWinDst, hWinDst, "ahk_id " hwnd)  ; Move the window to the new position.
@@ -221,7 +229,7 @@ class KDEMoverSizer extends AKPlugin {
 
   EnterWindowResizingMode() { ;;;
     FrameDrawWidth := 1
-    SnappingDistance := 10
+    SnappingDistance := Number(this.Config.SnappingDistance)
     RestoreOnResize := 1
     Use9WindowAreasToResize := 0
 
@@ -243,20 +251,21 @@ class KDEMoverSizer extends AKPlugin {
       return
     }
 
-
-
-
     this.saveOriginalWindowState(hwnd)
     this.enableEscapeHook()
 
-    if (NOT this.Config.ShowWindowContent)
+    if (!this.Config.ShowWindowContent)
       this.drawRectFrame_Prepare()
 
     if (this.Config.BringToFront)
       WinActivate("ahk_id " hwnd)
 
-    IsMaximized := WinGetMinMax("ahk_id " hwnd)
+; TODO: ; exclude non resizable windows?
+; WinGet, style, Style, ahk_id %winId%
+; if !(style & 0x40000)  ; WS_SIZEBOX
+;     return
 
+    IsMaximized := WinGetMinMax("ahk_id " hwnd)
     if (IsMaximized) {
       if (RestoreOnResize) {
         WinRestore("ahk_id " hwnd)
@@ -269,11 +278,10 @@ class KDEMoverSizer extends AKPlugin {
         this.windowState.max := 1
         WinMove(CurScrLeft, CurScrTop, CurScrRight - CurScrLeft, CurScrBottom - CurScrTop, "ahk_id " hwnd)
       }
-
     }
 
-    QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
-    LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P") ; check that button was released once before movement is locked
+    QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
+    LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P") ; check that button was released once before movement is locked
 
     QuickPosition_wasOn    := 0
     locked := 0
@@ -288,13 +296,13 @@ class KDEMoverSizer extends AKPlugin {
       ; WinLeft = [-1;0;1], WinUp = [-1;0;1]
       xMultiplier := 0
       yMultiplier   := 0
-      If (xMouSrc < xWinSrc + wWinSrc / 3)
+      if (xMouSrc < xWinSrc + wWinSrc / 3)
         xMultiplier := 1
-      If (xMouSrc > xWinSrc + wWinSrc *2/3)
+      if (xMouSrc > xWinSrc + wWinSrc *2/3)
         xMultiplier := -1
-      If (yMouSrc < yWinSrc + hWinSrc / 3)
+      if (yMouSrc < yWinSrc + hWinSrc / 3)
         yMultiplier := 1
-      If (yMouSrc > yWinSrc + hWinSrc *2/3)
+      if (yMouSrc > yWinSrc + hWinSrc *2/3)
         yMultiplier := -1
     } else {
       ; WinLeft = [-1;1], WinUp = [-1;1]
@@ -316,10 +324,10 @@ class KDEMoverSizer extends AKPlugin {
         break
       }
 
-      if (NOT QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P")
-      if (NOT LockAxisHotkey_wasUp)
-        LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P")
+      if (!QuickPositionHotkey_wasUp)
+        QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P")
+      if (!LockAxisHotkey_wasUp)
+        LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P")
 
       MouseGetPos(&xMouLst, &yMouLst)
       xMouDif := xMouLst - xMouSrc
@@ -327,13 +335,13 @@ class KDEMoverSizer extends AKPlugin {
 
       if (LockAxisHotkey_wasUp && GetKeyState(this.Config.LockAxisHotkey , "P")) {
         ; locking for default Resizing
-        if (abs(xMouDif) - abs(yMouDif) > 0)
+        if (Abs(xMouDif) - Abs(yMouDif) > 0)
           yMouDif := 0 ; lock Y
         else
           xMouDif := 0 ; lock X
       }
       
-      if (LockAxisHotkey_wasUp && NOT GetKeyState(this.Config.LockAxisHotkey , "P") && locked != 0) {
+      if (LockAxisHotkey_wasUp && !GetKeyState(this.Config.LockAxisHotkey , "P") && locked != 0) {
         locked := 0
       }
 
@@ -343,14 +351,14 @@ class KDEMoverSizer extends AKPlugin {
       ; allow snapping on all monitors without releasing button
       GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
 
-      if (NOT QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := NOT GetKeyState(this.Config.QuickPositionHotkey, "P")
-      if (NOT LockAxisHotkey_wasUp)
-        LockAxisHotkey_wasUp := NOT GetKeyState(this.Config.LockAxisHotkey, "P")
+      if (!QuickPositionHotkey_wasUp)
+        QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P")
+      if (!LockAxisHotkey_wasUp)
+        LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P")
 
       if (QuickPositionHotkey_wasUp && GetKeyState(this.Config.QuickPositionHotkey, "P")) {
         ; save mouse and window position to allow clean switch between magnetic resizing && QuickPositioning
-        if (NOT QuickPosition_wasOn) {
+        if (!QuickPosition_wasOn) {
           xMouLstQP := xMouLst
           yMouLstQP := yMouLst
           xWinDstQP := xWinDst
@@ -389,16 +397,16 @@ class KDEMoverSizer extends AKPlugin {
         hWinDst := (hWinSrc - yMultiplier * yMouDif)
       }
 
-      if (this.Config.ShowWindowContent)
+      if (this.Config.ShowWindowContent) {
         WinMove(xWinDst, yWinDst, wWinDst, hWinDst, "ahk_id " hwnd)
-      else
+      } else {
         this.drawRectFrame_Show(xWinDst, yWinDst, wWinDst, hWinDst, FrameDrawWidth)
-
-      this.ToolTip(this.formatWindowGeomertyInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst/2, yWinDst + hWinDst/2, 100, toolTipId)
+      }
+      this.ToolTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst / 2, yWinDst + hWinDst / 2, 100, toolTipId)
       ; Sleep, 1
     }
 
-    if (NOT this.Config.ShowWindowContent) {
+    if (!this.Config.ShowWindowContent) {
       this.drawRectFrame_Cancel()
       if (EscButtonState = "U")
         WinMove(xWinDst, yWinDst, wWinDst, hWinDst, "ahk_id " hwnd)
@@ -436,7 +444,7 @@ class KDEMoverSizer extends AKPlugin {
     }
   }
 
-  formatWindowGeomertyInfo(x, y, w, h) {
+  formatWindowGeometryInfo(x, y, w, h) {
     return "x: " . Round(x) . ", y: " . Round(y) . "`n(" . Round(w) . " x " . Round(h) . ")"
   }
 
@@ -473,7 +481,6 @@ class KDEMoverSizer extends AKPlugin {
     ;  inner:       0.333
 
     GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
-    GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
     scrWidth  := CurScrRight - CurScrLeft
     scrHeight := CurScrBottom - CurScrTop
     MouseGetPos(&WinCenterX, &WinCenterY)
@@ -494,21 +501,21 @@ class KDEMoverSizer extends AKPlugin {
     M8mOffX_l := 8 - OffX_l
     M8mOffY_l := 8 - OffY_l
     
-    if (abs(WinCenterXl - scrWidth / 2) < scrWidth /16*0.33 && abs(WinCenterYl - scrHeight / 2) < scrHeight / 16*0.33) { ; inner center
+    if (Abs(WinCenterXl - scrWidth / 2) < scrWidth /16 * 0.33 && Abs(WinCenterYl - scrHeight / 2) < scrHeight / 16 * 0.33) { ; inner center
       xWin := CurScrLeft + 0.33 * scrWidth
-      yWin := CurScrTop  + 0.33 * scrHeight
-      wWin := scrWidth  * 0.33
+      yWin := CurScrTop + 0.33 * scrHeight
+      wWin := scrWidth * 0.33
       hWin := scrHeight * 0.33
-    } else if (abs(WinCenterXl - scrWidth / 2) < scrWidth /16*0.66 && abs(WinCenterYl - scrHeight / 2) < scrHeight / 16*0.66) { ; middle center
+    } else if (Abs(WinCenterXl - scrWidth / 2) < scrWidth /16 * 0.66 && Abs(WinCenterYl - scrHeight / 2) < scrHeight / 16 * 0.66) { ; middle center
       xWin := CurScrLeft + 0.25 * scrWidth
-      yWin := CurScrTop  + 0.25 * scrHeight
-      wWin := scrWidth  * 0.5
+      yWin := CurScrTop + 0.25 * scrHeight
+      wWin := scrWidth * 0.5
       hWin := scrHeight * 0.5
-    } else if (abs(WinCenterXl - scrWidth / 2) < scrWidth / 16*1 && abs(WinCenterYl - scrHeight / 2) < scrHeight / 16*1) { ; outer center
-      xWin := CurScrLeft + 0.382*0.382 * scrWidth
-      yWin := CurScrTop  + 0.382*0.382 * scrHeight
-      wWin := scrWidth  * (1 - 2*0.382*0.382)
-      hWin := scrHeight * (1 - 2*0.382*0.382)
+    } else if (Abs(WinCenterXl - scrWidth / 2) < scrWidth / 16 * 1 && Abs(WinCenterYl - scrHeight / 2) < scrHeight / 16 * 1) { ; outer center
+      xWin := CurScrLeft + 0.382 * 0.382 * scrWidth
+      yWin := CurScrTop + 0.382 * 0.382 * scrHeight
+      wWin := scrWidth * (1 - 2 * 0.382 * 0.382)
+      hWin := scrHeight * (1 - 2 * 0.382 * 0.382)
     } else { ; one of the outer squares
       if (OffX_l <= 4)
         wWin := scrWidth * QuickSize%OffX_l%
@@ -518,7 +525,7 @@ class KDEMoverSizer extends AKPlugin {
       if (OffX < 8)
         xWin := CurScrLeft
       else
-        xWin := CurScrLeft +  scrWidth - wWin
+        xWin := CurScrLeft + scrWidth - wWin
 
       if (OffY_l <= 4)
         hWin := scrHeight * QuickSize%OffY_l%
@@ -528,7 +535,7 @@ class KDEMoverSizer extends AKPlugin {
       if (OffY < 8)
         yWin := CurScrTop
       else
-        yWin := CurScrTop +  scrHeight - hWin
+        yWin := CurScrTop + scrHeight - hWin
     }
   }
 
@@ -541,15 +548,15 @@ class KDEMoverSizer extends AKPlugin {
     }
   }
 
-  drawRectFrame_Show(KDE_WinX2, yWinDst, KDE_WinW2, KDE_WinH2, FrameWidth) {
+  drawRectFrame_Show(xWin, yWin, wWin, hWin, FrameWidth) {
     this._frameGui[1] := Gui()
-    this._frameGui[1].Show("x" KDE_WinX2 - 2 " y" yWinDst - 2 " w" FrameWidth + 1 " h" KDE_WinH2 " NoActivate")
+    this._frameGui[1].Show("x" xWin - 2 " y" yWin - 2 " w" FrameWidth + 1 " h" hWin " NoActivate")
     this._frameGui[2] := Gui()
-    this._frameGui[2].Show("x" KDE_WinX2 - 2 " y" yWinDst - 2 " w" KDE_WinW2 " h" FrameWidth + 1 " NoActivate")
+    this._frameGui[2].Show("x" xWin - 2 " y" yWin - 2 " w" wWin " h" FrameWidth + 1 " NoActivate")
     this._frameGui[3] := Gui()
-    this._frameGui[3].Show("x" KDE_WinX2 + KDE_WinW2 - 2 " y" yWinDst - 2 " w" FrameWidth + 1 " h" KDE_WinH2 " NoActivate")
+    this._frameGui[3].Show("x" xWin + wWin - 2 " y" yWin - 2 " w" FrameWidth + 1 " h" hWin " NoActivate")
     this._frameGui[4] := Gui()
-    this._frameGui[4].Show("x" KDE_WinX2 - 2 " y" yWinDst + KDE_WinH2 - 2 " w" KDE_WinW2 " h" FrameWidth + 1 " NoActivate")
+    this._frameGui[4].Show("x" xWin - 2 " y" yWin + hWin - 2 " w" wWin " h" FrameWidth + 1 " NoActivate")
   }
 
   drawRectFrame_Cancel() {
