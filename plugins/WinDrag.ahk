@@ -2,10 +2,14 @@ class WinDrag extends AKPlugin {
   _overlayGui := ""
   _overlayColor := "2080DD"
   _overlayOpacity := 80
+  _snapPreviewGui := ""
+  _snapPreviewColor := "4090EE"
+  _snapPreviewOpacity := 60
   _infoTipGui := ""
   _infoTipTextCtrl := ""
   _lastInfoTipText := ""
   _infoTipVisible := false
+  _snappedWindows := Map()
   windowState := {}
 
   __DescribePlugin() {
@@ -67,6 +71,69 @@ class WinDrag extends AKPlugin {
           "scope", "plugin"
         ),
         Map(
+          "key", "SnapOnRelease",
+          "label", "Edge snap on release",
+          "description", "Show edge snap targets while dragging and apply them when mouse is released.",
+          "type", "boolean",
+          "default", true,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "SnapThreshold",
+          "label", "Edge snap threshold (px)",
+          "description", "How close cursor must be to a screen edge to trigger edge snap preview.",
+          "type", "number",
+          "default", 50,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "SnapHalfScreen",
+          "label", "Snap to left/right half",
+          "description", "Enable half-screen edge snap targets.",
+          "type", "boolean",
+          "default", true,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "SnapMaximizeOnTop",
+          "label", "Maximize on top edge snap",
+          "description", "Enable maximize target at the top screen edge.",
+          "type", "boolean",
+          "default", true,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "SnapMinimizeOnBottom",
+          "label", "Minimize on bottom edge snap",
+          "description", "Enable minimize target at the bottom screen edge.",
+          "type", "boolean",
+          "default", false,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "SnapLeftRightTiles",
+          "label", "Enable left/right tile snap",
+          "description", "Reserved for expanded edge tile layouts.",
+          "type", "boolean",
+          "default", false,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "SnapQuarterCorners",
+          "label", "Snap quarter corners",
+          "description", "Enable quarter-screen snap targets in all four corners.",
+          "type", "boolean",
+          "default", true,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
           "key", "ShowWindowContentOnMove",
           "label", "Show window content while moving",
           "description", "When disabled, show only a frame preview instead of moving the live window.",
@@ -119,7 +186,7 @@ class WinDrag extends AKPlugin {
           "description", "Move a window by dragging from anywhere on it.",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
         ),
         Map(
           "action", "EnterWindowResizingMode",
@@ -127,7 +194,7 @@ class WinDrag extends AKPlugin {
           "description", "Resize a window by dragging from anywhere on it.",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
         )
       ],
       "hooks", []
@@ -146,6 +213,7 @@ class WinDrag extends AKPlugin {
   
   EnterWindowMovingMode() { ;;;
     SnappingDistance := Number(this.Config.SnappingDistance)
+    this._destroySnapPreview()
     
     CoordMode("Mouse", "Screen")
     CoordMode("Pixel", "Screen")
@@ -166,6 +234,18 @@ class WinDrag extends AKPlugin {
       KeyWait(MouseButton, "U")
       SendEvent("{Blind}{" MouseButton " up}")
       return
+    }
+
+    if (this._snappedWindows.Has(hwnd)) {
+      snapState := this._snappedWindows[hwnd]
+      this._snappedWindows.Delete(hwnd)
+      this._applyWindowRect(
+        hwnd,
+        Round(xMouSrc - snapState["w"] / 2),
+        Round(yMouSrc - snapState["h"] / 2),
+        snapState["w"],
+        snapState["h"]
+      )
     }
 
 
@@ -204,6 +284,7 @@ class WinDrag extends AKPlugin {
 
     EscButtonState := "U"
     isQuickPositioning := false
+    pendingSnapZone := ""
 
     Loop {
       MouseButtonState := GetKeyState(MouseButton, "P") ? "D" : "U"
@@ -221,6 +302,7 @@ class WinDrag extends AKPlugin {
       if (!LockAxisHotkey_wasUp)
         LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P")
 
+      MouseGetPos(&xMouCur, &yMouCur)
       isQuickPositioning := false
       
       if (QuickPositionHotkey_wasUp && GetKeyState(this.Config.QuickPositionHotkey , "P")) {
@@ -266,6 +348,19 @@ class WinDrag extends AKPlugin {
         }
       }
 
+      pendingSnapZone := ""
+      if (!isQuickPositioning && this.Config.SnapOnRelease) {
+        zone := ""
+        if (this._detectSnapZone(xMouCur, yMouCur, &zone)) {
+          pendingSnapZone := zone
+          this._showSnapPreview(zone["x"], zone["y"], zone["w"], zone["h"])
+        } else {
+          this._hideSnapPreview()
+        }
+      } else {
+        this._hideSnapPreview()
+      }
+
       showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnMove
       if (showContent) {
         if (isQuickPositioning)
@@ -279,6 +374,9 @@ class WinDrag extends AKPlugin {
       this._updateInfoTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst/2, yWinDst + hWinDst/2)
     }
 
+    this._hideSnapPreview()
+    this._destroySnapPreview()
+
     showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnMove
     if (!showContent) {
       this._destroyOverlay()
@@ -287,6 +385,27 @@ class WinDrag extends AKPlugin {
           this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
         else
           this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
+    }
+
+    if (EscButtonState = "U" && IsObject(pendingSnapZone)) {
+      action := pendingSnapZone["action"]
+      if (action = "minimize") {
+        WinMinimize("ahk_id " hwnd)
+      } else {
+        WinGetPos(&preSnapX, &preSnapY, &preSnapW, &preSnapH, "ahk_id " hwnd)
+        this._snappedWindows[hwnd] := Map("x", preSnapX, "y", preSnapY, "w", preSnapW, "h", preSnapH)
+        this._applyVisibleWindowRect(
+          hwnd,
+          pendingSnapZone["x"],
+          pendingSnapZone["y"],
+          pendingSnapZone["w"],
+          pendingSnapZone["h"],
+          leftInset,
+          topInset,
+          rightInset,
+          bottomInset
+        )
+      }
     }
 
     this._destroyInfoTip()
@@ -721,6 +840,104 @@ class WinDrag extends AKPlugin {
       try this._overlayGui.Destroy()
       this._overlayGui := ""
     }
+  }
+
+  _createSnapPreview() {
+    this._destroySnapPreview()
+    this._snapPreviewGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
+    this._snapPreviewGui.BackColor := this._snapPreviewColor
+    this._snapPreviewGui.Show("Hide NoActivate")
+    WinSetTransparent(this._snapPreviewOpacity, "ahk_id " this._snapPreviewGui.Hwnd)
+    ; Rounded corners on Win11+ (DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND)
+    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._snapPreviewGui.Hwnd
+        , "UInt", 33, "Int*", 2, "UInt", 4)
+  }
+
+  _showSnapPreview(x, y, w, h) {
+    if (!IsObject(this._snapPreviewGui))
+      this._createSnapPreview()
+    this._snapPreviewGui.Show("x" Round(x) " y" Round(y) " w" Round(w) " h" Round(h) " NoActivate")
+  }
+
+  _hideSnapPreview() {
+    if (IsObject(this._snapPreviewGui)) {
+      try this._snapPreviewGui.Show("Hide")
+    }
+  }
+
+  _destroySnapPreview() {
+    if (IsObject(this._snapPreviewGui)) {
+      try this._snapPreviewGui.Destroy()
+      this._snapPreviewGui := ""
+    }
+  }
+
+  _detectSnapZone(mouseX, mouseY, &zone) {
+    zone := ""
+
+    threshold := Max(1, Round(Number(this.Config.SnapThreshold)))
+    CurScrLeft := 0
+    CurScrRight := A_ScreenWidth
+    CurScrTop := 0
+    CurScrBottom := A_ScreenHeight
+    GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
+
+    scrWidth := CurScrRight - CurScrLeft
+    scrHeight := CurScrBottom - CurScrTop
+    if (scrWidth <= 0 || scrHeight <= 0)
+      return false
+
+    leftHit := mouseX <= (CurScrLeft + threshold)
+    rightHit := mouseX >= (CurScrRight - threshold)
+    topHit := mouseY <= (CurScrTop + threshold)
+    bottomHit := mouseY >= (CurScrBottom - threshold)
+
+    ; Corners have priority over edges.
+    if (this.Config.SnapQuarterCorners) {
+      halfW := Round(scrWidth / 2)
+      halfH := Round(scrHeight / 2)
+      if (leftHit && topHit) {
+        zone := Map("x", CurScrLeft, "y", CurScrTop, "w", halfW, "h", halfH, "action", "tile")
+        return true
+      }
+      if (rightHit && topHit) {
+        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop, "w", halfW, "h", halfH, "action", "tile")
+        return true
+      }
+      if (leftHit && bottomHit) {
+        zone := Map("x", CurScrLeft, "y", CurScrTop + scrHeight - halfH, "w", halfW, "h", halfH, "action", "tile")
+        return true
+      }
+      if (rightHit && bottomHit) {
+        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop + scrHeight - halfH, "w", halfW, "h", halfH, "action", "tile")
+        return true
+      }
+    }
+
+    if (this.Config.SnapMaximizeOnTop && topHit) {
+      zone := Map("x", CurScrLeft, "y", CurScrTop, "w", scrWidth, "h", scrHeight, "action", "maximize")
+      return true
+    }
+
+    if (this.Config.SnapMinimizeOnBottom && bottomHit) {
+      previewHeight := Max(60, Round(scrHeight * 0.18))
+      zone := Map("x", CurScrLeft, "y", CurScrBottom - previewHeight, "w", scrWidth, "h", previewHeight, "action", "minimize")
+      return true
+    }
+
+    if (this.Config.SnapHalfScreen) {
+      halfW := Round(scrWidth / 2)
+      if (leftHit) {
+        zone := Map("x", CurScrLeft, "y", CurScrTop, "w", halfW, "h", scrHeight, "action", "tile")
+        return true
+      }
+      if (rightHit) {
+        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop, "w", halfW, "h", scrHeight, "action", "tile")
+        return true
+      }
+    }
+
+    return false
   }
 
   _createInfoTip() {
