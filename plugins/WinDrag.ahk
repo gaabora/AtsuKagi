@@ -239,6 +239,8 @@ class WinDrag extends AKPlugin {
     if (this._snappedWindows.Has(hwnd)) {
       snapState := this._snappedWindows[hwnd]
       this._snappedWindows.Delete(hwnd)
+      ; Restore default corner rounding (undo DWMWCP_DONOTROUND)
+      try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 33, "Int*", 0, "UInt", 4)
       this._applyWindowRect(
         hwnd,
         Round(xMouSrc - snapState["w"] / 2),
@@ -405,6 +407,8 @@ class WinDrag extends AKPlugin {
           rightInset,
           bottomInset
         )
+        ; Square corners for flush tiling (Win11 DWMWCP_DONOTROUND)
+        try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 33, "Int*", 1, "UInt", 4)
       }
     }
 
@@ -876,11 +880,22 @@ class WinDrag extends AKPlugin {
     zone := ""
 
     threshold := Max(1, Round(Number(this.Config.SnapThreshold)))
-    CurScrLeft := 0
-    CurScrRight := A_ScreenWidth
-    CurScrTop := 0
-    CurScrBottom := A_ScreenHeight
-    GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
+
+    ; Find monitor via full bounds (works even when cursor is in taskbar)
+    monitorIndex := 0
+    MonitorCount := MonitorGetCount()
+    Loop MonitorCount {
+      MonitorGet(A_Index, &mLeft, &mTop, &mRight, &mBottom)
+      if (mouseX >= mLeft && mouseX < mRight && mouseY >= mTop && mouseY < mBottom) {
+        monitorIndex := A_Index
+        break
+      }
+    }
+    if (!monitorIndex)
+      return false
+
+    ; Work area already excludes taskbar — no extra taskbar adjustment needed
+    MonitorGetWorkArea(monitorIndex, &CurScrLeft, &CurScrTop, &CurScrRight, &CurScrBottom)
 
     scrWidth := CurScrRight - CurScrLeft
     scrHeight := CurScrBottom - CurScrTop
@@ -905,11 +920,11 @@ class WinDrag extends AKPlugin {
         return true
       }
       if (leftHit && bottomHit) {
-        zone := Map("x", CurScrLeft, "y", CurScrTop + scrHeight - halfH, "w", halfW, "h", halfH, "action", "tile")
+        zone := Map("x", CurScrLeft, "y", CurScrTop + halfH, "w", halfW, "h", halfH, "action", "tile")
         return true
       }
       if (rightHit && bottomHit) {
-        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop + scrHeight - halfH, "w", halfW, "h", halfH, "action", "tile")
+        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop + halfH, "w", halfW, "h", halfH, "action", "tile")
         return true
       }
     }
