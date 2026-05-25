@@ -297,6 +297,13 @@ class SettingsPage {
           // Legacy plugin style: data-color-selector
           this.colorPicker.beginForTrigger(trigger);
         }
+
+        // Open dialog for dynamically rendered buttons (windows-ui.min.js
+        // only binds data-win-toggle="modal" at page load)
+        const dialog = document.querySelector('#ColorPickerDialog');
+        if (dialog && !dialog.classList.contains('show')) {
+          dialog.classList.add('show');
+        }
       });
     }
 

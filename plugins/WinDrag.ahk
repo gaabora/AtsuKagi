@@ -876,31 +876,44 @@ class WinDrag extends AKPlugin {
     }
   }
 
+  _getTaskbarBounds(&taskbarX, &taskbarY, &taskbarW, &taskbarH) {
+    taskbarX := 0
+    taskbarY := 0
+    taskbarW := 0
+    taskbarH := 0
+    
+    taskbarHwnd := 0
+    try taskbarHwnd := WinExist("ahk_class Shell_TrayWnd")
+    
+    if (!taskbarHwnd)
+      return false
+    
+    try WinGetPos(&taskbarX, &taskbarY, &taskbarW, &taskbarH, "ahk_id " taskbarHwnd)
+    
+    return taskbarHwnd && taskbarW > 0 && taskbarH > 0
+  }
+
   _detectSnapZone(mouseX, mouseY, &zone) {
     zone := ""
 
     threshold := Max(1, Round(Number(this.Config.SnapThreshold)))
-
-    ; Find monitor via full bounds (works even when cursor is in taskbar)
-    monitorIndex := 0
-    MonitorCount := MonitorGetCount()
-    Loop MonitorCount {
-      MonitorGet(A_Index, &mLeft, &mTop, &mRight, &mBottom)
-      if (mouseX >= mLeft && mouseX < mRight && mouseY >= mTop && mouseY < mBottom) {
-        monitorIndex := A_Index
-        break
-      }
-    }
-    if (!monitorIndex)
-      return false
-
-    ; Work area already excludes taskbar — no extra taskbar adjustment needed
-    MonitorGetWorkArea(monitorIndex, &CurScrLeft, &CurScrTop, &CurScrRight, &CurScrBottom)
+    CurScrLeft := 0
+    CurScrRight := A_ScreenWidth
+    CurScrTop := 0
+    CurScrBottom := A_ScreenHeight
+    GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
 
     scrWidth := CurScrRight - CurScrLeft
     scrHeight := CurScrBottom - CurScrTop
     if (scrWidth <= 0 || scrHeight <= 0)
       return false
+
+    ; Do not trigger snap zones if cursor is outside working area (in taskbar, etc.)
+    if (mouseX < CurScrLeft || mouseX >= CurScrRight || mouseY < CurScrTop || mouseY >= CurScrBottom)
+      return false
+
+    ; Detect taskbar to avoid overlap
+    taskbarFound := this._getTaskbarBounds(&taskbarX, &taskbarY, &taskbarW, &taskbarH)
 
     leftHit := mouseX <= (CurScrLeft + threshold)
     rightHit := mouseX >= (CurScrRight - threshold)
@@ -920,11 +933,17 @@ class WinDrag extends AKPlugin {
         return true
       }
       if (leftHit && bottomHit) {
-        zone := Map("x", CurScrLeft, "y", CurScrTop + halfH, "w", halfW, "h", halfH, "action", "tile")
+        snapY := CurScrTop + scrHeight - halfH
+        if (taskbarFound && taskbarY < CurScrBottom)
+          snapY := Min(snapY, taskbarY - halfH)
+        zone := Map("x", CurScrLeft, "y", snapY, "w", halfW, "h", halfH, "action", "tile")
         return true
       }
       if (rightHit && bottomHit) {
-        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop + halfH, "w", halfW, "h", halfH, "action", "tile")
+        snapY := CurScrTop + scrHeight - halfH
+        if (taskbarFound && taskbarY < CurScrBottom)
+          snapY := Min(snapY, taskbarY - halfH)
+        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", snapY, "w", halfW, "h", halfH, "action", "tile")
         return true
       }
     }
@@ -936,18 +955,27 @@ class WinDrag extends AKPlugin {
 
     if (this.Config.SnapMinimizeOnBottom && bottomHit) {
       previewHeight := Max(60, Round(scrHeight * 0.18))
-      zone := Map("x", CurScrLeft, "y", CurScrBottom - previewHeight, "w", scrWidth, "h", previewHeight, "action", "minimize")
+      snapY := CurScrBottom - previewHeight
+      if (taskbarFound && taskbarY < CurScrBottom)
+        snapY := Min(snapY, taskbarY - previewHeight)
+      zone := Map("x", CurScrLeft, "y", snapY, "w", scrWidth, "h", previewHeight, "action", "minimize")
       return true
     }
 
     if (this.Config.SnapHalfScreen) {
       halfW := Round(scrWidth / 2)
       if (leftHit) {
-        zone := Map("x", CurScrLeft, "y", CurScrTop, "w", halfW, "h", scrHeight, "action", "tile")
+        snapH := scrHeight
+        if (taskbarFound && taskbarY < CurScrBottom)
+          snapH := Min(snapH, taskbarY - CurScrTop)
+        zone := Map("x", CurScrLeft, "y", CurScrTop, "w", halfW, "h", snapH, "action", "tile")
         return true
       }
       if (rightHit) {
-        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop, "w", halfW, "h", scrHeight, "action", "tile")
+        snapH := scrHeight
+        if (taskbarFound && taskbarY < CurScrBottom)
+          snapH := Min(snapH, taskbarY - CurScrTop)
+        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop, "w", halfW, "h", snapH, "action", "tile")
         return true
       }
     }

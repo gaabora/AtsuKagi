@@ -725,6 +725,7 @@ body {
 .app-dialog .app-dialog-modal .app-dialog-body { max-height: 80vh; }.app-dialog.show { display: flex !important; }
 .app-overlay, .app-dim-overlay, .app-alert, .app-dialog, .app-loader-busy-overlay, .app-splash-screen { height: 100%; }
 .app-navbar-wrap { height: 100%; }
+.app-dialog .app-dialog-modal { width: auto; }
 /* ── Logs ─────────────────────────────────────────────────────────────────── */
 .logs-toolbar {
   display: flex;
