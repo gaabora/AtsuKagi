@@ -1,7 +1,11 @@
 class KDEMoverSizer extends AKPlugin {
-  _frameGui := []
-  _drawGridGUIOptions := "+Border"
-  _drawGridColor := "White"
+  _overlayGui := ""
+  _overlayColor := "2080DD"
+  _overlayOpacity := 80
+  _infoTipGui := ""
+  _infoTipTextCtrl := ""
+  _lastInfoTipText := ""
+  _infoTipVisible := false
   windowState := {}
 
   __DescribePlugin() {
@@ -123,7 +127,6 @@ class KDEMoverSizer extends AKPlugin {
   }
   
   EnterWindowMovingMode() { ;;;
-    FrameDrawWidth := 1
     SnappingDistance := Number(this.Config.SnappingDistance)
     
     CoordMode("Mouse", "Screen")
@@ -151,11 +154,10 @@ class KDEMoverSizer extends AKPlugin {
 
     this.saveOriginalWindowState(hwnd)
     this.enableEscapeHook()
-    
-    if (!this.Config.ShowWindowContent)
-      this.drawRectFrame_Prepare()
 
-    
+    if (!this.Config.ShowWindowContent)
+      this._createOverlay()
+    this._createInfoTip()
 
     if (this.Config.BringToFront)
       WinActivate("ahk_id " hwnd)
@@ -183,7 +185,7 @@ class KDEMoverSizer extends AKPlugin {
     this._getInvisibleBorderOffsets(hwnd, &leftInset, &topInset, &rightInset, &bottomInset)
 
     EscButtonState := "U"
-    toolTipId := this.ToolTip("...",,, 100)
+    isQuickPositioning := false
 
     Loop {
       MouseButtonState := GetKeyState(MouseButton, "P") ? "D" : "U"
@@ -200,8 +202,11 @@ class KDEMoverSizer extends AKPlugin {
         QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P")
       if (!LockAxisHotkey_wasUp)
         LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P")
+
+      isQuickPositioning := false
       
       if (QuickPositionHotkey_wasUp && GetKeyState(this.Config.QuickPositionHotkey , "P")) {
+        isQuickPositioning := true
         this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
       } else {
 
@@ -243,26 +248,33 @@ class KDEMoverSizer extends AKPlugin {
         }
       }
 
-      if (this.Config.ShowWindowContent)
-        this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
+      if (this.Config.ShowWindowContent) {
+        if (isQuickPositioning)
+          this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
+        else
+          this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
+      }
       else
-        this.drawRectFrame_Show(xWinDst, yWinDst, wWinDst, hWinDst, FrameDrawWidth)
+        this._showOverlay(xWinDst, yWinDst, wWinDst, hWinDst)
 
-      this.ToolTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst/2, yWinDst + hWinDst/2, 100, toolTipId)
+      this._updateInfoTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst/2, yWinDst + hWinDst/2)
     }
 
     if (!this.Config.ShowWindowContent) {
-      this.drawRectFrame_Cancel()
+      this._destroyOverlay()
       if (EscButtonState = "U")
-        this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
+        if (isQuickPositioning)
+          this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
+        else
+          this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
     }
 
+    this._destroyInfoTip()
     this.disableEscapeHook()
     return
   }
 
   EnterWindowResizingMode() { ;;;
-    FrameDrawWidth := 1
     SnappingDistance := Number(this.Config.SnappingDistance)
     RestoreOnResize := 1
     Use9WindowAreasToResize := 0
@@ -292,7 +304,8 @@ class KDEMoverSizer extends AKPlugin {
     this.enableEscapeHook()
 
     if (!this.Config.ShowWindowContent)
-      this.drawRectFrame_Prepare()
+      this._createOverlay()
+    this._createInfoTip()
 
     if (this.Config.BringToFront)
       WinActivate("ahk_id " hwnd)
@@ -351,7 +364,7 @@ class KDEMoverSizer extends AKPlugin {
     }
 
     EscButtonState := "U"
-    toolTipId := this.ToolTip("...",,, 100)
+    isQuickPositioning := false
 
     Loop{
       MouseButtonState := GetKeyState(MouseButton, "P") ? "D" : "U"
@@ -393,7 +406,10 @@ class KDEMoverSizer extends AKPlugin {
       if (!LockAxisHotkey_wasUp)
         LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P")
 
+      isQuickPositioning := false
+
       if (QuickPositionHotkey_wasUp && GetKeyState(this.Config.QuickPositionHotkey, "P")) {
+        isQuickPositioning := true
         this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
       } else if (this.Config.EnableSnapping) {
         ; "normal" resizing
@@ -430,20 +446,27 @@ class KDEMoverSizer extends AKPlugin {
       }
 
       if (this.Config.ShowWindowContent) {
-        this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
+        if (isQuickPositioning)
+          this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
+        else
+          this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
       } else {
-        this.drawRectFrame_Show(xWinDst, yWinDst, wWinDst, hWinDst, FrameDrawWidth)
+        this._showOverlay(xWinDst, yWinDst, wWinDst, hWinDst)
       }
-      this.ToolTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst / 2, yWinDst + hWinDst / 2, 100, toolTipId)
+      this._updateInfoTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst / 2, yWinDst + hWinDst / 2)
       ; Sleep, 1
     }
 
     if (!this.Config.ShowWindowContent) {
-      this.drawRectFrame_Cancel()
+      this._destroyOverlay()
       if (EscButtonState = "U")
-        this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
+        if (isQuickPositioning)
+          this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
+        else
+          this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
     }
 
+    this._destroyInfoTip()
     this.disableEscapeHook()
     return
   }
@@ -485,6 +508,16 @@ class KDEMoverSizer extends AKPlugin {
     }
 
     WinMove(x, y, w, h, "ahk_id " hwnd)
+  }
+
+  _applyVisibleWindowRect(hwnd, x, y, w, h, leftInset, topInset, rightInset, bottomInset) {
+    this._applyWindowRect(
+      hwnd,
+      x - leftInset,
+      y - topInset,
+      w + leftInset + rightInset,
+      h + topInset + bottomInset
+    )
   }
 
   _getInvisibleBorderOffsets(hwnd, &leftInset, &topInset, &rightInset, &bottomInset) {
@@ -645,31 +678,124 @@ class KDEMoverSizer extends AKPlugin {
     }
   }
 
-  drawRectFrame_Prepare() {
-    this._frameGui := []  ; Clear any previous frames
-    Loop 4 {
-        frameGuiObj := Gui()
-        frameGuiObj.Opt("-Caption +ToolWindow +AlwaysOnTOp +OwnDialogs " this._drawGridGUIOptions)
-        frameGuiObj.BackColor := this._drawGridColor
-        this._frameGui.Push(frameGuiObj)
+  _createOverlay() {
+    this._destroyOverlay()
+    this._overlayGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
+    this._overlayGui.BackColor := this._overlayColor
+    this._overlayGui.Show("Hide NoActivate")
+    WinSetTransparent(this._overlayOpacity, "ahk_id " this._overlayGui.Hwnd)
+    ; Rounded corners on Win11+ (DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND)
+    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._overlayGui.Hwnd
+        , "UInt", 33, "Int*", 2, "UInt", 4)
+  }
+
+  _showOverlay(x, y, w, h) {
+    if (!IsObject(this._overlayGui))
+      this._createOverlay()
+    this._overlayGui.Show("x" Round(x) " y" Round(y) " w" Round(w) " h" Round(h) " NoActivate")
+  }
+
+  _destroyOverlay() {
+    if (IsObject(this._overlayGui)) {
+      try this._overlayGui.Destroy()
+      this._overlayGui := ""
     }
   }
 
-  drawRectFrame_Show(xWin, yWin, wWin, hWin, FrameWidth) {
-    this._frameGui[1].Show("x" xWin - 2 " y" yWin - 2 " w" FrameWidth + 1 " h" hWin " NoActivate")
-    this._frameGui[2].Show("x" xWin - 2 " y" yWin - 2 " w" wWin " h" FrameWidth + 1 " NoActivate")
-    this._frameGui[3].Show("x" xWin + wWin - 2 " y" yWin - 2 " w" FrameWidth + 1 " h" hWin " NoActivate")
-    this._frameGui[4].Show("x" xWin - 2 " y" yWin + hWin - 2 " w" wWin " h" FrameWidth + 1 " NoActivate")
+  _createInfoTip() {
+    this._destroyInfoTip()
+    this._infoTipGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
+    this._infoTipGui.BackColor := "1A1A2E"
+    this._infoTipGui.MarginX := 12
+    this._infoTipGui.MarginY := 8
+    this._infoTipGui.SetFont("s10 cE0E0E0", "Segoe UI")
+    this._infoTipTextCtrl := this._infoTipGui.Add("Text", "vInfoText w160 R2 Center", "`n")
+    this._infoTipGui.Show("AutoSize Hide NoActivate")
+    WinSetTransparent(220, "ahk_id " this._infoTipGui.Hwnd)
+    ; Rounded corners on Win11+
+    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._infoTipGui.Hwnd
+        , "UInt", 33, "Int*", 2, "UInt", 4)
+    this._lastInfoTipText := ""
+    this._infoTipVisible := false
   }
 
-  drawRectFrame_Cancel() {
-    Loop 4
-      this._frameGui[A_Index].Destroy()
-    ;DllCall("RedrawWindow", "Uint", curwin_id , "Uint", 0, "Uint", 0, "Uint", 0x81)    ; Workaround for WinSet, Redraw,, ahk_id %curwin_id% (didn't work for Gimp)
+  _updateInfoTip(text, centerX, centerY) {
+    if (!IsObject(this._infoTipGui) || !IsObject(this._infoTipTextCtrl))
+      this._createInfoTip()
+
+    infoTipGui := this._infoTipGui
+    infoTipTextCtrl := this._infoTipTextCtrl
+    if (!IsObject(infoTipGui) || !IsObject(infoTipTextCtrl) || !infoTipGui.Hwnd) {
+      this._createInfoTip()
+      infoTipGui := this._infoTipGui
+      infoTipTextCtrl := this._infoTipTextCtrl
+    }
+
+    if (!IsObject(infoTipGui) || !IsObject(infoTipTextCtrl) || !infoTipGui.Hwnd)
+      return
+
+    if (this._lastInfoTipText != text) {
+      try infoTipTextCtrl.Text := text
+      catch {
+        this._createInfoTip()
+        infoTipGui := this._infoTipGui
+        infoTipTextCtrl := this._infoTipTextCtrl
+        if (!IsObject(infoTipGui) || !IsObject(infoTipTextCtrl))
+          return
+        infoTipTextCtrl.Text := text
+      }
+      this._lastInfoTipText := text
+    }
+    try infoTipGui.GetPos(,, &tipW, &tipH)
+    catch {
+      this._createInfoTip()
+      infoTipGui := this._infoTipGui
+      infoTipTextCtrl := this._infoTipTextCtrl
+      if (!IsObject(infoTipGui) || !IsObject(infoTipTextCtrl) || !infoTipGui.Hwnd)
+        return
+      tipW := 180
+      tipH := 50
+    }
+    if (!tipW)
+      tipW := 180
+    if (!tipH)
+      tipH := 50
+    newX := Round(centerX - tipW / 2)
+    newY := Round(centerY - tipH / 2)
+    if (!this._infoTipVisible) {
+      try infoTipGui.Show("x" newX " y" newY " NoActivate")
+      catch {
+        this._createInfoTip()
+        infoTipGui := this._infoTipGui
+        infoTipTextCtrl := this._infoTipTextCtrl
+        if (!IsObject(infoTipGui) || !IsObject(infoTipTextCtrl) || !infoTipGui.Hwnd)
+          return
+        infoTipTextCtrl.Text := text
+        infoTipGui.Show("x" newX " y" newY " NoActivate")
+      }
+      this._infoTipVisible := true
+    } else {
+      try DllCall("SetWindowPos", "Ptr", infoTipGui.Hwnd, "Ptr", 0
+          , "Int", newX, "Int", newY, "Int", 0, "Int", 0
+          , "UInt", WindowFlags.SWP_NOSIZE | WindowFlags.SWP_NOZORDER | WindowFlags.SWP_NOACTIVATE)
+      catch {
+        this._infoTipVisible := false
+      }
+    }
+  }
+
+  _destroyInfoTip() {
+    if (IsObject(this._infoTipGui)) {
+      try this._infoTipGui.Destroy()
+    }
+    this._infoTipGui := ""
+    this._infoTipTextCtrl := ""
+    this._lastInfoTipText := ""
+    this._infoTipVisible := false
   }
 
   initEscapeHook() {
-    doNothingFn := this.doNothing.bind(this)
+    doNothingFn := this.doNothing
     Hotkey("!Escape", doNothingFn)
     Hotkey("Escape", doNothingFn)
   }
@@ -683,15 +809,28 @@ class KDEMoverSizer extends AKPlugin {
     Hotkey("Escape", "Off")
   }
 
-  doNothing() {
+  doNothing(*) {
     return
   }
 }
 
 class WindowFlags {
   ; SetWindowPos flags (SWP_*)
-  static SWP_NOZORDER := 0x4
-  static SWP_NOACTIVATE := 0x10
+  static SWP_ASYNCWINDOWPOS := 0x4000 ; If the calling thread and the thread that owns the window are attached to different input queues, the system posts the request to the thread that owns the window. This prevents the calling thread from blocking its execution while other threads process the request.
+  static SWP_DEFERERASE := 0x2000 ; Prevents generation of the WM_SYNCPAINT message.
+  static SWP_DRAWFRAME := 0x0020 ; Draws a frame (defined in the window's class description) around the window.
+  static SWP_FRAMECHANGED := 0x0020 ; Applies new frame styles set using the SetWindowLong function. Sends a WM_NCCALCSIZE message to the window, even if the window's size is not being changed. If this flag is not specified, WM_NCCALCSIZE is sent only when the window's size is being changed.
+  static SWP_HIDEWINDOW := 0x0080 ; Hides the window.
+  static SWP_NOACTIVATE := 0x0010 ; Does not activate the window. If this flag is not set, the window is activated and moved to the top of either the topmost or non-topmost group (depending on the setting of the hWndInsertAfter parameter).
+  static SWP_NOCOPYBITS := 0x0100 ; Discards the entire contents of the client area. If this flag is not specified, the valid contents of the client area are saved and copied back into the client area after the window is sized or repositioned.
+  static SWP_NOMOVE := 0x0002 ; Retains the current position (ignores X and Y parameters).
+  static SWP_NOOWNERZORDER := 0x0200 ; Does not change the owner window's position in the Z order.
+  static SWP_NOREDRAW := 0x0008 ; Does not redraw changes. If this flag is set, no repainting of any kind occurs. This applies to the client area, the nonclient area (including the title bar and scroll bars), and any part of the parent window uncovered as a result of the window being moved. When this flag is set, the application must explicitly invalidate or redraw any parts of the window and parent window that need redrawing.
+  static SWP_NOREPOSITION := 0x0200 ; Same as the SWP_NOOWNERZORDER flag.
+  static SWP_NOSENDCHANGING := 0x0400 ; Prevents the window from receiving the WM_WINDOWPOSCHANGING message.
+  static SWP_NOSIZE := 0x0001 ; Retains the current size (ignores the cx and cy parameters).
+  static SWP_NOZORDER := 0x0004 ; Retains the current Z order (ignores the hWndInsertAfter parameter).
+  static SWP_SHOWWINDOW := 0x0040 ; Displays the window. 
 
   ; Extended Window Styles (WS_EX_*)
   static WS_EX_TOOLWINDOW := 0x80
