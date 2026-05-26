@@ -193,15 +193,15 @@ class AKApp extends AKBase {
       "page", Map(
         "id", "general",
         "title", "General",
-        "description", "Core application settings.",
+        "description", "Core application settings",
         "icon", "icons10-settings",
         "navOrder", 0,
         "enableDynamicRender", true
       ),
       "fields", [
-        Map("key", "WelcomeMessage", "label", "Welcome Message", "description", "Message shown on app startup.", "type", "string", "control", "text", "default", "Haribol!", "section", "General"),
+        Map("key", "WelcomeMessage", "label", "Welcome Message", "description", "Message shown on app startup", "type", "string", "control", "text", "default", "Haribol!", "section", "General"),
         Map("key", "DarkTheme", "label", "Theme", "description", "", "type", "integer", "control", "select", "default", -1, "section", "General", "options", [Map("value", -1, "label", "Auto (follow system)"), Map("value", 0, "label", "Light"), Map("value", 1, "label", "Dark")]),
-        Map("key", "UIScalingPercent", "label", "UI Scale", "description", "Scale the settings UI display.", "type", "integer", "control", "select", "default", 100, "section", "General", "options", [
+        Map("key", "UIScalingPercent", "label", "UI Scale", "description", "Scale the settings UI display", "type", "integer", "control", "select", "default", 100, "section", "General", "options", [
           Map("value", 75, "label", "75%"),
           Map("value", 80, "label", "80%"),
           Map("value", 85, "label", "85%"),
@@ -212,7 +212,7 @@ class AKApp extends AKBase {
           Map("value", 125, "label", "125%"),
           Map("value", 150, "label", "150%"),
         ]),
-        Map("key", "DebugLevel", "label", "Debug Level", "description", "0 = Error .. 5 = Trace.", "type", "integer", "control", "select", "default", A_IsCompiled ? 0 : 5, "section", "General", "options", [
+        Map("key", "DebugLevel", "label", "Debug Level", "description", "0 = Error .. 5 = Trace", "type", "integer", "control", "select", "default", A_IsCompiled ? 0 : 5, "section", "General", "options", [
           Map("value", 0, "label", "0 - Error"),
           Map("value", 1, "label", "1 - Warning"),
           Map("value", 2, "label", "2 - Notice"),
@@ -220,14 +220,14 @@ class AKApp extends AKBase {
           Map("value", 4, "label", "4 - Debug"),
           Map("value", 5, "label", "5 - Trace")
         ]),
-        Map("key", "ToolTipTimeoutMs", "label", "Tooltip Timeout (ms)", "description", "Timeout for tooltip auto-hide.", "type", "integer", "control", "range", "default", 1000, "section", "General", "validation", Map("min", 100, "max", 10000)),
-        Map("key", "WindowTransparencyValue", "label", "Window Transparency", "description", "Transparency for on-top overlays.", "type", "integer", "control", "range", "default", 128, "section", "General", "validation", Map("min", 1, "max", 255)),
-        Map("key", "WindowOnTopBorderColor", "label", "On-Top Border Color", "description", "Border color for always-on-top window highlight.", "type", "color", "control", "color", "default", "0xAACCFF", "section", "General"),
-        Map("key", "StartupSound", "label", "Startup Sound", "description", "Sound file played when app starts.", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
-        Map("key", "NotificationSound", "label", "Notification Sound", "description", "Sound file used for notifications.", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
-        Map("key", "ReloadAppHotkey", "label", "Reload App", "description", "Global hotkey to reload the app.", "type", "hotkey", "control", "hotkey", "default", "^#!Backspace", "section", "App Hotkeys"),
-        Map("key", "SuspendAppHotkey", "label", "Suspend App", "description", "Global hotkey to suspend the app.", "type", "hotkey", "control", "hotkey", "default", "^#!Esc", "section", "App Hotkeys"),
-        Map("key", "SwapMouseXButtons", "label", "Swap Mouse XButtons", "description", "Swap XButton1 and XButton2 behavior.", "type", "boolean", "control", "switch", "default", 0, "section", "Misc")
+        Map("key", "ToolTipTimeoutMs", "label", "Tooltip Timeout (ms)", "description", "Timeout for tooltip auto-hide", "type", "integer", "control", "range", "default", 1000, "section", "General", "validation", Map("min", 100, "max", 10000)),
+        Map("key", "WindowTransparencyValue", "label", "Window Transparency", "description", "Transparency for on-top overlays", "type", "integer", "control", "range", "default", 128, "section", "General", "validation", Map("min", 1, "max", 255)),
+        Map("key", "WindowOnTopBorderColor", "label", "On-Top Border Color", "description", "Border color for always-on-top window highlight", "type", "color", "control", "color", "default", "0xAACCFF", "section", "General"),
+        Map("key", "StartupSound", "label", "Startup Sound", "description", "Sound file played when app starts", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
+        Map("key", "NotificationSound", "label", "Notification Sound", "description", "Sound file used for notifications", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
+        Map("key", "ReloadAppHotkey", "label", "Reload App", "description", "Global hotkey to reload the app", "type", "hotkey", "control", "hotkey", "default", "^#!Backspace", "section", "App Hotkeys"),
+        Map("key", "SuspendAppHotkey", "label", "Suspend App", "description", "Global hotkey to suspend the app", "type", "hotkey", "control", "hotkey", "default", "^#!Esc", "section", "App Hotkeys"),
+        Map("key", "SwapMouseXButtons", "label", "Swap Mouse XButtons", "description", "Swap XButton1 and XButton2 behavior", "type", "boolean", "control", "switch", "default", 0, "section", "Misc")
       ]
     )
   }
@@ -588,7 +588,7 @@ class AKApp extends AKBase {
         }
       }
       this._generateDynamicPlugins(requiredPlugins)
-      this.ShowNotice("Plugin enable or disable changes were saved and will apply on next reload.", "Settings")
+      this.ShowNotice("Plugin enable or disable changes were saved and will apply on next reload", "Settings")
       return
     }
 
@@ -1083,11 +1083,11 @@ class AKApp extends AKBase {
         this._rebindControlHotkeys()
       }
 
-      this.outputDebugLine(AKApp.LOG_DEBUG, "Setting saved: GENERAL." keyText " = " coercedValue, Map("source", "core", "settingRef", Map("page", "general", "key", keyText)))
+      this.outputDebugLine(AKApp.LOG_DEBUG, "Setting saved: GENERAL" keyText " = " coercedValue, Map("source", "core", "settingRef", Map("page", "general", "key", keyText)))
 
       return this._jsonAtomicResult(true)
     } catch as err {
-      this.outputDebugLine(AKApp.LOG_WARNING, "Failed saving GENERAL." keyText ": " err.Message, Map("source", "core", "settingRef", Map("page", "general", "key", keyText)))
+      this.outputDebugLine(AKApp.LOG_WARNING, "Failed saving GENERAL" keyText ": " err.Message, Map("source", "core", "settingRef", Map("page", "general", "key", keyText)))
       return this._jsonAtomicResult(false, err.Message)
     }
   }
@@ -1269,7 +1269,7 @@ class AKApp extends AKBase {
     }
 
     if (hk && this._isDangerousMouseOnlyHotkey(hk) && !allowDangerous) {
-      problems.Push("Risky hotkey blocked: " hk ". Enable 'Allow risky hotkeys' in Manual mode to save it.")
+      problems.Push("Risky hotkey blocked: " hk ". Enable 'Allow risky hotkeys' in Manual mode to save it")
     }
 
     return problems
@@ -1743,7 +1743,7 @@ class AKApp extends AKBase {
       collisionKey := actionString "::" existingOwner "::" className
       if (!this._warnedActionCollisions.Has(collisionKey)) {
         this._warnedActionCollisions[collisionKey] := true
-        this.outputDebugLine("Action collision: '" actionString "' from plugin '" className "' conflicts with plugin '" existingOwner "'. Keeping existing registration.", 1, Map("source", className, "settingRef", Map("page", "plugins")))
+        this.outputDebugLine("Action collision: '" actionString "' from plugin '" className "' conflicts with plugin '" existingOwner "'. Keeping existing registration", 1, Map("source", className, "settingRef", Map("page", "plugins")))
       }
       return false
     }
@@ -1792,7 +1792,7 @@ class AKApp extends AKBase {
       newName := this.ActionDeprecationMap[actionName]
       if (!this._warnedDeprecatedActions.Has(actionName)) {
         this._warnedDeprecatedActions[actionName] := true
-        this.outputDebugLine(AKApp.LOG_WARNING, "Deprecated action alias used: '" actionName "' -> '" newName "'. Update config to the new action name.")
+        this.outputDebugLine(AKApp.LOG_WARNING, "Deprecated action alias used: '" actionName "' -> '" newName "'. Update config to the new action name")
       }
       return newName
     }
@@ -1808,7 +1808,7 @@ class AKApp extends AKBase {
       return
 
     this._warnedActionNaming[warningKey] := true
-    this.outputDebugLine(AKApp.LOG_WARNING, "Non-conventional action name '" actionName "' in plugin '" className "'. Use VerbNoun / VerbNounQualifier (PascalCase).")
+    this.outputDebugLine(AKApp.LOG_WARNING, "Non-conventional action name '" actionName "' in plugin '" className "'. Use VerbNoun / VerbNounQualifier (PascalCase)")
   }
 
   _actionExists(actionName) {

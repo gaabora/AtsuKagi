@@ -7,11 +7,11 @@ class TextToSpeech extends AKPlugin { ; TODO: not yet implemented
       "plugin", Map(
         "id", "TextToSpeech",
         "title", "Text-to-Speech",
-        "description", "Convert text to speech using Windows SAPI (Speech API) service. Experimental implementation.",
+        "description", "Convert text to speech using Windows SAPI (Speech API) service. Experimental implementation",
         "category", "Accessibility"
       ),
       "page", Map(
-        "description", "Configure text-to-speech service and voice settings.",
+        "description", "Configure text-to-speech service and voice settings",
         "icon", "icons10-messages"
       ),
       "config", [],

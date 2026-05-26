@@ -7,11 +7,11 @@ class TimerHandlers extends AKPlugin { ; TODO: not yet fully implemented, needs 
       "plugin", Map(
         "id", "TimerHandlers",
         "title", "Timer Handlers",
-        "description", "Cron-like scheduled tasks and system event handling based on time and idle state triggers.",
+        "description", "Cron-like scheduled tasks and system event handling based on time and idle state triggers",
         "category", "System Events"
       ),
       "page", Map(
-        "description", "Configure scheduled tasks and system monitoring triggers.",
+        "description", "Configure scheduled tasks and system monitoring triggers",
         "icon", "icons10-clock"
       ),
       "config", [],

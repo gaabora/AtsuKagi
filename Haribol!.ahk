@@ -34,11 +34,11 @@ APP.BindAllHotkeys()
 launchSuspendRequested := GetKeyState("Ctrl", "P")
 
 if (launchSuspendRequested) {
-  APP.ToolTip("Safe launch mode: Ctrl was held, hotkeys are suspended. Open Settings to fix mappings.", 20, 20, 6000)
+  APP.ToolTip("Safe launch mode: Ctrl was held, hotkeys are suspended. Open Settings to fix mappings", 20, 20, 6000)
   if (!A_IsSuspended)
     APP.ToggleAppSuspend()
 } else {
-  APP.ToolTip("Tip: Hold Ctrl while launching to start with hotkeys suspended.", 20, 20, 4000)
+  APP.ToolTip("Tip: Hold Ctrl while launching to start with hotkeys suspended", 20, 20, 4000)
 }
 
 

@@ -90,18 +90,18 @@ class TouchGesturesSimulator extends AKPlugin {
       "plugin", Map(
         "id", "TouchGesturesSimulator",
         "title", "Touch Gestures Simulator",
-        "description", "Simulate touchpad input with mouse. Make touchpad gestures using mouse movement and buttons.",
+        "description", "Simulate touchpad input with mouse. Make touchpad gestures using mouse movement and buttons",
         "category", "Input Management"
       ),
       "page", Map(
-        "description", "Configure touch input injection and gesture parameters.",
+        "description", "Configure touch input injection and gesture parameters",
         "icon", "icons10-touch"
       ),
       "config", [
         Map(
           "key", "TouchRadiusInPixels",
           "label", "Touch radius in pixels",
-          "description", "Radius of each simulated touch point.",
+          "description", "Radius of each simulated touch point",
           "type", "integer",
           "default", 5,
           "section", "Touch Input"
@@ -109,7 +109,7 @@ class TouchGesturesSimulator extends AKPlugin {
         Map(
           "key", "MaxTouchPoints",
           "label", "Max touch points",
-          "description", "Maximum number of simultaneous touch points.",
+          "description", "Maximum number of simultaneous touch points",
           "type", "integer",
           "default", 10,
           "section", "Touch Input"
@@ -119,14 +119,14 @@ class TouchGesturesSimulator extends AKPlugin {
         Map(
           "action", "EnterGestureMode",
           "label", "Enter gesture mode",
-          "description", "Simulate multitouch input with mouse. Drag to simulate touch points.",
+          "description", "Simulate multitouch input with mouse. Drag to simulate touch points",
           "params", ["fingers", "movingThreshold", "runIfNoMove"],
           "category", "Touch Gestures"
         ),
         Map(
           "action", "SetPrecisionTouchpadRegistryConfig",
           "label", "Set precision touchpad config",
-          "description", "Configure Windows precision touchpad settings (ThreeFingerSlideEnabled, ThreeFingerTapEnabled, FourFingerSlideEnabled, FourFingerTapEnabled).",
+          "description", "Configure Windows precision touchpad settings (ThreeFingerSlideEnabled, ThreeFingerTapEnabled, FourFingerSlideEnabled, FourFingerTapEnabled)",
           "params", ["key", "value"],
           "category", "Touch Configuration"
         )

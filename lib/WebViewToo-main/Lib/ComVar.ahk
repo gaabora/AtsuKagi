@@ -67,7 +67,7 @@ class ComVar extends Buffer {
 		get => NumGet(this, "ushort")
 		set {
 			if (!this.IsVariant)
-				throw PropertyError("VarType is not VT_VARIANT, Type is read-only.", -2)
+				throw PropertyError("VarType is not VT_VARIANT, Type is read-only", -2)
 			NumPut("ushort", Value, this)
 		}
 	}

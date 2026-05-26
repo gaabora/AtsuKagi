@@ -17,135 +17,120 @@ class WinDrag extends AKPlugin {
       "plugin", Map(
         "id", "WinDrag",
         "title", "WinDrag",
-        "description", "Enhanced window moving/resizing with drag from any place on window instead of titlebar/borders.",
+        "description", "Enhanced window moving/resizing with drag from any place on window instead of titlebar/borders",
         "category", "Window Management"
       ),
       "page", Map(
-        "description", "Configure drag-anywhere movement, resizing, snapping, and preview behavior.",
+        "description", "Configure drag-anywhere movement, resizing, snapping, and preview behavior",
         "icon", "icons10-resize-four-directions"
       ),
       "config", [
         Map(
           "key", "LockAxisHotkey",
           "label", "Lock axis hotkey",
-          "description", "Hold during move or resize to lock the dominant axis.",
+          "description", "Hold during move or resize to lock the dominant axis",
           "type", "hotkey",
           "default", "Shift",
           "section", "Movement",
-          "scope", "plugin"
         ),
         Map(
           "key", "QuickPositionHotkey",
           "label", "Quick position hotkey",
-          "description", "Hold to snap the window into quick-position regions.",
+          "description", "Hold to snap the window into quick-position regions",
           "type", "hotkey",
           "default", "LWin",
           "section", "Movement",
-          "scope", "plugin"
         ),
         Map(
           "key", "EnableSnapping",
           "label", "Enable snapping",
-          "description", "Snap dragged or resized windows to monitor edges.",
+          "description", "Snap dragged or resized windows to monitor edges",
           "type", "boolean",
           "default", true,
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnappingDistance",
           "label", "Magnetic snap distance (px)",
-          "description", "Pixel distance threshold for magnetic edge snapping during drag.",
-          "type", "number",
-          "default", 10,
+          "description", "Pixel distance threshold for magnetic edge snapping during drag",
           "section", "Snapping",
           "scope", "plugin"
         ),
         Map(
           "key", "CompensateInvisibleBorders",
           "label", "Compensate invisible DWM borders",
-          "description", "Use visible window bounds so edge snapping lands flush on screen edges.",
+          "description", "Use visible window bounds so edge snapping lands flush on screen edges",
           "type", "boolean",
           "default", true,
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnapOnRelease",
           "label", "Edge snap on release",
-          "description", "Show edge snap targets while dragging and apply them when mouse is released.",
+          "description", "Show edge snap targets while dragging and apply them when mouse is released",
           "type", "boolean",
           "default", true,
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnapThreshold",
           "label", "Edge snap threshold (px)",
-          "description", "How close cursor must be to a screen edge to trigger edge snap preview.",
-          "type", "number",
-          "default", 50,
+          "description", "How close cursor must be to a screen edge to trigger edge snap preview",
           "section", "Snapping",
           "scope", "plugin"
         ),
         Map(
           "key", "SnapHalfScreen",
           "label", "Snap to left/right half",
-          "description", "Enable half-screen edge snap targets.",
+          "description", "Enable half-screen edge snap targets",
           "type", "boolean",
           "default", true,
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnapMaximizeOnTop",
           "label", "Maximize on top edge snap",
-          "description", "Enable maximize target at the top screen edge.",
+          "description", "Enable maximize target at the top screen edge",
           "type", "boolean",
           "default", true,
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnapMinimizeOnBottom",
           "label", "Minimize on bottom edge snap",
-          "description", "Enable minimize target at the bottom screen edge.",
+          "description", "Enable minimize target at the bottom screen edge",
           "type", "boolean",
           "default", false,
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnapLeftRightTiles",
           "label", "Enable left/right tile snap",
-          "description", "Reserved for expanded edge tile layouts.",
+          "description", "Reserved for expanded edge tile layouts",
           "type", "boolean",
           "default", false,
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnapQuarterCorners",
           "label", "Snap quarter corners",
-          "description", "Enable quarter-screen snap targets in all four corners.",
+          "description", "Enable quarter-screen snap targets in all four corners",
           "type", "boolean",
           "default", true,
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnapToWindows",
           "label", "Snap to other windows",
-          "description", "Magnetically snap to edges of other visible windows during move and resize.",
+          "description", "Magnetically snap to edges of other visible windows during move and resize",
           "type", "boolean",
           "default", true,
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnapToWindowsDistance",
           "label", "Window snap distance (px)",
-          "description", "Pixel threshold for snapping to other window edges. Larger values = stronger pull.",
+          "description", "Pixel threshold for snapping to other window edges. Larger values = stronger pull",
           "type", "number",
           "default", 20,
           "section", "Snapping",
@@ -154,7 +139,7 @@ class WinDrag extends AKPlugin {
         Map(
           "key", "ResizeAxisThreshold",
           "label", "Resize axis resistance (px)",
-          "description", "Secondary axis is suppressed during resize until mouse moves this many pixels. Doubled when the edge is docked to a screen or window edge.",
+          "description", "Secondary axis is suppressed during resize until mouse moves this many pixels. Doubled when the edge is docked to a screen or window edge",
           "type", "number",
           "default", 30,
           "section", "Behavior",
@@ -163,43 +148,39 @@ class WinDrag extends AKPlugin {
         Map(
           "key", "ShowWindowContentOnMove",
           "label", "Show window content while moving",
-          "description", "When disabled, show only a frame preview instead of moving the live window.",
+          "description", "When disabled, show only a frame preview instead of moving the live window",
           "type", "boolean",
           "default", true,
           "section", "Visuals",
-          "scope", "plugin"
         ),
         Map(
           "key", "ShowWindowContentOnResize",
           "label", "Show window content while resizing",
-          "description", "When disabled, show only a frame preview instead of resizing the live window.",
+          "description", "When disabled, show only a frame preview instead of resizing the live window",
           "type", "boolean",
           "default", true,
           "section", "Visuals",
-          "scope", "plugin"
         ),
         Map(
           "key", "ShowWindowContentOnQuickPosition",
           "label", "Show window content on quick position",
-          "description", "When disabled, show only a frame preview when using quick position snap.",
+          "description", "When disabled, show only a frame preview when using quick position snap",
           "type", "boolean",
           "default", true,
           "section", "Visuals",
-          "scope", "plugin"
         ),
         Map(
           "key", "UseSetWindowPos",
           "label", "Use SetWindowPos for dragging",
-          "description", "Use the native SetWindowPos API during live move and resize updates.",
+          "description", "Use the native SetWindowPos API during live move and resize updates",
           "type", "boolean",
           "default", true,
           "section", "Performance",
-          "scope", "plugin"
         ),
         Map(
           "key", "BringToFront",
           "label", "Bring window to front",
-          "description", "Activate the target window when move or resize mode begins.",
+          "description", "Activate the target window when move or resize mode begins",
           "type", "boolean",
           "default", false,
           "section", "Behavior",
@@ -210,7 +191,7 @@ class WinDrag extends AKPlugin {
         Map(
           "action", "EnterWindowMovingMode",
           "label", "Move window",
-          "description", "Move a window by dragging from anywhere on it.",
+          "description", "Move a window by dragging from anywhere on it",
           "params", [],
           "category", "Window Movement",
           "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
@@ -218,7 +199,7 @@ class WinDrag extends AKPlugin {
         Map(
           "action", "EnterWindowResizingMode",
           "label", "Resize window",
-          "description", "Resize a window by dragging from anywhere on it.",
+          "description", "Resize a window by dragging from anywhere on it",
           "params", [],
           "category", "Window Movement",
           "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "ResizeAxisThreshold", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]

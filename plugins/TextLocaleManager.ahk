@@ -16,11 +16,11 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
       "plugin", Map(
         "id", "TextLocaleManager",
         "title", "Text Locale Manager",
-        "description", "Manage multiple keyboard layouts: detect current layout, switch layouts, fix mistyped text between layouts.",
+        "description", "Manage multiple keyboard layouts: detect current layout, switch layouts, fix mistyped text between layouts",
         "category", "Input Management"
       ),
       "page", Map(
-        "description", "Configure keyboard layout switching and text conversion.",
+        "description", "Configure keyboard layout switching and text conversion",
         "icon", "icons10-translation"
       ),
       "config", [],
@@ -28,49 +28,49 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
         Map(
           "action", "ShowCurrentKeyboardLayout",
           "label", "Show current keyboard layout",
-          "description", "Display the name of the currently active keyboard layout.",
+          "description", "Display the name of the currently active keyboard layout",
           "params", [],
           "category", "Layout Management"
         ),
         Map(
           "action", "ShowUsersKeyboardLayouts",
           "label", "Show user's keyboard layouts",
-          "description", "Display all keyboard layouts installed for the current user.",
+          "description", "Display all keyboard layouts installed for the current user",
           "params", [],
           "category", "Layout Management"
         ),
         Map(
           "action", "GetCurrentKeyboardLayoutName",
           "label", "Get current keyboard layout name",
-          "description", "Return the name of the currently active keyboard layout.",
+          "description", "Return the name of the currently active keyboard layout",
           "params", [],
           "category", "Layout Management"
         ),
         Map(
           "action", "SwitchKeyboardLayout",
           "label", "Switch keyboard layout",
-          "description", "Switch to a specified keyboard layout by name or ID.",
+          "description", "Switch to a specified keyboard layout by name or ID",
           "params", ["layoutNameOrId"],
           "category", "Layout Management"
         ),
         Map(
           "action", "SwapTextLayout",
           "label", "Swap text layout",
-          "description", "Convert text from one keyboard layout to another (e.g., EN to RU).",
+          "description", "Convert text from one keyboard layout to another (e.g., EN to RU)",
           "params", ["incorrectText", "layoutA", "layoutB"],
           "category", "Text Conversion"
         ),
         Map(
           "action", "SwitchSelectedTextLayout",
           "label", "Switch selected text layout",
-          "description", "Fix mistyped selected text by converting between two keyboard layouts.",
+          "description", "Fix mistyped selected text by converting between two keyboard layouts",
           "params", ["layoutA", "layoutB"],
           "category", "Text Conversion"
         ),
         Map(
           "action", "SwitchSelectedTextCase",
           "label", "Switch selected text case",
-          "description", "Change case of selected text (uppercase, lowercase, title case, etc.).",
+          "description", "Change case of selected text (uppercase, lowercase, title case, etc.)",
           "params", [],
           "category", "Text Conversion"
         )

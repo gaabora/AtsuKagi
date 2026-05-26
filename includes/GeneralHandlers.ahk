@@ -1,11 +1,11 @@
 class GeneralHandlers extends AKPlugin {
 
   __ConfigHelp() { ; TODO: obsolete, rewrite to __DescribePlugin() 
-    return "No config keys. Built-in general-purpose actions available in all plugins."
+    return "No config keys. Built-in general-purpose actions available in all plugins"
   }
 
   __UsageHelp() { ; TODO: obsolete, rewrite to __DescribePlugin() 
-    return "Core action utilities: conditional execution, blocklist checking, key remapping, info popups. Used as building blocks for other plugin actions."
+    return "Core action utilities: conditional execution, blocklist checking, key remapping, info popups. Used as building blocks for other plugin actions"
   }
 
   __ActionsHelp() { ; TODO: obsolete, rewrite to __DescribePlugin() 

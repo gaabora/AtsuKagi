@@ -59,11 +59,11 @@ class RDPWindowHandler extends AKPlugin { ; FIXME: UNTESTED
       "plugin", Map(
         "id", "RDPWindowHandler",
         "title", "RDP Window Handler",
-        "description", "Manage RDP client windows: minimize, restore, loop through sessions, switch to next connection. Handles keyboard hook conflicts.",
+        "description", "Manage RDP client windows: minimize, restore, loop through sessions, switch to next connection. Handles keyboard hook conflicts",
         "category", "Window Management"
       ),
       "page", Map(
-        "description", "Configure RDP window management actions.",
+        "description", "Configure RDP window management actions",
         "icon", "icons10-monitor"
       ),
       "config", [],
@@ -71,35 +71,35 @@ class RDPWindowHandler extends AKPlugin { ; FIXME: UNTESTED
         Map(
           "action", "IsRDPClientWindowActive",
           "label", "Check RDP window active",
-          "description", "Check if an RDP client window is currently active.",
+          "description", "Check if an RDP client window is currently active",
           "params", [],
           "category", "RDP Sessions"
         ),
         Map(
           "action", "MinimizeRestoreRDPClientWindows",
           "label", "Minimize/restore RDP windows",
-          "description", "Toggle minimize/restore state of RDP client windows.",
+          "description", "Toggle minimize/restore state of RDP client windows",
           "params", [],
           "category", "RDP Sessions"
         ),
         Map(
           "action", "RestoreFullscreenRDPClientWindow",
           "label", "Restore fullscreen RDP window",
-          "description", "Restore a fullscreen RDP client window to windowed mode.",
+          "description", "Restore a fullscreen RDP client window to windowed mode",
           "params", [],
           "category", "RDP Sessions"
         ),
         Map(
           "action", "LoopRDPClientWindows",
           "label", "Loop through RDP windows",
-          "description", "Cycle through open RDP client windows.",
+          "description", "Cycle through open RDP client windows",
           "params", [],
           "category", "RDP Sessions"
         ),
         Map(
           "action", "SwitchToNextRDPClientWindow",
           "label", "Switch to next RDP window",
-          "description", "Switch to the next RDP client window or connection.",
+          "description", "Switch to the next RDP client window or connection",
           "params", [],
           "category", "RDP Sessions"
         )
