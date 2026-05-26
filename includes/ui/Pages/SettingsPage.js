@@ -387,12 +387,126 @@ class SettingsPage {
 
 
   _bindSliderRefresh() {
+    if (this._sliderRefreshBound) return;
+    this._sliderRefreshBound = true;
+
+    const clampRangeValue = (rangeEl, rawValue, commit = false) => {
+      if (!(rangeEl instanceof HTMLInputElement) || rangeEl.type !== 'range') return null;
+
+      let value = Number(rawValue);
+      if (!Number.isFinite(value)) {
+        value = Number(rangeEl.value);
+      }
+      if (!Number.isFinite(value)) return null;
+
+      const min = Number(rangeEl.min);
+      const max = Number(rangeEl.max);
+      const step = Number(rangeEl.step);
+
+      if (Number.isFinite(min)) value = Math.max(value, min);
+      if (Number.isFinite(max)) value = Math.min(value, max);
+
+      if (commit && Number.isFinite(step) && step > 0) {
+        const base = Number.isFinite(min) ? min : 0;
+        const steps = Math.round((value - base) / step);
+        value = base + steps * step;
+        if (Number.isFinite(min)) value = Math.max(value, min);
+        if (Number.isFinite(max)) value = Math.min(value, max);
+      }
+
+      return value;
+    };
+
+    const formatValue = (value, stepText) => {
+      const step = Number(stepText);
+      if (!Number.isFinite(value)) return '';
+      if (!Number.isFinite(step) || step <= 0 || Number.isInteger(step)) {
+        return `${Math.round(value)}`;
+      }
+
+      const stepStr = `${step}`;
+      const dot = stepStr.indexOf('.');
+      const precision = dot >= 0 ? (stepStr.length - dot - 1) : 0;
+      return value.toFixed(Math.min(Math.max(precision, 0), 6));
+    };
+
+    const syncFromRange = (rangeEl) => {
+      if (!(rangeEl instanceof HTMLInputElement) || rangeEl.type !== 'range') return;
+
+      const numberId = `${rangeEl.getAttribute('data-range-number-id') || ''}`;
+      const numberEl = numberId ? document.getElementById(numberId) : null;
+
+      const value = clampRangeValue(rangeEl, rangeEl.value, false);
+      if (!Number.isFinite(value)) return;
+
+      const normalized = formatValue(value, rangeEl.step);
+      if (numberEl instanceof HTMLInputElement) {
+        numberEl.value = normalized;
+      }
+
+      if (rangeEl.id === 'WindowTransparencyValue') {
+        this.form._updateTransparencyUI();
+      }
+    };
+
+    document.addEventListener('input', (ev) => {
+      const target = ev.target;
+
+      if (target instanceof HTMLInputElement && target.type === 'range' && target.hasAttribute('data-range-number-id')) {
+        syncFromRange(target);
+        return;
+      }
+
+      if (!(target instanceof HTMLInputElement) || target.type !== 'number') return;
+      if (!target.hasAttribute('data-range-source-id')) return;
+
+      const rangeId = `${target.getAttribute('data-range-source-id') || ''}`;
+      const rangeEl = rangeId ? document.getElementById(rangeId) : null;
+      if (!(rangeEl instanceof HTMLInputElement) || rangeEl.type !== 'range') return;
+
+      const value = clampRangeValue(rangeEl, target.value, false);
+      if (!Number.isFinite(value)) return;
+
+      const normalized = formatValue(value, rangeEl.step);
+      rangeEl.value = normalized;
+      syncFromRange(rangeEl);
+
+      rangeEl.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    document.addEventListener('change', (ev) => {
+      const target = ev.target;
+
+      if (target instanceof HTMLInputElement && target.type === 'range' && target.hasAttribute('data-range-number-id')) {
+        syncFromRange(target);
+        return;
+      }
+
+      if (!(target instanceof HTMLInputElement) || target.type !== 'number') return;
+      if (!target.hasAttribute('data-range-source-id')) return;
+
+      const rangeId = `${target.getAttribute('data-range-source-id') || ''}`;
+      const rangeEl = rangeId ? document.getElementById(rangeId) : null;
+      if (!(rangeEl instanceof HTMLInputElement) || rangeEl.type !== 'range') return;
+
+      const value = clampRangeValue(rangeEl, target.value, true);
+      if (!Number.isFinite(value)) {
+        syncFromRange(rangeEl);
+        return;
+      }
+
+      const normalized = formatValue(value, rangeEl.step);
+      target.value = normalized;
+      rangeEl.value = normalized;
+      syncFromRange(rangeEl);
+
+      rangeEl.dispatchEvent(new Event('input', { bubbles: true }));
+      rangeEl.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
     const slider = this.dom.getField('WindowTransparencyValue');
-    if (slider) {
-      if (slider.dataset.boundTransparencySlider === '1') return;
-      slider.dataset.boundTransparencySlider = '1';
-      slider.addEventListener('input', () => this.form._updateTransparencyUI());
-      slider.addEventListener('change', () => this.form._updateTransparencyUI());
+    if (slider instanceof HTMLInputElement) {
+      syncFromRange(slider);
     }
   }
 
@@ -630,11 +744,13 @@ class SettingsPage {
   }
 
   _isVerboseUiDebug(state) {
+    debugger
     try {
       const sections = state?.generalPage?.sections || [];
       for (const section of sections) {
         for (const field of (section?.fields || [])) {
           if (`${field?.key || ''}` === 'DebugLevel') {
+             //FIXME: magic numbers 0,4 - can be made more explicit with enum or constant export from AHK
             const level = Number(field?.value ?? field?.default ?? 0);
             return Number.isFinite(level) && level >= 4;
           }

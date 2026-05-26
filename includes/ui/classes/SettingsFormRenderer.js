@@ -29,6 +29,7 @@ class SettingsFormRenderer {
     const type = `${field?.type || 'string'}`;
     const min = field?.validation?.min;
     const max = field?.validation?.max;
+    const step = field?.validation?.step ?? field?.step;
     const requiredAttr = field?.validation?.required ? ' required' : '';
     const isGeneral = scope === 'general';
     const fieldClass = isGeneral ? 'general-field' : 'plugin-field';
@@ -104,15 +105,19 @@ class SettingsFormRenderer {
       }
       case 'range': {
         const minAttr = Number.isFinite(Number(min)) ? ` min="${Number(min)}"` : ' min="0"';
-        const maxAttr = Number.isFinite(Number(max)) ? ` max="${Number(max)}"` : ' max="255"';
+        const maxAttr = Number.isFinite(Number(max)) ? ` max="${Number(max)}"` : '';
+        const stepAttr = Number.isFinite(Number(step)) && Number(step) > 0 ? ` step="${Number(step)}"` : ' step="1"';
         const sliderValue = `${value ?? defaultValue ?? 128}`;
+        const numberInputId = isGeneral && key === 'WindowTransparencyValue'
+          ? 'WindowTransparencyLabel'
+          : `RangeInput_${inputIdBase}`;
         const rangeLabelId = isGeneral && key === 'WindowTransparencyValue'
           ? 'WindowTransparencyLabel'
           : `RangeLabel_${inputIdBase}`;
         controlHtml = `
           <div class="app-range-slider">
-            <input type="range" class="${fieldClass}" id="${this.form._escapeHtml(inputIdBase)}" ${fieldAttrs}${minAttr}${maxAttr} step="1" value="${this.form._escapeHtml(sliderValue)}" />
-            <span id="${this.form._escapeHtml(rangeLabelId)}">${this.form._escapeHtml(sliderValue)}</span>
+            <input type="range" class="${fieldClass}" id="${this.form._escapeHtml(inputIdBase)}" ${fieldAttrs}${minAttr}${maxAttr}${stepAttr} value="${this.form._escapeHtml(sliderValue)}" data-range-number-id="${this.form._escapeHtml(numberInputId)}" />
+            <input class="app-input-text app-range-number" type="number" id="${this.form._escapeHtml(numberInputId)}"${minAttr}${maxAttr}${stepAttr} value="${this.form._escapeHtml(sliderValue)}" data-range-source-id="${this.form._escapeHtml(inputIdBase)}" />
           </div>
         `;
         break;

@@ -264,7 +264,7 @@ body {
   max-width: 400px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .setting-row .app-range-slider input[type="range"] {
@@ -272,9 +272,14 @@ body {
   min-width: 0;
 }
 
-.setting-row .app-range-slider span {
-  min-width: 45px;
-  text-align: right;
+.setting-row .app-range-slider .app-range-number {
+  width: 64px;
+  min-width: 64px;
+  max-width: 64px;
+  flex: 0 0 64px;
+  padding-right: 6px;
+  padding-left: 6px;
+  text-align: center;
 }
 
 .field-with-actions {

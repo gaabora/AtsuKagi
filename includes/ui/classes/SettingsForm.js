@@ -487,7 +487,11 @@ class SettingsForm {
     const label = this.dom.getField('WindowTransparencyLabel');
     if (!slider || !label) return;
 
-    label.textContent = slider.value;
+    if (label instanceof HTMLInputElement || label instanceof HTMLTextAreaElement) {
+      label.value = slider.value;
+    } else {
+      label.textContent = slider.value;
+    }
     const pct = (slider.value / 255) * 100;
     slider.style.background = `linear-gradient(90deg, var(--color-primary-adaptive, #0078D7) ${pct}%, #999 ${pct + 0.1}%)`;
   }
