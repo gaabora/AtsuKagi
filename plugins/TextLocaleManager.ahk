@@ -286,7 +286,7 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
     ; Check named blocklist for windows where Ctrl+C should not be sent
     MouseGetPos(,, &hwnd)
     if (this.IsInBlocklist('NoCtrlCHotkey', hwnd)) {
-      this.outputDebugLine('_getSelectedText: skipped Ctrl+C for blocklisted window')
+      this.outputDebugLine(AKApp.LOG_NOTICE, '_getSelectedText: skipped Ctrl+C for blocklisted window')
       return ''
     }
 

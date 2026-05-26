@@ -104,8 +104,7 @@ class TouchGesturesSimulator extends AKPlugin {
           "description", "Radius of each simulated touch point.",
           "type", "integer",
           "default", 5,
-          "section", "Touch Input",
-          "scope", "plugin"
+          "section", "Touch Input"
         ),
         Map(
           "key", "MaxTouchPoints",
@@ -113,8 +112,7 @@ class TouchGesturesSimulator extends AKPlugin {
           "description", "Maximum number of simultaneous touch points.",
           "type", "integer",
           "default", 10,
-          "section", "Touch Input",
-          "scope", "plugin"
+          "section", "Touch Input"
         )
       ],
       "actions", [
@@ -168,7 +166,7 @@ class TouchGesturesSimulator extends AKPlugin {
   _ensureTouchInjectionSupported() {
     if (this._touchInjectionSupported)
       return true
-    this.outputDebugLine("TouchGesturesSimulator unavailable: " this._touchInitError, 1)
+    this.outputDebugLine(AKApp.LOG_WARNING, "TouchGesturesSimulator unavailable: " this._touchInitError)
     return false
   }
 
@@ -179,14 +177,14 @@ class TouchGesturesSimulator extends AKPlugin {
     if (movingThreshold > 0 ; && ArrayContains(this.BypassMouseButtonsWhenNotMoved, thisHotkey)
         && this.shouldBypassMouseButton(thisHotkey, movingThreshold, xMouSrc, yMouSrc)) {
       if (runIfNoMove = "") {
-        this.outputDebugLine("BYPASS")
+        this.outputDebugLine(AKApp.LOG_TRACE, "BYPASS")
         Send("{Blind}{" thisHotkey "}")
         return
       } else {
         this.RunAction(runIfNoMove)
       }
     }
-    this.outputDebugLine("EnterGestureMode " thisHotkey)
+    this.outputDebugLine(AKApp.LOG_TRACE, "EnterGestureMode " thisHotkey)
     hotkeyInfo := ExtractHotkeyInfo(thisHotkey)
     Critical(16)
     this.runGesture(hotkeyInfo.key, fingers, xMouSrc, yMouSrc)
@@ -222,7 +220,7 @@ class TouchGesturesSimulator extends AKPlugin {
 
     Loop {
       if (!IsButtonPressed(mouseButton)) {
-        this.outputDebugLine(mouseButton " UP")
+        this.outputDebugLine(AKApp.LOG_TRACE, mouseButton " UP")
         break
       }
       xMouLst := xMouDst
@@ -233,7 +231,7 @@ class TouchGesturesSimulator extends AKPlugin {
         break
       }
     }
-    this.outputDebugLine("movedDistance=" movedDistance)
+    this.outputDebugLine(AKApp.LOG_TRACE, "movedDistance=" movedDistance)
     if (movedDistance < movingThreshold) 
       return true
 
@@ -262,12 +260,12 @@ class TouchGesturesSimulator extends AKPlugin {
     }
 
     if (this.isInGesture) {
-      this.outputDebugLine("START " fingers " fingers gesture FAILED (busy)")
+      this.outputDebugLine(AKApp.LOG_WARNING, "START " fingers " fingers gesture FAILED (busy)")
       return
     }
 
     this.isInGesture := true
-    this.outputDebugLine("START " fingers " fingers gesture OK")
+    this.outputDebugLine(AKApp.LOG_TRACE, "START " fingers " fingers gesture OK")
 
     varSize := this.pointerTouchInfoSize * fingers
     contactPoints := Buffer(varSize, 0)
@@ -282,14 +280,14 @@ class TouchGesturesSimulator extends AKPlugin {
       this.modifyTouchPointsBuffer(contactPoints, A_Index - 1, flags, xMouDst, yMouDst)
     }
     ok := DllCall("InjectTouchInput", "UInt", fingers, "Ptr", contactPoints)
-    ; this.outputDebugLine("  DOWN " xMouDst "x" yMouDst " " FormatBuffer(contactPoints, 4))
+    ; this.outputDebugLine(AKApp.LOG_TRACE, "  DOWN " xMouDst "x" yMouDst " " FormatBuffer(contactPoints, 4))
     if (ok) {
       flags := TouchGesturesSimulator.POINTER_FLAG_UPDATE | TouchGesturesSimulator.POINTER_FLAG_INRANGE | TouchGesturesSimulator.POINTER_FLAG_INCONTACT
       Loop {
         MouseGetPos(&xMouDst, &yMouDst)
 
         if (!IsButtonPressed(mouseButton)) {
-          this.outputDebugLine(mouseButton " UP")
+          this.outputDebugLine(AKApp.LOG_TRACE, mouseButton " UP")
           break
         }
         
@@ -297,10 +295,10 @@ class TouchGesturesSimulator extends AKPlugin {
           this.modifyTouchPointsBuffer(contactPoints, A_Index - 1, flags, xMouDst, yMouDst)
         }
 
-        ; this.outputDebugLine("MOVE " xMouDst "x" yMouDst " " FormatBuffer(contactPoints, 4))
+        ; this.outputDebugLine(AKApp.LOG_TRACE, "MOVE " xMouDst "x" yMouDst " " FormatBuffer(contactPoints, 4))
         ok := DllCall("InjectTouchInput", "UInt", fingers, "Ptr", contactPoints)
         if (!ok) {
-          this.outputDebugLine("TOUCH MOVE " fingers " FAILED")
+          this.outputDebugLine(AKApp.LOG_TRACE, "TOUCH MOVE " fingers " FAILED")
           break
         }
         Sleep(17)
@@ -312,12 +310,12 @@ class TouchGesturesSimulator extends AKPlugin {
       }
 
       ok := DllCall("InjectTouchInput", "UInt", fingers, "Ptr", contactPoints)
-      ; this.outputDebugLine("UP " xMouDst "x" yMouDst " " FormatBuffer(contactPoints, 4))
+      ; this.outputDebugLine(AKApp.LOG_TRACE, "UP " xMouDst "x" yMouDst " " FormatBuffer(contactPoints, 4))
       if (!ok) {
-        this.outputDebugLine("TOUCH UP " fingers " FAILED")
+        this.outputDebugLine(AKApp.LOG_TRACE, "TOUCH UP " fingers " FAILED")
       }
     } else {
-      this.outputDebugLine("TOUCH DOWN " fingers " FAILED")
+      this.outputDebugLine(AKApp.LOG_TRACE, "TOUCH DOWN " fingers " FAILED")
     }
 
     this.isInGesture := false
@@ -343,11 +341,11 @@ class TouchGesturesSimulator extends AKPlugin {
     NumPut("UInt", idx,           buf, offset + this._pointerInfo.pointerIdUInt)
     NumPut("UInt", pFlags,        buf, offset + this._pointerInfo.pointerFlagsUInt)
     NumPut("Int",  x,             buf, offset + this._pointerInfo.ptPixelLocation.xInt)
-    NumPut("Int",  x - r*m,         buf, offset + this.rcContact.leftInt)
-    NumPut("Int",  x + r*m,         buf, offset + this.rcContact.rightInt)
+    NumPut("Int",  x - r*m,       buf, offset + this.rcContact.leftInt)
+    NumPut("Int",  x + r*m,       buf, offset + this.rcContact.rightInt)
     NumPut("Int",  y,             buf, offset + this._pointerInfo.ptPixelLocation.yInt)
-    NumPut("Int",  y - r*m,         buf, offset + this.rcContact.topInt)    
-    NumPut("Int",  y + r*m,         buf, offset + this.rcContact.bottomInt)
+    NumPut("Int",  y - r*m,       buf, offset + this.rcContact.topInt)    
+    NumPut("Int",  y + r*m,       buf, offset + this.rcContact.bottomInt)
     NumPut("UInt", tFlags,        buf, offset + this.touchFlagsUInt)
     NumPut("UInt", tMask,         buf, offset + this.touchMaskUInt)
     NumPut("UInt", orientation,   buf, offset + this.orientationUInt)

@@ -246,7 +246,7 @@ class VirtualDesktopManager extends AKPlugin {
     Critical(100)
     OldDesktop := wParam + 1
     NewDesktop := lParam + 1
-    this.outputDebugLine("Desktop changed from " OldDesktop " to " NewDesktop)
+    this.outputDebugLine(AKApp.LOG_DEBUG, "Desktop changed from " OldDesktop " to " NewDesktop)
     this.recentDesktopNumber := OldDesktop
   }
 }

@@ -100,7 +100,7 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
   onShellMessage(wParam, lParam, msg, hwnd) {
     eventId := wParam
     targetHwnd := lParam
-    this.outputDebugLine(this.formatShellEventDebug(eventId, targetHwnd))
+    this.outputDebugLine(AKApp.LOG_TRACE, this.formatShellEventDebug(eventId, targetHwnd))
     this.processMessage(eventId, targetHwnd)
   }
 
@@ -167,9 +167,9 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
       case ShellMessageHook.HSHELL_HIGHBIT:
       case ShellMessageHook.HSHELL_FLASH:
       case ShellMessageHook.HSHELL_RUDEAPPACTIVATED:
-        return this.outputDebugLine("skip " ShellMessageHook.messageNames[msgId] " from hwnd=" hwnd)
+        return this.outputDebugLine(AKApp.LOG_NOTICE, "skip " ShellMessageHook.messageNames[msgId] " from hwnd=" hwnd)
       Default:
-        return this.outputDebugLine("skip unknown msgId=" msgId " from hwnd=" hwnd)
+        return this.outputDebugLine(AKApp.LOG_NOTICE, "skip unknown msgId=" msgId " from hwnd=" hwnd)
     }
   }
 
@@ -210,11 +210,11 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
 
   ;   ; if (InStr(this.Config.GENERAL.KeyboardHookStealersList, windowClass, CaseSensitive = false) != 0) {
   ;   if WinActive("ahk_class TscShellContainerClass") {
-  ;     this.outputDebugLine("RDP ACTIVE")
+  ;     this.outputDebugLine(AKApp.LOG_DEBUG, "RDP ACTIVE")
   ;     Suspend on
   ;     Sleep 50
   ;     Suspend off
-  ;     this.outputDebugLine("RDP ...")
+  ;     this.outputDebugLine(AKApp.LOG_DEBUG, "RDP ...")
   ;   }
   ; }
 

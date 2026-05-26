@@ -93,6 +93,8 @@ class LogsController {
       case 1: return 'WARNING';
       case 2: return 'NOTICE';
       case 3: return 'INFO';
+      case 4: return 'DEBUG';
+      case 5: return 'TRACE';
       default: return 'DEBUG';
     }
   }
@@ -103,6 +105,8 @@ class LogsController {
       case 1: return 'log-level-warning';
       case 2: return 'log-level-notice';
       case 3: return 'log-level-info';
+      case 4: return 'log-level-debug';
+      case 5: return 'log-level-trace';
       default: return 'log-level-debug';
     }
   }

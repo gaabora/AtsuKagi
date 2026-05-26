@@ -63,7 +63,7 @@ class AKGui extends AKBase {
     this._settingsGui := nw
     this._isLogPageActive := false
     AKBase.SetLogPushHandler(this._pushLogEntry.Bind(this))
-    this.outputDebugLine("Settings window opened", 4, Map("source", "core"))
+    this.outputDebugLine(AKApp.LOG_DEBUG, "Settings window opened", Map("source", "core"))
 
     ; Register JS → AHK callbacks
     nw.AddCallbackToScript("SaveSettingsJson", (wv, payload:="") => this._saveSettingsJson(payload))
@@ -323,7 +323,7 @@ class AKGui extends AKBase {
     AKBase.SetLogPushHandler(0)
     this._hotkeyRecorder.StopRecording()
     this._resumeHotkeysAfterRecording()
-    this.outputDebugLine("Settings window closed", 4, Map("source", "core"))
+    this.outputDebugLine(AKApp.LOG_DEBUG, "Settings window closed", Map("source", "core"))
     this._settingsGui := 0
   }
 

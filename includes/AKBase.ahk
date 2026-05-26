@@ -9,6 +9,13 @@ class AKBase {
   static DIALOG_NO := "NO"
   static DIALOG_CONTINUE := "CONTINUE"
 
+  static LOG_ERROR := 0
+  static LOG_WARNING := 1
+  static LOG_NOTICE := 2
+  static LOG_INFO := 3
+  static LOG_DEBUG := 4
+  static LOG_TRACE := 5
+
   debugLevel := 0 ; 0: error, 1: warning, 2: notice, 3: info, 4: debug
   static _uiLogs := []
   static _nextLogId := 0
@@ -19,19 +26,19 @@ class AKBase {
     ; this.initMenu()
   }
   ShowError(text, title:="") {
-    this.outputDebugLine("ERROR: " text, 0)
+    this.outputDebugLine(AKApp.LOG_ERROR, text, 0)
     return this.MsgBox(text, title ? title : "ERROR", , MSGBOX_OPTS.BUTTONS_CANCEL_RETRY_CONTINUE | MSGBOX_OPTS.ICON_ERROR | MSGBOX_OPTS.DEFAULT_BUTTON_2)
   }
   ShowWarning(text, title:="", timeout:=15000) {
-    this.outputDebugLine("WARNING: " text, 1)
+    this.outputDebugLine(AKApp.LOG_WARNING, text)
     return this.msgBox(text, title ? title : "WARNING", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_WARNING)
   }
   ShowNotice(text, title:="", timeout:=10000) {
-    this.outputDebugLine("NOTICE: " text, 2)
+    this.outputDebugLine(AKApp.LOG_NOTICE, text, 2)
     return this.msgBox(text, title ? title : "NOTICE", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_INFO)
   }
   ShowInfo(text, title:="", timeout:=2000) {
-    this.outputDebugLine("INFO: " text, 3)
+    this.outputDebugLine(AKApp.LOG_INFO, text, 3)
     infoTag := A_TickCount
     Notify.Show(title,text,,,, 'dur=0 pos=ct tag=' . infoTag)
     SetTimer(infoNotificationOff, timeout)
@@ -67,14 +74,26 @@ class AKBase {
         return AKBase.DIALOG_CONTINUE
     }
   }
-  outputDebugLine(line, level:=4, meta:=0) {
+  outputDebugLine(level, line, meta:=0) {
     if (level <= this.debugLevel)
-      OutputDebug(line) ;  "`n"
+      OutputDebug(AKBase._logLevelToString(level) ": " line) ;  "`n"
     AKBase._bufferLogMessage(line, level, meta)
   }
   static SetLogPushHandler(handler := 0) {
     AKBase._logPushHandler := handler
   }
+  static _logLevelToString(level) {
+    switch (level) {
+      case 0: return 'ERROR'
+      case 1: return 'WARNING'
+      case 2: return 'NOTICE'
+      case 3: return 'INFO'
+      case 4: return 'DEBUG'
+      case 5: return 'TRACE'
+      default: return 'WUT?'
+    }
+  }
+
   static _bufferLogMessage(line, level:=4, meta:=0) {
     timestamp := FormatTime(, "yyyy-MM-dd HH:mm:ss")
     logEntry := Map(

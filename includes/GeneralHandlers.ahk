@@ -32,7 +32,7 @@ class GeneralHandlers extends AKPlugin {
 
   IfThenElse(IfActionString, ThenActionString, ElseActionString) { ;;;
     conditionResult := this.RunAction(IfActionString)
-    this.outputDebugLine('IfThenElse(' IfActionString ' = ' conditionResult ', ' ThenActionString ', ' ElseActionString ')')
+    this.outputDebugLine(AKApp.LOG_DEBUG, 'IfThenElse(' IfActionString ' = ' conditionResult ', ' ThenActionString ', ' ElseActionString ')')
     if (conditionResult) {
       this.RunAction(ThenActionString)
     } else {
@@ -48,7 +48,7 @@ class GeneralHandlers extends AKPlugin {
   SkipIfBlocklisted(blocklistName, actionString, fallbackAction:="") { ;;;
     MouseGetPos(,, &hwnd)
     if (this.App.IsInBlocklist(blocklistName, hwnd)) {
-      this.outputDebugLine('SkipIfBlocklisted(' blocklistName '): BLOCKED for hwnd=' hwnd)
+      this.outputDebugLine(AKApp.LOG_DEBUG, 'SkipIfBlocklisted(' blocklistName '): BLOCKED for hwnd=' hwnd)
       if (fallbackAction != "") {
         this.RunAction(fallbackAction)
       } else {
@@ -60,7 +60,7 @@ class GeneralHandlers extends AKPlugin {
       }
       return
     }
-    this.outputDebugLine('SkipIfBlocklisted(' blocklistName '): ALLOWED, running ' actionString)
+    this.outputDebugLine(AKApp.LOG_DEBUG, 'SkipIfBlocklisted(' blocklistName '): ALLOWED, running ' actionString)
     this.RunAction(actionString)
   }
 
@@ -69,7 +69,7 @@ class GeneralHandlers extends AKPlugin {
   }
 
   Run(cmdLine) { ;;;
-    this.outputDebugLine('Run(' cmdLine ')', 4)
+    this.outputDebugLine(AKApp.LOG_DEBUG, 'Run(' cmdLine ')')
     Run(cmdLine)
   }
 
