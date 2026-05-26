@@ -3,8 +3,6 @@ class WinDrag extends AKPlugin {
   _overlayColor := "2080DD"
   _overlayOpacity := 80
   _snapPreviewGui := ""
-  _snapPreviewColor := "4090EE"
-  _snapPreviewOpacity := 60
   _infoTipGui := ""
   _infoTipTextCtrl := ""
   _lastInfoTipText := ""
@@ -53,8 +51,8 @@ class WinDrag extends AKPlugin {
           "key", "SnappingDistance",
           "label", "Magnetic snap distance (px)",
           "description", "Pixel distance threshold for magnetic edge snapping during drag",
+          "type", "number", "control", "range", "default", 10, "validation", Map("min", 10, "max", 100, "step", 2),
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "CompensateInvisibleBorders",
@@ -73,11 +71,11 @@ class WinDrag extends AKPlugin {
           "section", "Snapping",
         ),
         Map(
-          "key", "SnapThreshold",
+          "key", "SnapEdgeThreshold", ; TODO: review consistency of setting keys (everywhere, not only this) and rename better way
           "label", "Edge snap threshold (px)",
           "description", "How close cursor must be to a screen edge to trigger edge snap preview",
+          "type", "number", "control", "range", "default", 50, "validation", Map("min", 10, "max", 100, "step", 2),
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "SnapHalfScreen",
@@ -131,19 +129,15 @@ class WinDrag extends AKPlugin {
           "key", "SnapToWindowsDistance",
           "label", "Window snap distance (px)",
           "description", "Pixel threshold for snapping to other window edges. Larger values = stronger pull",
-          "type", "number",
-          "default", 20,
+          "type", "number", "control", "range", "default", 20, "validation", Map("min", 10, "max", 100, "step", 2),
           "section", "Snapping",
-          "scope", "plugin"
         ),
         Map(
           "key", "ResizeAxisThreshold",
           "label", "Resize axis resistance (px)",
           "description", "Secondary axis is suppressed during resize until mouse moves this many pixels. Doubled when the edge is docked to a screen or window edge",
-          "type", "number",
-          "default", 30,
+          "type", "number", "control", "range", "default", 50, "validation", Map("min", 10, "max", 500, "step", 10),
           "section", "Behavior",
-          "scope", "plugin"
         ),
         Map(
           "key", "ShowWindowContentOnMove",
@@ -170,6 +164,28 @@ class WinDrag extends AKPlugin {
           "section", "Visuals",
         ),
         Map(
+          "key", "BringToFront",
+          "label", "Bring window to front",
+          "description", "Activate the target window when move or resize mode begins",
+          "type", "boolean",
+          "default", false,
+          "section", "Behavior",
+        ),
+        Map(
+          "key", "OverlayColor",
+          "label", "Overlay color",
+          "description", "Hex color for the drag frame overlay",
+          "type", "color", "control", "color", "default", "2080DD",
+          "section", "Visuals",
+        ),
+        Map(
+          "key", "OverlayOpacity",
+          "label", "Overlay opacity",
+          "description", "Transparency level for the drag frame overlay",
+          "type", "number", "control", "range", "default", 80, "validation", Map("min", 10, "max", 250, "step", 10),
+          "section", "Visuals",
+        ),
+        Map(
           "key", "UseSetWindowPos",
           "label", "Use SetWindowPos for dragging",
           "description", "Use the native SetWindowPos API during live move and resize updates",
@@ -177,15 +193,6 @@ class WinDrag extends AKPlugin {
           "default", true,
           "section", "Performance",
         ),
-        Map(
-          "key", "BringToFront",
-          "label", "Bring window to front",
-          "description", "Activate the target window when move or resize mode begins",
-          "type", "boolean",
-          "default", false,
-          "section", "Behavior",
-          "scope", "plugin"
-        )
       ],
       "actions", [
         Map(
@@ -194,7 +201,7 @@ class WinDrag extends AKPlugin {
           "description", "Move a window by dragging from anywhere on it",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapEdgeThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront", "OverlayColor", "OverlayOpacity"]
         ),
         Map(
           "action", "EnterWindowResizingMode",
@@ -202,20 +209,17 @@ class WinDrag extends AKPlugin {
           "description", "Resize a window by dragging from anywhere on it",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "ResizeAxisThreshold", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapEdgeThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "ResizeAxisThreshold", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront", "OverlayColor", "OverlayOpacity"]
         )
       ],
       "hooks", []
     )
   }
 
-  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
-  ; These are now derived from __DescribePlugin() by the base class
-  _processBlocklistConfig() {
-  }
-
   _processPluginConfig() {
     ; Apply descriptor defaults, then any additional processing if needed
+    this._overlayColor := this.Config.OverlayColor
+    this._overlayOpacity := Number(this.Config.OverlayOpacity)
     this.__ApplyDefaultConfig()
   }
   
@@ -993,9 +997,9 @@ class WinDrag extends AKPlugin {
   _createSnapPreview() {
     this._destroySnapPreview()
     this._snapPreviewGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
-    this._snapPreviewGui.BackColor := this._snapPreviewColor
+    this._snapPreviewGui.BackColor := this._overlayColor
     this._snapPreviewGui.Show("Hide NoActivate")
-    WinSetTransparent(this._snapPreviewOpacity, "ahk_id " this._snapPreviewGui.Hwnd)
+    WinSetTransparent(this._overlayOpacity, "ahk_id " this._snapPreviewGui.Hwnd)
     ; Rounded corners on Win11+ (DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND)
     try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._snapPreviewGui.Hwnd
         , "UInt", 33, "Int*", 2, "UInt", 4)
@@ -1048,27 +1052,10 @@ class WinDrag extends AKPlugin {
     return Map("x", xEdges, "y", yEdges)
   }
 
-  _getTaskbarBounds(&taskbarX, &taskbarY, &taskbarW, &taskbarH) {
-    taskbarX := 0
-    taskbarY := 0
-    taskbarW := 0
-    taskbarH := 0
-    
-    taskbarHwnd := 0
-    try taskbarHwnd := WinExist("ahk_class Shell_TrayWnd")
-    
-    if (!taskbarHwnd)
-      return false
-    
-    try WinGetPos(&taskbarX, &taskbarY, &taskbarW, &taskbarH, "ahk_id " taskbarHwnd)
-    
-    return taskbarHwnd && taskbarW > 0 && taskbarH > 0
-  }
-
   _detectSnapZone(mouseX, mouseY, &zone) {
     zone := ""
 
-    threshold := Max(1, Round(Number(this.Config.SnapThreshold)))
+    threshold := Max(1, Round(Number(this.Config.SnapEdgeThreshold)))
 
     ; Use MonitorGet (full bounds) to find which monitor the cursor is on,
     ; so snap zones still work when cursor enters the taskbar area.
