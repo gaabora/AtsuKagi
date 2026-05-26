@@ -134,6 +134,33 @@ class WinDrag extends AKPlugin {
           "scope", "plugin"
         ),
         Map(
+          "key", "SnapToWindows",
+          "label", "Snap to other windows",
+          "description", "Magnetically snap to edges of other visible windows during move and resize.",
+          "type", "boolean",
+          "default", true,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "SnapToWindowsDistance",
+          "label", "Window snap distance (px)",
+          "description", "Pixel threshold for snapping to other window edges. Larger values = stronger pull.",
+          "type", "number",
+          "default", 20,
+          "section", "Snapping",
+          "scope", "plugin"
+        ),
+        Map(
+          "key", "ResizeAxisThreshold",
+          "label", "Resize axis resistance (px)",
+          "description", "Secondary axis is suppressed during resize until mouse moves this many pixels. Doubled when the edge is docked to a screen or window edge.",
+          "type", "number",
+          "default", 30,
+          "section", "Behavior",
+          "scope", "plugin"
+        ),
+        Map(
           "key", "ShowWindowContentOnMove",
           "label", "Show window content while moving",
           "description", "When disabled, show only a frame preview instead of moving the live window.",
@@ -186,7 +213,7 @@ class WinDrag extends AKPlugin {
           "description", "Move a window by dragging from anywhere on it.",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
         ),
         Map(
           "action", "EnterWindowResizingMode",
@@ -194,7 +221,7 @@ class WinDrag extends AKPlugin {
           "description", "Resize a window by dragging from anywhere on it.",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
+          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "ResizeAxisThreshold", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront"]
         )
       ],
       "hooks", []
@@ -287,6 +314,8 @@ class WinDrag extends AKPlugin {
     EscButtonState := "U"
     isQuickPositioning := false
     pendingSnapZone := ""
+    WindowSnappingDistance := Number(this.Config.SnapToWindowsDistance)
+    neighborEdges := this.Config.SnapToWindows ? this._getNeighborEdges(hwnd) : Map("x", [], "y", [])
 
     Loop {
       MouseButtonState := GetKeyState(MouseButton, "P") ? "D" : "U"
@@ -347,6 +376,35 @@ class WinDrag extends AKPlugin {
 
           if (visBottom > CurScrBottom - SnappingDistance) && (visBottom < CurScrBottom + SnappingDistance)
             yWinDst := CurScrBottom - (hWinSrc - bottomInset)
+        }
+
+        ; Snap to neighbor window edges
+        if (this.Config.SnapToWindows) {
+          visLeft := xWinDst + leftInset
+          visRight := xWinDst + wWinSrc - rightInset
+          visTop := yWinDst + topInset
+          visBottom := yWinDst + hWinSrc - bottomInset
+
+          for edge in neighborEdges["x"] {
+            if (Abs(visLeft - edge) <= WindowSnappingDistance) {
+              xWinDst := edge - leftInset
+              break
+            }
+            if (Abs(visRight - edge) <= WindowSnappingDistance) {
+              xWinDst := edge - (wWinSrc - rightInset)
+              break
+            }
+          }
+          for edge in neighborEdges["y"] {
+            if (Abs(visTop - edge) <= WindowSnappingDistance) {
+              yWinDst := edge - topInset
+              break
+            }
+            if (Abs(visBottom - edge) <= WindowSnappingDistance) {
+              yWinDst := edge - (hWinSrc - bottomInset)
+              break
+            }
+          }
         }
       }
 
@@ -507,6 +565,33 @@ class WinDrag extends AKPlugin {
 
     EscButtonState := "U"
     isQuickPositioning := false
+    WindowSnappingDistance := Number(this.Config.SnapToWindowsDistance)
+    ResizeAxisThreshold := Number(this.Config.ResizeAxisThreshold)
+    neighborEdges := this.Config.SnapToWindows ? this._getNeighborEdges(hwnd) : Map("x", [], "y", [])
+
+    ; Detect which edges are docked (aligned with screen/neighbor edges at drag start)
+    dockTolerance := 3
+    visLeft0 := xWinSrc + leftInset
+    visTop0 := yWinSrc + topInset
+    visRight0 := xWinSrc + wWinSrc - rightInset
+    visBottom0 := yWinSrc + hWinSrc - bottomInset
+    GetCurrentScreenBorders(&CurScrLeft0, &CurScrRight0, &CurScrTop0, &CurScrBottom0)
+    leftDocked := Abs(visLeft0 - CurScrLeft0) <= dockTolerance
+    rightDocked := Abs(visRight0 - CurScrRight0) <= dockTolerance
+    topDocked := Abs(visTop0 - CurScrTop0) <= dockTolerance
+    bottomDocked := Abs(visBottom0 - CurScrBottom0) <= dockTolerance
+    for edge in neighborEdges["x"] {
+      if (Abs(visLeft0 - edge) <= dockTolerance)
+        leftDocked := true
+      if (Abs(visRight0 - edge) <= dockTolerance)
+        rightDocked := true
+    }
+    for edge in neighborEdges["y"] {
+      if (Abs(visTop0 - edge) <= dockTolerance)
+        topDocked := true
+      if (Abs(visBottom0 - edge) <= dockTolerance)
+        bottomDocked := true
+    }
 
     Loop{
       MouseButtonState := GetKeyState(MouseButton, "P") ? "D" : "U"
@@ -535,6 +620,21 @@ class WinDrag extends AKPlugin {
           yMouDif := 0 ; lock Y
         else
           xMouDif := 0 ; lock X
+      } else if (ResizeAxisThreshold > 0) {
+        ; Axis resistance: suppress secondary axis until threshold exceeded
+        absX := Abs(xMouDif)
+        absY := Abs(yMouDif)
+        xEdgeDocked := (xMultiplier > 0 && leftDocked) || (xMultiplier < 0 && rightDocked)
+        yEdgeDocked := (yMultiplier > 0 && topDocked) || (yMultiplier < 0 && bottomDocked)
+        if (absX >= absY) {
+          yThresh := yEdgeDocked ? ResizeAxisThreshold * 2 : ResizeAxisThreshold
+          if (absY < yThresh)
+            yMouDif := 0
+        } else {
+          xThresh := xEdgeDocked ? ResizeAxisThreshold * 2 : ResizeAxisThreshold
+          if (absX < xThresh)
+            xMouDif := 0
+        }
       }
 
       ; snap the window to the edge of the screen if closer than 10 pixels to border
@@ -579,12 +679,75 @@ class WinDrag extends AKPlugin {
         if (visBottom > CurScrBottom - SnappingDistance) && (visBottom < CurScrBottom + SnappingDistance) && (yMultiplier < 0) {
           hWinDst := CurScrBottom - yWinDst + bottomInset
         }
+
+        ; Snap to neighbor window edges during resize
+        if (this.Config.SnapToWindows) {
+          visLeft := xWinDst + leftInset
+          visRight := xWinDst + wWinDst - rightInset
+          visTop := yWinDst + topInset
+          visBottom := yWinDst + hWinDst - bottomInset
+
+          for edge in neighborEdges["x"] {
+            if (xMultiplier > 0 && Abs(visLeft - edge) <= WindowSnappingDistance) {
+              xWinDst := edge - leftInset
+              wWinDst := wWinSrc + xWinSrc - xWinDst
+              break
+            }
+            if (xMultiplier < 0 && Abs(visRight - edge) <= WindowSnappingDistance) {
+              wWinDst := edge - xWinDst + rightInset
+              break
+            }
+          }
+          for edge in neighborEdges["y"] {
+            if (yMultiplier > 0 && Abs(visTop - edge) <= WindowSnappingDistance) {
+              yWinDst := edge - topInset
+              hWinDst := hWinSrc + yWinSrc - yWinDst
+              break
+            }
+            if (yMultiplier < 0 && Abs(visBottom - edge) <= WindowSnappingDistance) {
+              hWinDst := edge - yWinDst + bottomInset
+              break
+            }
+          }
+        }
       } else {
         ; no snapping, just resizing
         xWinDst := (xWinSrc + (xMultiplier = 1 ? 1 : 0) * xMouDif)
         yWinDst := (yWinSrc + (yMultiplier = 1 ? 1 : 0) * yMouDif)
         wWinDst := (wWinSrc - xMultiplier * xMouDif)
         hWinDst := (hWinSrc - yMultiplier * yMouDif)
+      }
+
+      ; Oversize resistance: absorb mouse movement when resizing past screen edges.
+      ; The window sticks at the screen edge until the mouse pushes 30% of screen past it.
+      if (!isQuickPositioning) {
+        scrW := CurScrRight - CurScrLeft
+        scrH := CurScrBottom - CurScrTop
+        oversizeThreshX := Round(scrW * 0.3)
+        oversizeThreshY := Round(scrH * 0.3)
+
+        visLeft := xWinDst + leftInset
+        if (visLeft < CurScrLeft && xMultiplier > 0) {
+          absorbed := Min(CurScrLeft - visLeft, oversizeThreshX)
+          xWinDst += absorbed
+          wWinDst -= absorbed
+        }
+        visRight := xWinDst + wWinDst - rightInset
+        if (visRight > CurScrRight && xMultiplier < 0) {
+          absorbed := Min(visRight - CurScrRight, oversizeThreshX)
+          wWinDst -= absorbed
+        }
+        visTop := yWinDst + topInset
+        if (visTop < CurScrTop && yMultiplier > 0) {
+          absorbed := Min(CurScrTop - visTop, oversizeThreshY)
+          yWinDst += absorbed
+          hWinDst -= absorbed
+        }
+        visBottom := yWinDst + hWinDst - bottomInset
+        if (visBottom > CurScrBottom && yMultiplier < 0) {
+          absorbed := Min(visBottom - CurScrBottom, oversizeThreshY)
+          hWinDst -= absorbed
+        }
       }
 
       showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnResize
@@ -876,6 +1039,34 @@ class WinDrag extends AKPlugin {
     }
   }
 
+  _getNeighborEdges(excludeHwnd) {
+    xEdges := []
+    yEdges := []
+
+    windows := WinGetList()
+    for hwnd in windows {
+      if (hwnd = excludeHwnd)
+        continue
+      try {
+        if (WinGetMinMax("ahk_id " hwnd) = -1)
+          continue
+      } catch
+        continue
+      if (this._isSystemWindow(hwnd))
+        continue
+
+      rect := Buffer(16, 0)
+      if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_EXTENDED_FRAME_BOUNDS, "Ptr", rect.Ptr, "UInt", rect.Size) = 0) {
+        xEdges.Push(NumGet(rect, 0, "Int"))
+        xEdges.Push(NumGet(rect, 8, "Int"))
+        yEdges.Push(NumGet(rect, 4, "Int"))
+        yEdges.Push(NumGet(rect, 12, "Int"))
+      }
+    }
+
+    return Map("x", xEdges, "y", yEdges)
+  }
+
   _getTaskbarBounds(&taskbarX, &taskbarY, &taskbarW, &taskbarH) {
     taskbarX := 0
     taskbarY := 0
@@ -897,23 +1088,31 @@ class WinDrag extends AKPlugin {
     zone := ""
 
     threshold := Max(1, Round(Number(this.Config.SnapThreshold)))
+
+    ; Use MonitorGet (full bounds) to find which monitor the cursor is on,
+    ; so snap zones still work when cursor enters the taskbar area.
+    ; Then use MonitorGetWorkArea on that monitor for zone geometry.
     CurScrLeft := 0
     CurScrRight := A_ScreenWidth
     CurScrTop := 0
     CurScrBottom := A_ScreenHeight
-    GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
+    monitorFound := false
+    MonitorCount := MonitorGetCount()
+    Loop MonitorCount {
+      MonitorGet(A_Index, &mLeft, &mTop, &mRight, &mBottom)
+      if (mouseX >= mLeft && mouseX < mRight && mouseY >= mTop && mouseY < mBottom) {
+        MonitorGetWorkArea(A_Index, &CurScrLeft, &CurScrTop, &CurScrRight, &CurScrBottom)
+        monitorFound := true
+        break
+      }
+    }
+    if (!monitorFound)
+      return false
 
     scrWidth := CurScrRight - CurScrLeft
     scrHeight := CurScrBottom - CurScrTop
     if (scrWidth <= 0 || scrHeight <= 0)
       return false
-
-    ; Do not trigger snap zones if cursor is outside working area (in taskbar, etc.)
-    if (mouseX < CurScrLeft || mouseX >= CurScrRight || mouseY < CurScrTop || mouseY >= CurScrBottom)
-      return false
-
-    ; Detect taskbar to avoid overlap
-    taskbarFound := this._getTaskbarBounds(&taskbarX, &taskbarY, &taskbarW, &taskbarH)
 
     leftHit := mouseX <= (CurScrLeft + threshold)
     rightHit := mouseX >= (CurScrRight - threshold)
@@ -933,17 +1132,11 @@ class WinDrag extends AKPlugin {
         return true
       }
       if (leftHit && bottomHit) {
-        snapY := CurScrTop + scrHeight - halfH
-        if (taskbarFound && taskbarY < CurScrBottom)
-          snapY := Min(snapY, taskbarY - halfH)
-        zone := Map("x", CurScrLeft, "y", snapY, "w", halfW, "h", halfH, "action", "tile")
+        zone := Map("x", CurScrLeft, "y", CurScrTop + scrHeight - halfH, "w", halfW, "h", halfH, "action", "tile")
         return true
       }
       if (rightHit && bottomHit) {
-        snapY := CurScrTop + scrHeight - halfH
-        if (taskbarFound && taskbarY < CurScrBottom)
-          snapY := Min(snapY, taskbarY - halfH)
-        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", snapY, "w", halfW, "h", halfH, "action", "tile")
+        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop + scrHeight - halfH, "w", halfW, "h", halfH, "action", "tile")
         return true
       }
     }
@@ -955,27 +1148,18 @@ class WinDrag extends AKPlugin {
 
     if (this.Config.SnapMinimizeOnBottom && bottomHit) {
       previewHeight := Max(60, Round(scrHeight * 0.18))
-      snapY := CurScrBottom - previewHeight
-      if (taskbarFound && taskbarY < CurScrBottom)
-        snapY := Min(snapY, taskbarY - previewHeight)
-      zone := Map("x", CurScrLeft, "y", snapY, "w", scrWidth, "h", previewHeight, "action", "minimize")
+      zone := Map("x", CurScrLeft, "y", CurScrBottom - previewHeight, "w", scrWidth, "h", previewHeight, "action", "minimize")
       return true
     }
 
     if (this.Config.SnapHalfScreen) {
       halfW := Round(scrWidth / 2)
       if (leftHit) {
-        snapH := scrHeight
-        if (taskbarFound && taskbarY < CurScrBottom)
-          snapH := Min(snapH, taskbarY - CurScrTop)
-        zone := Map("x", CurScrLeft, "y", CurScrTop, "w", halfW, "h", snapH, "action", "tile")
+        zone := Map("x", CurScrLeft, "y", CurScrTop, "w", halfW, "h", scrHeight, "action", "tile")
         return true
       }
       if (rightHit) {
-        snapH := scrHeight
-        if (taskbarFound && taskbarY < CurScrBottom)
-          snapH := Min(snapH, taskbarY - CurScrTop)
-        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop, "w", halfW, "h", snapH, "action", "tile")
+        zone := Map("x", CurScrLeft + scrWidth - halfW, "y", CurScrTop, "w", halfW, "h", scrHeight, "action", "tile")
         return true
       }
     }

@@ -41,13 +41,9 @@ class SettingsPage {
 
   _bindActions() {
     // Toolbar buttons
-    const saveBtn = document.querySelector('[data-action="save-settings"]');
     const cancelBtn = document.querySelector('[data-action="close-settings"]');
     const minimizeBtn = document.querySelector('[data-action="minimize-window"]');
 
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => this._saveSettings());
-    }
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => this.hostBridge.closeSettings());
     }
