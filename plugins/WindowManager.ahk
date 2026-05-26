@@ -76,9 +76,6 @@ class WindowManager extends AKPlugin {
     )
   }
 
-  _processBlocklistConfig() {
-  }
-
   _processPluginConfig() {
     this.__ApplyDefaultConfig()
   }

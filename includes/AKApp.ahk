@@ -1,7 +1,7 @@
 class AKApp extends AKBase {
   ; public (let's agree on PascalCase)
   AvailableActions := Map()
-  AvailableHooks := Map()
+  ; AvailableHooks := Map() ; TODO: maybe implement when needed, currently unused
   ActionDeprecationMap := Map()  
 
   TrayIconDefault := A_ScriptDir "/assets/app.ico"
@@ -486,7 +486,6 @@ class AKApp extends AKBase {
     }
     libObj.Debug(debug)
     libObj._processPluginConfig()
-    libObj._processBlocklistConfig()
     libObj._init()
     this._addedLibs[className] := libObj
     
@@ -517,17 +516,6 @@ class AKApp extends AKBase {
       this._registerAction(libObj, actionString, className, description)
     }
     this.outputDebugLine(AKApp.LOG_INFO, "Plugin loaded: " className, Map("source", className, "settingRef", Map("page", "plugins")))
-
-    ; hooks := libObj.__HooksHelp()
-    ; for hookString, description in hooks {
-    ;   if (this.AvailableHooks.Has(hookString)) {
-    ;     this.showWarning("Hook '" hookString "' from Plugin '"  this.AvailableHooks[hookString]["className"] "' overriden by Plugin '" className "'")
-    ;   }
-    ;   this.AvailableHooks[hookString] := {}
-    ;   this.AvailableHooks[hookString]["handlerFn"] := ObjBindMethod(libObj, hookString)
-    ;   this.AvailableHooks[hookString]["className"] := className
-    ;   this.AvailableHooks[hookString]["description"] := description
-    ; }
   }
   
   BindAllHotkeys() {

@@ -20,11 +20,6 @@ class TimerHandlers extends AKPlugin { ; TODO: not yet fully implemented, needs 
     )
   }
 
-  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
-  ; These are now derived from __DescribePlugin() by the base class
-  _processBlocklistConfig() {
-  }
-
   _processPluginConfig() {
     ; No plugin-specific config to apply
   }

@@ -180,17 +180,9 @@ class AKPlugin extends AKBase {
     return results
   }
 
-  __HooksHelp() { ; TODO: obsolete, remove everywhere
-    descriptor := this.__GetPluginDescriptor()
-    if (descriptor && descriptor.Has("hooks"))
-      return descriptor["hooks"]
-    return []
+  _processPluginConfig() {  ; TODO: review if still needed after __DescribePlugin(), check overall workflow and logic/, since this sometimes uses     this.__ApplyDefaultConfig() etc
   }
-
-  _processPluginConfig() {  ; TODO: obsolete, remove everywhere
-  }
-  _processBlocklistConfig() {
-  }
+  
   _init() {
   }
 

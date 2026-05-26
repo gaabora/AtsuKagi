@@ -135,11 +135,6 @@ class TouchGesturesSimulator extends AKPlugin {
     )
   }
 
-  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
-  ; These are now derived from __DescribePlugin() by the base class
-  _processBlocklistConfig() {
-  }
-
   _processPluginConfig() {
     ; Apply descriptor defaults
     this.__ApplyDefaultConfig()

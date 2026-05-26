@@ -79,11 +79,6 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
     )
   }
 
-  ; ── Legacy Methods (Phase 1-5: TODO: remove after Phase 5) ─────────────────────
-  ; These are now derived from __DescribePlugin() by the base class
-  _processBlocklistConfig() {
-  }
-
   _processPluginConfig() {
     ; Apply descriptor defaults, then any additional processing if needed
     this.__ApplyDefaultConfig()
