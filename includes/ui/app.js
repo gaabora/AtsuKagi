@@ -68,23 +68,3 @@ class SettingsDom {
   };
 })();
 
-window.chrome.webview.addEventListener('message', ahkWebMessage);
-function ahkWebMessage(Msg) {
-    console.log(Msg.data);
-}
-
-function ahkButtonClick(ele) {
-    if (ele.Id != null || "") {
-        var eleInfo = ele.Id;
-    }
-    else if (ele.Name != null || "") {
-        var eleInfo = ele.Name;
-    }
-    else if (ele.innerText != null || "") {
-        var eleInfo = ele.innerText;
-    }
-    else {
-        var eleInfo = ele.outerHTML;
-    }
-    ahk.ButtonClick.Func(eleInfo);
-}

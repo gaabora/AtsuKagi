@@ -276,7 +276,7 @@ class SettingsPage {
     if (!this._isColorPickerDelegated) {
       this._isColorPickerDelegated = true;
       document.addEventListener('click', (ev) => {
-        const trigger = ev.target.closest('[data-color-input-id], [data-color-selector]');
+        const trigger = ev.target.closest('[data-color-input-id]');
         if (!trigger) return;
         
         // New unified style: data-color-input-id and data-color-swatch-id
@@ -289,9 +289,6 @@ class SettingsPage {
           this.colorPicker.targetInput = input;
           this.colorPicker.targetSwatch = swatch;
           this.colorPicker.syncFromTarget();
-        } else if (trigger.dataset.colorSelector) {
-          // Legacy plugin style: data-color-selector
-          this.colorPicker.beginForTrigger(trigger);
         }
 
         // Open dialog for dynamically rendered buttons (windows-ui.min.js
@@ -681,21 +678,7 @@ class SettingsPage {
     });
   }
 
-  _saveSettings() {
-    const invalidField = document.querySelector('.settings-content :invalid');
-    if (invalidField) {
-      if (typeof invalidField.reportValidity === 'function') {
-        invalidField.reportValidity();
-      }
-      if (typeof invalidField.focus === 'function') {
-        invalidField.focus();
-      }
-      return;
-    }
 
-    const payloadObject = this.form.serializeObject();
-    this.hostBridge.saveSettings(payloadObject);
-  }
 
   refreshUI() {
     this.form.refreshUI(this.colorPicker, this.hotkeyRecorder);
@@ -722,7 +705,7 @@ class SettingsPage {
     }
     const t2 = performance.now();
 
-    if (this._isVerboseUiDebug(state)) {
+    if (this._isVerboseUiDebug(state)) { 
       console.debug('[SettingsUI] applyState timings', {
         totalMs: Math.round((t2 - t0) * 100) / 100,
         formApplyMs: Math.round((t1 - t0) * 100) / 100,
@@ -745,8 +728,7 @@ class SettingsPage {
     this._isApplyingState = false;
   }
 
-  _isVerboseUiDebug(state) {
-    debugger
+  _isVerboseUiDebug(state) { //FIXME: wth is this, why not use apps debug level
     try {
       const sections = state?.generalPage?.sections || [];
       for (const section of sections) {

@@ -16,42 +16,7 @@ class SettingsForm {
   /**
    * Serialize form state into save payload.
    */
-  serializeObject() {
-    const general = this._readGeneralFields();
 
-    const disabledPlugins = [];
-    this.dom.getPluginCheckboxes().forEach(cb => {
-      if (!cb.checked) {
-        disabledPlugins.push(cb.id.substring(7));
-      }
-    });
-
-    const pluginConfigs = {};
-    document.querySelectorAll('.plugin-field[data-plugin-id][data-key]').forEach((el) => {
-      const pluginId = el.getAttribute('data-plugin-id') || '';
-      const key = el.getAttribute('data-key') || '';
-      if (!pluginId || !key) return;
-
-      if (!pluginConfigs[pluginId]) {
-        pluginConfigs[pluginId] = {};
-      }
-
-      let value = '';
-      if (el.type === 'checkbox') {
-        value = !!el.checked;
-      } else {
-        value = el.value || '';
-      }
-      pluginConfigs[pluginId][key] = value;
-    });
-
-    return {
-      general,
-      disabledPlugins,
-      pluginConfigs,
-      hotkeys: [...this._hotkeyEntries]
-    };
-  }
 
   /**
    * Apply incoming state from AHK to form DOM.
@@ -465,10 +430,7 @@ class SettingsForm {
     this._hotkeyEntries = this._hotkeyEntries.filter((entry) => `${entry.hotKey || ''}`.trim() !== raw);
   }
 
-  _renderPluginField(field) {
-    // Plugin fields now use the unified _renderField with scope='plugin'
-    return this._renderField(field, 'plugin', field?.pluginId);
-  }
+
 
   _resetPluginFields(pluginId) {
     const section = document.getElementById(`section-plugin-${pluginId}`);

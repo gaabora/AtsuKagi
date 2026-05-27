@@ -33,11 +33,7 @@ class AhkHostBridge {
     return { ok: !!result };
   }
 
-  saveSettings(payloadObject) {
-    this._checkHostFunction('SaveSettingsJson');
-    const obj = payloadObject || {};
-    this.host.SaveSettingsJson(JSON.stringify(obj));
-  }
+
 
   saveGeneralSetting(key, value) {
     this._checkHostFunction('SaveGeneralSetting');
