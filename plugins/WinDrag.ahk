@@ -71,7 +71,7 @@ class WinDrag extends AKPlugin {
           "section", "Snapping",
         ),
         Map(
-          "key", "SnapEdgeThreshold", ; TODO: review consistency of setting keys (everywhere, not only this) and rename better way
+          "key", "SnapEdgeThreshold", ; TODO: ADVANCED: review consistency of setting keys (everywhere, not only this) and rename better way
           "label", "Edge snap threshold (px)",
           "description", "How close cursor must be to a screen edge to trigger edge snap preview",
           "type", "number", "control", "range", "default", 50, "validation", Map("min", 10, "max", 100, "step", 2),

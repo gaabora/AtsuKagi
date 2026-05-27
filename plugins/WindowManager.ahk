@@ -36,6 +36,18 @@ class WindowManager extends AKPlugin {
       ),
       "config", [
         Map(
+          "key", "WindowTransparencyValue",
+          "label", "Window Transparency",
+          "description", "Transparency for on-top overlays",
+          "type", "integer", "control", "range", "default", 120, "section", "General", "validation", Map("min", 10, "max", 250, "step", 10)
+        ),
+        Map(
+          "key", "WindowOnTopBorderColor",
+          "label", "On-Top Border Color",
+          "description", "Border color for always-on-top window highlight",
+          "type", "color", "control", "color", "default", "0xAACCFF", "section", "General"
+        ),
+        Map(
           "key", "WindowTitlebarAreaHeight",
           "label", "Titlebar area height",
           "description", "Height in pixels used to detect titlebar hover area",
@@ -237,10 +249,10 @@ class WindowManager extends AKPlugin {
 
   ToggleHoveredWindowOnTop(BorderColor:=-1) { ;;;
     MouseGetPos(,, &hwnd)
-    this.ToggleWindowOnTop(hwnd)  
+    this.ToggleWindowOnTop(BorderColor, hwnd)  
   }
   ToggleWindowOnTop(BorderColor:=-1, hwnd:=0) { ;;;
-    HexColor := (BorderColor = -1) ? 0x00FFFF : BorderColor
+    HexColor := (BorderColor = -1) ? this.Config.WindowOnTopBorderColor : BorderColor
 
     if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
@@ -309,10 +321,12 @@ class WindowManager extends AKPlugin {
     this.ToggleWindowFrame(hwnd)  
   }
 
-
-  ToggleWindowTransparency(TransparencyValue:=128, hwnd:=0) { ;;;
+  ToggleWindowTransparency(TransparencyValue:=-1, hwnd:=0) { ;;;
     if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
+
+    if (TransparencyValue = -1)
+      TransparencyValue := this.Config.WindowTransparencyValue
 
     Transparency := WinGetTransparent("ahk_id " . hwnd)
     if (Transparency = "") {
@@ -324,7 +338,7 @@ class WindowManager extends AKPlugin {
     }
   }
 
-  ToggleHoveredWindowTransparency(TransparencyValue:=128) { ;;;
+  ToggleHoveredWindowTransparency(TransparencyValue:=-1) { ;;;
     MouseGetPos(,, &hwnd)
     this.ToggleWindowTransparency(TransparencyValue, hwnd)  
   }

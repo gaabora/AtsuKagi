@@ -221,8 +221,6 @@ class AKApp extends AKBase {
           Map("value", 5, "label", "5 - Trace")
         ]),
         Map("key", "ToolTipTimeoutMs", "label", "Tooltip Timeout (ms)", "description", "Timeout for tooltip auto-hide", "type", "integer", "control", "range", "default", 1000, "section", "General", "validation", Map("min", 100, "max", 10000, "step", 100)),
-        Map("key", "WindowTransparencyValue", "label", "Window Transparency", "description", "Transparency for on-top overlays", "type", "integer", "control", "range", "default", 120, "section", "General", "validation", Map("min", 10, "max", 250, "step", 10)), ; TODO: move to WindowManager plugin
-        Map("key", "WindowOnTopBorderColor", "label", "On-Top Border Color", "description", "Border color for always-on-top window highlight", "type", "color", "control", "color", "default", "0xAACCFF", "section", "General"), ; TODO: move to WindowManager plugin
         Map("key", "StartupSound", "label", "Startup Sound", "description", "Sound file played when app starts", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
         Map("key", "NotificationSound", "label", "Notification Sound", "description", "Sound file used for notifications", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
         Map("key", "ReloadAppHotkey", "label", "Reload App", "description", "Global hotkey to reload the app", "type", "hotkey", "control", "hotkey", "default", "^#!Backspace", "section", "App Hotkeys"),

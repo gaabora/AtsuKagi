@@ -1,21 +1,22 @@
 class GeneralHandlers extends AKPlugin {
-
-  __ConfigHelp() { ; TODO: obsolete, rewrite to __DescribePlugin() 
-    return "No config keys. Built-in general-purpose actions available in all plugins"
-  }
-
-  __UsageHelp() { ; TODO: obsolete, rewrite to __DescribePlugin() 
-    return "Core action utilities: conditional execution, blocklist checking, key remapping, info popups. Used as building blocks for other plugin actions"
-  }
-
-  __ActionsHelp() { ; TODO: obsolete, rewrite to __DescribePlugin() 
-    texts := Map()
-    texts["IfThenElse"] := "IfThenElse(IfActionString, ThenActionString, ElseActionString)"
-    texts["SkipIfBlocklisted"] := "SkipIfBlocklisted(BlocklistName, ActionString, FallbackAction:='') - skip action if window is in named blocklist, optionally run fallback instead of passthrough"
-    texts["RemapKeyTo"] := "RemapKeyTo(Hotkey)"
-    texts["DoNothing"]  := "DoNothing()"
-    texts["ShowInfo"]   := "ShowInfo(text, title:='', timeout:=2000)"
-    return texts
+  __DescribePlugin() {
+    return Map(
+      "plugin", Map(
+        "id", "GeneralHandlers",
+        "title", "General Handlers",
+        "description", "Core action utilities: conditional execution, blocklist checks, key remapping, and helper actions",
+        "category", "Core"
+      ),
+      "config", [],
+      "actions", [
+        Map("action", "IfThenElse", "label", "If then else", "description", "Run ThenActionString when IfActionString is truthy; otherwise run ElseActionString", "params", [Map("name", "IfActionString"), Map("name", "ThenActionString"), Map("name", "ElseActionString")], "category", "Control Flow"),
+        Map("action", "SkipIfBlocklisted", "label", "Skip if blocklisted", "description", "Skip action when hovered window matches named blocklist; optionally run fallback", "params", [Map("name", "blocklistName"), Map("name", "actionString"), Map("name", "fallbackAction", "default", "")], "category", "Control Flow"),
+        Map("action", "RemapKeyTo", "label", "Remap key to", "description", "Send the provided key as input", "params", [Map("name", "Hotkey")], "category", "Input"),
+        Map("action", "DoNothing", "label", "Do nothing", "description", "No-op action", "params", [], "category", "Utility"),
+        Map("action", "ShowInfo", "label", "Show info", "description", "Show an info notification", "params", [Map("name", "text"), Map("name", "title", "default", ""), Map("name", "timeout", "default", 2000)], "category", "Utility"),
+        Map("action", "Run", "label", "Run command", "description", "Run a command line", "params", [Map("name", "cmdLine")], "category", "Utility")
+      ]
+    )
   }
   
   RemapKeyTo(Hotkey) { ;;;

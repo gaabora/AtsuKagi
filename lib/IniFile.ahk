@@ -112,9 +112,9 @@ class IniFileProto {
     }
   }
   _autosave() {
-    OutputDebug('_autosave triggered`n')
+    OutputDebug('_autosave triggered')
     if (!this.__pIniFile_Settings["SAVE_AUTOMATICALLY"]) {
-      OutputDebug('SAVE_AUTOMATICALLY is off`n')
+      OutputDebug('SAVE_AUTOMATICALLY is off')
       return
     }
     debounceFn := this._debounceFn
@@ -154,19 +154,19 @@ class IniFileProto {
     }
     newContent := this.ToString()
     if (oldContent = newContent) {
-      outputDebug("_writeIni: no changes made`n" )
+      outputDebug("_writeIni: no changes made" )
       return
     }
     if (FileExist(this.__pIniFile_Path))
       FileDelete(this.__pIniFile_Path)
-    outputDebug("_writeIni: WRITING TO FILE " this.__pIniFile_Path "`n" )
+    outputDebug("_writeIni: WRITING TO FILE " this.__pIniFile_Path)
     FileAppend(newContent, this.__pIniFile_Path)
   }
   _debounceFactory(TimeoutMs := 800) {
     static lastCallback := 0
     resetTimerFn() {
       if (lastCallback != 0) {
-        OutputDebug("--------- RESET DEBOUNCE TIMER ---------`n")
+        OutputDebug("--------- RESET DEBOUNCE TIMER ---------")
         SetTimer(lastCallback, 0)
         lastCallback := 0
       }
@@ -174,7 +174,7 @@ class IniFileProto {
     debounceFn(Callback) {
       resetTimerFn()
       lastCallback := Callback
-      OutputDebug("--------- SET DEBOUNCE " . TimeoutMs . " ---------`n" )
+      OutputDebug("--------- SET DEBOUNCE " . TimeoutMs . " ---------")
       SetTimer(Callback, -1 * TimeoutMs)
       ; SetTimer(resetTimerFn, -1 * (TimeoutMs + 1))
     }
@@ -182,12 +182,12 @@ class IniFileProto {
   }
   Load(filePath) {
     this.__pIniFile_Path := filePath
-    outputDebug("IniRead(" filePath ")`n")
+    outputDebug("IniRead(" filePath ")")
     buffer := IniRead(filePath)
     for idx, sectionName in StrSplit(buffer, "`n") {
       if (this.__isReservedPropName(sectionName))
         throw TypeError("Not allowed to use reserved name for section name " . sectionName . " found in file " . filePath)
-      outputDebug("IniRead(" filePath ", " sectionName ")`n")
+      outputDebug("IniRead(" filePath ", " sectionName ")")
       sectionContent := IniRead(filePath, sectionName)
       this.__pIniFile_PrevData[sectionName] := sectionContent
       this.__pIniFile_Data[sectionName] := IniFile.IniSection(this, sectionName, sectionContent)
@@ -229,7 +229,7 @@ class IniFile extends IniFileProto {
     doNothing() {
       nothing := 0
     }
-    OutputDebug('debounce nothing`n')
+    OutputDebug('debounce nothing')
     debounceFn(doNothing)
   }
   __Enum(NumberOfVars) {
