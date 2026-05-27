@@ -399,9 +399,9 @@ class SettingsPage {
       }
       if (!Number.isFinite(value)) return null;
 
-      const min = Number(rangeEl.min);
-      const max = Number(rangeEl.max);
-      const step = Number(rangeEl.step);
+      const min = rangeEl.min !== '' ? Number(rangeEl.min) : NaN;
+      const max = rangeEl.max !== '' ? Number(rangeEl.max) : NaN;
+      const step = rangeEl.step !== '' ? Number(rangeEl.step) : NaN;
 
       if (Number.isFinite(min)) value = Math.max(value, min);
       if (Number.isFinite(max)) value = Math.min(value, max);
@@ -430,7 +430,7 @@ class SettingsPage {
       return value.toFixed(Math.min(Math.max(precision, 0), 6));
     };
 
-    const syncFromRange = (rangeEl) => {
+    const syncFromRange = (rangeEl, skipNumberUpdate = false) => {
       if (!(rangeEl instanceof HTMLInputElement) || rangeEl.type !== 'range') return;
 
       const numberId = `${rangeEl.getAttribute('data-range-number-id') || ''}`;
@@ -440,7 +440,7 @@ class SettingsPage {
       if (!Number.isFinite(value)) return;
 
       const normalized = formatValue(value, rangeEl.step);
-      if (numberEl instanceof HTMLInputElement) {
+      if (!skipNumberUpdate && numberEl instanceof HTMLInputElement) {
         numberEl.value = normalized;
       }
 
@@ -469,7 +469,7 @@ class SettingsPage {
 
       const normalized = formatValue(value, rangeEl.step);
       rangeEl.value = normalized;
-      syncFromRange(rangeEl);
+      syncFromRange(rangeEl, true);
 
       rangeEl.dispatchEvent(new Event('input', { bubbles: true }));
     });
@@ -504,10 +504,12 @@ class SettingsPage {
       rangeEl.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    const slider = this.dom.getField('WindowTransparencyValue');
-    if (slider instanceof HTMLInputElement) {
-      syncFromRange(slider);
-    }
+    // Sync all range inputs (both general and plugin scope)
+    document.querySelectorAll('input[type="range"][data-range-number-id]').forEach((rangeEl) => {
+      if (rangeEl instanceof HTMLInputElement) {
+        syncFromRange(rangeEl);
+      }
+    });
   }
 
   _bindDevToolsButton() {

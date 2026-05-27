@@ -43,20 +43,7 @@ class ColorPickerController {
       this.colorInput.addEventListener('input', () => this.syncFromForm());
     }
 
-    document.addEventListener('input', (ev) => {
-      const input = ev.target.closest('.plugin-color-input');
-      if (!input) return;
-      this._updatePluginSwatchForInput(input);
-    });
-
-    document.addEventListener('change', (ev) => {
-      const input = ev.target.closest('.plugin-color-input');
-      if (!input) return;
-      this._updatePluginSwatchForInput(input);
-    });
-
-    // Also handle general color inputs (with data-color-swatch-id)
-    document.addEventListener('input', (ev) => {
+    const onColorInputChange = (ev) => {
       if (ev.target.dataset.colorSwatchId) {
         const swatchId = ev.target.getAttribute('data-color-swatch-id');
         const swatch = swatchId ? document.getElementById(swatchId) : null;
@@ -64,27 +51,11 @@ class ColorPickerController {
           this._updatePluginSwatch(swatch, ev.target.value || '');
         }
       }
-    });
-
-    document.addEventListener('change', (ev) => {
-      if (ev.target.dataset.colorSwatchId) {
-        const swatchId = ev.target.getAttribute('data-color-swatch-id');
-        const swatch = swatchId ? document.getElementById(swatchId) : null;
-        if (swatch) {
-          this._updatePluginSwatch(swatch, ev.target.value || '');
-        }
-      }
-    });
+    };
+    document.addEventListener('input', onColorInputChange);
+    document.addEventListener('change', onColorInputChange);
 
     this.syncFromForm();
-  }
-
-  beginForTrigger(trigger) {
-    const selector = trigger?.getAttribute('data-color-selector') || '';
-    const input = selector ? document.querySelector(selector) : this.colorInput;
-    this.targetInput = input || this.colorInput;
-    this.targetSwatch = this._resolveSwatch(this.targetInput);
-    this.syncFromTarget();
   }
 
   _onWheelChange() {
@@ -169,7 +140,6 @@ class ColorPickerController {
   }
 
   updatePluginSwatches() {
-    // Unified color fields: input carries data-color-swatch-id.
     document.querySelectorAll('input[data-color-swatch-id]').forEach((input) => {
       const swatchId = input.getAttribute('data-color-swatch-id');
       const swatch = swatchId ? document.getElementById(swatchId) : null;
@@ -177,26 +147,6 @@ class ColorPickerController {
         this._updatePluginSwatch(swatch, input.value || '');
       }
     });
-
-    // Legacy plugin color fields.
-    document.querySelectorAll('[data-plugin-color-key]').forEach((input) => {
-      this._updatePluginSwatchForInput(input);
-    });
-  }
-
-  _updatePluginSwatchForInput(input) {
-    if (!input) return;
-    const key = input.getAttribute('data-plugin-color-key');
-    if (!key) return;
-    const swatch = document.querySelector(`[data-plugin-color-swatch="${key}"]`);
-    this._updatePluginSwatch(swatch, input.value || '');
-  }
-
-  _resolveSwatch(input) {
-    if (!input || input === this.colorInput) return this.smallSwatch;
-    const key = input.getAttribute('data-plugin-color-key');
-    if (!key) return null;
-    return document.querySelector(`[data-plugin-color-swatch="${key}"]`);
   }
 
   _updatePluginSwatch(swatch, hexLike) {

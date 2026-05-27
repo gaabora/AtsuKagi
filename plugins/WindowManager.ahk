@@ -51,7 +51,7 @@ class WindowManager extends AKPlugin {
           "key", "WindowTitlebarAreaHeight",
           "label", "Titlebar area height",
           "description", "Height in pixels used to detect titlebar hover area",
-          "type", "number", "control", "range", "default", 32, "validation", Map("min", 0, "max", 128, "step", 2)
+          "type", "integer", "control", "range", "default", 32, "validation", Map("min", 0, "max", 128, "step", 2)
         )
       ],
       "actions", [

@@ -23,7 +23,7 @@ class SettingsFormRenderer {
     const key = `${field?.key || ''}`;
     const label = `${field?.label || key}`;
     const description = `${field?.description || ''}`;
-    const control = `${field?.control || 'text'}`;
+    const control = `${field?.control || 'text'}`.trim().toLowerCase();
     const value = field?.value ?? '';
     const defaultValue = field?.default ?? '';
     const type = `${field?.type || 'string'}`;
@@ -36,9 +36,10 @@ class SettingsFormRenderer {
     const fieldAttrs = isGeneral
       ? `data-key="${this.form._escapeHtml(key)}" data-type="${this.form._escapeHtml(type)}"`
       : `data-plugin-id="${this.form._escapeHtml(pluginId || '')}" data-key="${this.form._escapeHtml(key)}"`;
-    const inputIdBase = isGeneral
+    const rawInputIdBase = isGeneral
       ? key
-      : `${pluginId || 'plugin'}_${key}`.replace(/[^A-Za-z0-9_\-]/g, '_');
+      : `${pluginId || 'plugin'}_${key}`;
+    const inputIdBase = `${rawInputIdBase}`.replace(/[^A-Za-z0-9_\-]/g, '_') || 'setting_field';
 
     let controlHtml = '';
 
@@ -104,20 +105,46 @@ class SettingsFormRenderer {
         break;
       }
       case 'range': {
-        const minAttr = Number.isFinite(Number(min)) ? ` min="${Number(min)}"` : ' min="0"';
-        const maxAttr = Number.isFinite(Number(max)) ? ` max="${Number(max)}"` : '';
-        const stepAttr = Number.isFinite(Number(step)) && Number(step) > 0 ? ` step="${Number(step)}"` : ' step="1"';
-        const sliderValue = `${value ?? defaultValue ?? 128}`;
+        const minNum = Number(min);
+        const maxNum = Number(max);
+        const stepNum = Number(step);
+        const hasMin = Number.isFinite(minNum);
+        const hasMax = Number.isFinite(maxNum);
+        const hasStep = Number.isFinite(stepNum) && stepNum > 0;
+
+        const minAttr = hasMin ? ` min="${minNum}"` : ' min="0"';
+        const maxAttr = hasMax ? ` max="${maxNum}"` : '';
+        const stepAttr = hasStep ? ` step="${stepNum}"` : ' step="1"';
+
+        // Parse initial value safely: handle empty strings, non-numeric, and proper numeric values
+        const valueStr = `${value ?? ''}`.trim();
+        const defaultStr = `${defaultValue ?? ''}`.trim();
+        const valueNum = valueStr ? Number(valueStr) : NaN;
+        const defaultNum = defaultStr ? Number(defaultStr) : NaN;
+
+        let sliderNum;
+        if (Number.isFinite(valueNum)) {
+          sliderNum = valueNum;
+        } else if (Number.isFinite(defaultNum)) {
+          sliderNum = defaultNum;
+        } else if (hasMin) {
+          sliderNum = minNum;
+        } else {
+          sliderNum = 128;
+        }
+
+        // Clamp to min/max
+        if (hasMin) sliderNum = Math.max(sliderNum, minNum);
+        if (hasMax) sliderNum = Math.min(sliderNum, maxNum);
+
+        const sliderValue = `${sliderNum}`;
         const numberInputId = isGeneral && key === 'WindowTransparencyValue'
           ? 'WindowTransparencyLabel'
           : `RangeInput_${inputIdBase}`;
-        const rangeLabelId = isGeneral && key === 'WindowTransparencyValue'
-          ? 'WindowTransparencyLabel'
-          : `RangeLabel_${inputIdBase}`;
         controlHtml = `
           <div class="app-range-slider">
             <input type="range" class="${fieldClass}" id="${this.form._escapeHtml(inputIdBase)}" ${fieldAttrs}${minAttr}${maxAttr}${stepAttr} value="${this.form._escapeHtml(sliderValue)}" data-range-number-id="${this.form._escapeHtml(numberInputId)}" />
-            <input class="app-input-text app-range-number" type="number" id="${this.form._escapeHtml(numberInputId)}"${minAttr}${maxAttr}${stepAttr} value="${this.form._escapeHtml(sliderValue)}" data-range-source-id="${this.form._escapeHtml(inputIdBase)}" />
+            <input type="number" class="app-input-text app-range-number" id="${this.form._escapeHtml(numberInputId)}"${minAttr}${maxAttr}${stepAttr} value="${this.form._escapeHtml(sliderValue)}" data-range-source-id="${this.form._escapeHtml(inputIdBase)}" />
           </div>
         `;
         break;

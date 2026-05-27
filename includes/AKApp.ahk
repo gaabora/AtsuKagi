@@ -431,7 +431,9 @@ class AKApp extends AKBase {
           "control", fieldControl,
           "default", fieldDesc.Has("default") ? fieldDesc["default"] : "",
           "value", currentValue,
-          "scope", fieldDesc.Has("scope") ? fieldDesc["scope"] : "plugin"
+          "scope", fieldDesc.Has("scope") ? fieldDesc["scope"] : "plugin",
+          "validation", fieldDesc.Has("validation") ? fieldDesc["validation"] : {},
+          "options", fieldDesc.Has("options") ? fieldDesc["options"] : []
         )
         section["fields"].Push(field)
       }

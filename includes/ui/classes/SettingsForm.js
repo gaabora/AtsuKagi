@@ -254,6 +254,15 @@ class SettingsForm {
         } else {
           target.value = `${value ?? ''}`;
         }
+
+        // If this is a range input, also update its paired number input
+        if (target.type === 'range' && target.hasAttribute('data-range-number-id')) {
+          const numberId = target.getAttribute('data-range-number-id');
+          const numberEl = numberId ? document.getElementById(numberId) : null;
+          if (numberEl instanceof HTMLInputElement) {
+            numberEl.value = target.value;
+          }
+        }
       });
     });
   }
@@ -279,8 +288,15 @@ class SettingsForm {
             target.value = `${value ?? ''}`;
           }
 
-          target.dispatchEvent(new Event('input'));
-          target.dispatchEvent(new Event('change'));
+          // If this is a range input, also update its paired number input
+          if (target.type === 'range' && target.hasAttribute('data-range-number-id')) {
+            const numberId = target.getAttribute('data-range-number-id');
+            const numberEl = numberId ? document.getElementById(numberId) : null;
+            if (numberEl instanceof HTMLInputElement) {
+              numberEl.value = target.value;
+            }
+          }
+
         });
       });
     });

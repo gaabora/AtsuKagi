@@ -1,7 +1,5 @@
 class WinDrag extends AKPlugin {
   _overlayGui := ""
-  _overlayColor := "2080DD"
-  _overlayOpacity := 80
   _snapPreviewGui := ""
   _infoTipGui := ""
   _infoTipTextCtrl := ""
@@ -51,7 +49,7 @@ class WinDrag extends AKPlugin {
           "key", "SnappingDistance",
           "label", "Magnetic snap distance (px)",
           "description", "Pixel distance threshold for magnetic edge snapping during drag",
-          "type", "number", "control", "range", "default", 10, "validation", Map("min", 10, "max", 100, "step", 2),
+          "type", "integer", "control", "range", "default", 10, "validation", Map("min", 10, "max", 100, "step", 2),
           "section", "Snapping",
         ),
         Map(
@@ -74,7 +72,7 @@ class WinDrag extends AKPlugin {
           "key", "SnapEdgeThreshold", ; TODO: ADVANCED: review consistency of setting keys (everywhere, not only this) and rename better way
           "label", "Edge snap threshold (px)",
           "description", "How close cursor must be to a screen edge to trigger edge snap preview",
-          "type", "number", "control", "range", "default", 50, "validation", Map("min", 10, "max", 100, "step", 2),
+          "type", "integer", "control", "range", "default", 50, "validation", Map("min", 10, "max", 100, "step", 2),
           "section", "Snapping",
         ),
         Map(
@@ -129,14 +127,14 @@ class WinDrag extends AKPlugin {
           "key", "SnapToWindowsDistance",
           "label", "Window snap distance (px)",
           "description", "Pixel threshold for snapping to other window edges. Larger values = stronger pull",
-          "type", "number", "control", "range", "default", 20, "validation", Map("min", 10, "max", 100, "step", 2),
+          "type", "integer", "control", "range", "default", 20, "validation", Map("min", 10, "max", 100, "step", 2),
           "section", "Snapping",
         ),
         Map(
           "key", "ResizeAxisThreshold",
           "label", "Resize axis resistance (px)",
           "description", "Secondary axis is suppressed during resize until mouse moves this many pixels. Doubled when the edge is docked to a screen or window edge",
-          "type", "number", "control", "range", "default", 50, "validation", Map("min", 10, "max", 500, "step", 10),
+          "type", "integer", "control", "range", "default", 50, "validation", Map("min", 10, "max", 500, "step", 10),
           "section", "Behavior",
         ),
         Map(
@@ -182,7 +180,7 @@ class WinDrag extends AKPlugin {
           "key", "OverlayOpacity",
           "label", "Overlay opacity",
           "description", "Transparency level for the drag frame overlay",
-          "type", "number", "control", "range", "default", 80, "validation", Map("min", 10, "max", 250, "step", 10),
+          "type", "integer", "control", "range", "default", 80, "validation", Map("min", 10, "max", 250, "step", 10),
           "section", "Visuals",
         ),
         Map(
@@ -217,9 +215,6 @@ class WinDrag extends AKPlugin {
   }
 
   _processPluginConfig() {
-    ; Apply descriptor defaults, then any additional processing if needed
-    this._overlayColor := this.Config.OverlayColor
-    this._overlayOpacity := Number(this.Config.OverlayOpacity)
     this.__ApplyDefaultConfig()
   }
   
@@ -973,9 +968,9 @@ class WinDrag extends AKPlugin {
   _createOverlay() {
     this._destroyOverlay()
     this._overlayGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
-    this._overlayGui.BackColor := this._overlayColor
+    this._overlayGui.BackColor := this.Config.OverlayColor
     this._overlayGui.Show("Hide NoActivate")
-    WinSetTransparent(this._overlayOpacity, "ahk_id " this._overlayGui.Hwnd)
+    WinSetTransparent(Number(this.Config.OverlayOpacity), "ahk_id " this._overlayGui.Hwnd)
     ; Rounded corners on Win11+ (DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND)
     try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._overlayGui.Hwnd
         , "UInt", 33, "Int*", 2, "UInt", 4)
@@ -997,9 +992,9 @@ class WinDrag extends AKPlugin {
   _createSnapPreview() {
     this._destroySnapPreview()
     this._snapPreviewGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
-    this._snapPreviewGui.BackColor := this._overlayColor
+    this._snapPreviewGui.BackColor := this.Config.OverlayColor
     this._snapPreviewGui.Show("Hide NoActivate")
-    WinSetTransparent(this._overlayOpacity, "ahk_id " this._snapPreviewGui.Hwnd)
+    WinSetTransparent(Number(this.Config.OverlayOpacity), "ahk_id " this._snapPreviewGui.Hwnd)
     ; Rounded corners on Win11+ (DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND)
     try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._snapPreviewGui.Hwnd
         , "UInt", 33, "Int*", 2, "UInt", 4)
