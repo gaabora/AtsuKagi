@@ -201,7 +201,7 @@ class AKApp extends AKBase {
       "fields", [
         Map("key", "WelcomeMessage", "label", "Welcome Message", "description", "Message shown on app startup", "type", "string", "control", "text", "default", "Haribol!", "section", "General"),
         Map("key", "DarkTheme", "label", "Theme", "description", "", "type", "integer", "control", "select", "default", -1, "section", "General", "options", [Map("value", -1, "label", "Auto (follow system)"), Map("value", 0, "label", "Light"), Map("value", 1, "label", "Dark")]),
-        Map("key", "UIScalingPercent", "label", "UI Scale", "description", "Scale the settings UI display", "type", "integer", "control", "select", "default", 100, "section", "General", "options", [
+        Map("key", "UIScalingPercent", "label", "UI Scale", "description", "Scale the settings UI display", "type", "integer", "control", "select", "default", 75, "section", "General", "options", [
           Map("value", 75, "label", "75%"),
           Map("value", 80, "label", "80%"),
           Map("value", 85, "label", "85%"),

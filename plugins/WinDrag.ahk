@@ -22,19 +22,11 @@ class WinDrag extends AKPlugin {
       ),
       "config", [
         Map(
-          "key", "LockAxisHotkey",
-          "label", "Lock axis hotkey",
-          "description", "Hold during move or resize to lock the dominant axis",
-          "type", "hotkey",
-          "default", "Shift",
-          "section", "Movement",
-        ),
-        Map(
           "key", "QuickPositionHotkey",
           "label", "Quick position hotkey",
           "description", "Hold to snap the window into quick-position regions",
           "type", "hotkey",
-          "default", "LWin",
+          "default", "LCtrl",
           "section", "Movement",
         ),
         Map(
@@ -199,7 +191,7 @@ class WinDrag extends AKPlugin {
           "description", "Move a window by dragging from anywhere on it",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapEdgeThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront", "OverlayColor", "OverlayOpacity"]
+          "relatedConfig", ["QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapEdgeThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnMove", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront", "OverlayColor", "OverlayOpacity"]
         ),
         Map(
           "action", "EnterWindowResizingMode",
@@ -207,7 +199,7 @@ class WinDrag extends AKPlugin {
           "description", "Resize a window by dragging from anywhere on it",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["LockAxisHotkey", "QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapEdgeThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "ResizeAxisThreshold", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront", "OverlayColor", "OverlayOpacity"]
+          "relatedConfig", ["QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapEdgeThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "ResizeAxisThreshold", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront", "OverlayColor", "OverlayOpacity"]
         )
       ],
       "hooks", []
@@ -277,8 +269,8 @@ class WinDrag extends AKPlugin {
       this.windowState.max := 1
     }
 
-    QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
-    LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P") ; check that button was released once before movement is locked
+    QuickPositionHotkey := ResolveHotkeyStateKeyName(this.Config.QuickPositionHotkey, "LWin")
+    QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey) ; check that button was released once before window is QuickPositioned
 
     WinGetPos(&xWinSrc, &yWinSrc, &wWinSrc, &hWinSrc, "ahk_id " hwnd)
 
@@ -309,14 +301,12 @@ class WinDrag extends AKPlugin {
       }
 
       if (!QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P")
-      if (!LockAxisHotkey_wasUp)
-        LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P")
+        QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey)
 
       MouseGetPos(&xMouCur, &yMouCur)
       isQuickPositioning := false
       
-      if (QuickPositionHotkey_wasUp && GetKeyState(this.Config.QuickPositionHotkey , "P")) {
+      if (QuickPositionHotkey_wasUp && IsHotkeyStatePressed(QuickPositionHotkey)) {
         isQuickPositioning := true
         this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
       } else {
@@ -324,13 +314,6 @@ class WinDrag extends AKPlugin {
         MouseGetPos(&xMouLst, &yMouLst)
         xMouDif := xMouLst - xMouSrc
         yMouDif := yMouLst - yMouSrc
-        
-        if (LockAxisHotkey_wasUp && GetKeyState(this.Config.LockAxisHotkey , "P")) {
-          if (Abs(xMouDif) - Abs(yMouDif) > 0)
-            yMouDif := 0 ; lock Y
-          else
-            xMouDif := 0 ; lock X
-        }
 
         ; Apply this offset to the window position.
         xWinDst := (xWinSrc + xMouDif)
@@ -510,8 +493,8 @@ class WinDrag extends AKPlugin {
       }
     }
 
-    QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P") ; check that button was released once before window is QuickPositioned
-    LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P") ; check that button was released once before movement is locked
+    QuickPositionHotkey := ResolveHotkeyStateKeyName(this.Config.QuickPositionHotkey, "LWin")
+    QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey) ; check that button was released once before window is QuickPositioned
 
     WinGetPos(&xWinSrc, &yWinSrc, &wWinSrc, &hWinSrc, "ahk_id " hwnd)
     xWinDst := xWinSrc
@@ -586,21 +569,13 @@ class WinDrag extends AKPlugin {
       }
 
       if (!QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P")
-      if (!LockAxisHotkey_wasUp)
-        LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P")
+        QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey)
 
       MouseGetPos(&xMouLst, &yMouLst)
       xMouDif := xMouLst - xMouSrc
       yMouDif := yMouLst - yMouSrc
 
-      if (LockAxisHotkey_wasUp && GetKeyState(this.Config.LockAxisHotkey , "P")) {
-        ; locking for default Resizing
-        if (Abs(xMouDif) - Abs(yMouDif) > 0)
-          yMouDif := 0 ; lock Y
-        else
-          xMouDif := 0 ; lock X
-      } else if (ResizeAxisThreshold > 0) {
+      if (ResizeAxisThreshold > 0) {
         ; Axis resistance: suppress secondary axis until threshold exceeded
         absX := Abs(xMouDif)
         absY := Abs(yMouDif)
@@ -624,13 +599,11 @@ class WinDrag extends AKPlugin {
       GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
 
       if (!QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := !GetKeyState(this.Config.QuickPositionHotkey, "P")
-      if (!LockAxisHotkey_wasUp)
-        LockAxisHotkey_wasUp := !GetKeyState(this.Config.LockAxisHotkey, "P")
+        QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey)
 
       isQuickPositioning := false
 
-      if (QuickPositionHotkey_wasUp && GetKeyState(this.Config.QuickPositionHotkey, "P")) {
+      if (QuickPositionHotkey_wasUp && IsHotkeyStatePressed(QuickPositionHotkey)) {
         isQuickPositioning := true
         this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
       } else if (this.Config.EnableSnapping) {

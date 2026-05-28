@@ -230,6 +230,16 @@ class SettingsPage {
       navEl.classList.add('active');
     }
 
+    const pageShell = document.querySelector('.settings-page-shell');
+    const settingsContent = document.querySelector('.settings-content');
+    const isLogsSection = name === 'logs';
+    if (pageShell) {
+      pageShell.classList.toggle('logs-layout', isLogsSection);
+    }
+    if (settingsContent) {
+      settingsContent.classList.toggle('logs-layout', isLogsSection);
+    }
+
     // Activate new section
     this._currentSection = name;
     if (name === 'logs') {

@@ -100,6 +100,70 @@ ExtractHotkeyInfo(hotkeyString) {
   return result
 }
 
+; Convert an AHK hotkey expression (e.g. <+, ^!k, LShift & Space) to a key name safe for GetKeyState.
+ResolveHotkeyStateKeyName(rawHotkey, fallbackKey := "LWin") {
+  hotkey := RegExReplace(Trim("" rawHotkey), "\s+", "")
+  if (!hotkey)
+    return fallbackKey
+
+  tokenMap := Map(
+    "<^>!", "RAlt",
+    "<+", "LShift",
+    ">+", "RShift",
+    "+", "Shift",
+    "<^", "LControl",
+    ">^", "RControl",
+    "^", "Ctrl",
+    "<!", "LAlt",
+    ">!", "RAlt",
+    "!", "Alt",
+    "<#", "LWin",
+    ">#", "RWin",
+    "#", "LWin"
+  )
+
+  if (tokenMap.Has(hotkey))
+    return tokenMap[hotkey]
+
+  if (InStr(hotkey, "&")) {
+    parts := StrSplit(hotkey, "&")
+    if (parts.Length >= 1) {
+      key := Trim(parts[1])
+      if (tokenMap.Has(key))
+        return tokenMap[key]
+      if (key)
+        return key
+    }
+  }
+
+  stripped := hotkey
+  loop {
+    if (RegExMatch(stripped, "^(<\^>!|<\^|>\^|<!|>!|<\+|>\+|<#|>#)", &m)) {
+      stripped := SubStr(stripped, StrLen(m[1]) + 1)
+      continue
+    }
+    if (RegExMatch(stripped, "^[\^!+#*~$]")) {
+      stripped := SubStr(stripped, 2)
+      continue
+    }
+    break
+  }
+
+  return stripped ? stripped : fallbackKey
+}
+
+; Safe GetKeyState wrapper that never throws on invalid key names.
+IsHotkeyStatePressed(keyName) {
+  key := Trim("" keyName)
+  if (!key)
+    return false
+  try {
+    return !!GetKeyState(key, "P")
+  } catch {
+    return false
+  }
+}
+
 convertToReadableHotkey(KeyCombination) {
   static modMapping := Map(
     "<^>!", "AltGr + ",
