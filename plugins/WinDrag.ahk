@@ -130,6 +130,14 @@ class WinDrag extends AKPlugin {
           "section", "Behavior",
         ),
         Map(
+          "key", "StickyResizeModifier",
+          "label", "Sticky resize modifier",
+          "description", "Hold this key during resize to also resize neighboring windows that share an edge",
+          "type", "hotkey",
+          "default", "LShift",
+          "section", "Behavior",
+        ),
+        Map(
           "key", "ShowWindowContentOnMove",
           "label", "Show window content while moving",
           "description", "When disabled, show only a frame preview instead of moving the live window",
@@ -207,7 +215,15 @@ class WinDrag extends AKPlugin {
           "description", "Resize a window by dragging from anywhere on it",
           "params", [],
           "category", "Window Movement",
-          "relatedConfig", ["QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapEdgeThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "ResizeAxisThreshold", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront", "OverlayColor", "OverlayOpacity"]
+          "relatedConfig", ["QuickPositionHotkey", "EnableSnapping", "SnappingDistance", "CompensateInvisibleBorders", "SnapOnRelease", "SnapEdgeThreshold", "SnapHalfScreen", "SnapQuarterCorners", "SnapToWindows", "SnapToWindowsDistance", "ResizeAxisThreshold", "StickyResizeModifier", "SnapMaximizeOnTop", "SnapMinimizeOnBottom", "SnapLeftRightTiles", "ShowWindowContentOnResize", "ShowWindowContentOnQuickPosition", "UseSetWindowPos", "BringToFront", "OverlayColor", "OverlayOpacity"]
+        ),
+        Map(
+          "action", "EnterWindowQuickPositioningMode",
+          "label", "Quick position window",
+          "description", "Instantly snap the window under the cursor to a grid zone based on cursor position",
+          "params", [],
+          "category", "Window Movement",
+          "relatedConfig", ["CompensateInvisibleBorders"]
         )
       ],
       "hooks", []
@@ -216,6 +232,41 @@ class WinDrag extends AKPlugin {
 
   _processPluginConfig() {
     this.__ApplyDefaultConfig()
+  }
+
+  EnterWindowQuickPositioningMode() {
+    ctx := {}
+    if (!this._initDragSession(&ctx, A_ThisFunc))
+      return
+
+    if (!this.Config.ShowWindowContentOnQuickPosition)
+      this._createOverlay()
+
+    xWinDst := ctx.xWinSrc
+    yWinDst := ctx.yWinSrc
+    wWinDst := ctx.wWinSrc
+    hWinDst := ctx.hWinSrc
+    insets := { left: ctx.leftInset, top: ctx.topInset, right: ctx.rightInset, bottom: ctx.bottomInset }
+
+    Loop {
+      pollStatus := this._pollDragInput(ctx)
+      if (pollStatus = "released")
+        break
+      if (pollStatus = "cancelled") {
+        this.restoreOriginalWindowState(ctx.hwnd)
+        break
+      }
+
+      this.quickPositionWindowOnEdge(ctx.hwnd, &xWinDst, &yWinDst, &wWinDst, &hWinDst)
+      this._renderDragFeedback(ctx.hwnd, xWinDst, yWinDst, wWinDst, hWinDst, insets, true, "ShowWindowContentOnQuickPosition")
+      this._updateInfoTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst / 2, yWinDst + hWinDst / 2)
+    }
+
+    this._finalizeDragFeedback(ctx.hwnd, xWinDst, yWinDst, wWinDst, hWinDst, insets, true, "ShowWindowContentOnQuickPosition", ctx.EscButtonState != "U")
+
+    this._destroyInfoTip()
+    this.disableEscapeHook()
+    return
   }
   
   EnterWindowMovingMode() { ;;;
@@ -233,10 +284,16 @@ class WinDrag extends AKPlugin {
       snapState := this._snappedWindows[ctx.hwnd]
       this._snappedWindows.Delete(ctx.hwnd)
       this._setCornerRounding(ctx.hwnd, WindowFlags.DWMWCP_DEFAULT)
+      ; Preserve cursor's relative position within the window
+      WinGetPos(&snapX, &snapY, &snapW, &snapH, "ahk_id " ctx.hwnd)
+      ratioX := (snapW > 0) ? (ctx.xMouSrc - snapX) / snapW : 0.5
+      ratioY := (snapH > 0) ? (ctx.yMouSrc - snapY) / snapH : 0.5
+      newX := Round(ctx.xMouSrc - snapState["w"] * ratioX)
+      newY := Round(ctx.yMouSrc - snapState["h"] * ratioY)
       this._applyWindowRect(
         ctx.hwnd,
-        Round(ctx.xMouSrc - snapState["w"] / 2),
-        Round(ctx.yMouSrc - snapState["h"] / 2),
+        newX,
+        newY,
         snapState["w"],
         snapState["h"]
       )
@@ -258,6 +315,7 @@ class WinDrag extends AKPlugin {
     windowSnappingDistance := Number(this.Config.SnapToWindowsDistance)
     neighborEdges := this.Config.SnapToWindows ? this._getNeighborEdges(ctx.hwnd) : Map("x", [], "y", [])
     insets := { left: ctx.leftInset, top: ctx.topInset, right: ctx.rightInset, bottom: ctx.bottomInset }
+    wasQuickPositioning := false
 
     Loop {
       pollStatus := this._pollDragInput(ctx)
@@ -272,8 +330,24 @@ class WinDrag extends AKPlugin {
       pendingSnapZone := ""
       if (ctx.quickPositionHotkey_wasUp && IsHotkeyStatePressed(ctx.quickPositionHotkey)) {
         ctx.isQuickPositioning := true
+        wasQuickPositioning := true
         this.quickPositionWindowOnEdge(ctx.hwnd, &xWinDst, &yWinDst, &wWinDst, &hWinDst)
       } else {
+        ; Rebase after QP release so the window continues from its QP position
+        if (wasQuickPositioning) {
+          wasQuickPositioning := false
+          ctx.xWinSrc := xWinDst
+          ctx.yWinSrc := yWinDst
+          ctx.wWinSrc := wWinDst
+          ctx.hWinSrc := hWinDst
+          ctx.xMouSrc := ctx.xMouLst
+          ctx.yMouSrc := ctx.yMouLst
+          ctx.xMouDif := 0
+          ctx.yMouDif := 0
+          ; No longer snapped — restore rounding and clear snap tracking
+          this._snappedWindows.Delete(ctx.hwnd)
+          this._setCornerRounding(ctx.hwnd, WindowFlags.DWMWCP_DEFAULT)
+        }
         xWinDst := ctx.xWinSrc + ctx.xMouDif
         yWinDst := ctx.yWinSrc + ctx.yMouDif
 
@@ -364,6 +438,15 @@ class WinDrag extends AKPlugin {
     screenRect := { left: CurScrLeft, right: CurScrRight, top: CurScrTop, bottom: CurScrBottom, x: CurScrLeft, y: CurScrTop, w: CurScrRight - CurScrLeft, h: CurScrBottom - CurScrTop }
     winRect := { x: ctx.xWinSrc, y: ctx.yWinSrc, w: ctx.wWinSrc, h: ctx.hWinSrc }
     dockState := this._detectDockedEdges(winRect, insets, screenRect, neighborEdges, 3)
+    wasQuickPositioning := false
+
+    ; Sticky resize setup
+    stickyKey := this.Config.StickyResizeModifier
+    stickyNeighbors := this._getStickyNeighbors(ctx.hwnd, insets, xMul, yMul)
+    stickyOrigX := ctx.xWinSrc
+    stickyOrigW := ctx.wWinSrc
+    stickyOrigY := ctx.yWinSrc
+    stickyOrigH := ctx.hWinSrc
 
     Loop {
       pollStatus := this._pollDragInput(ctx)
@@ -371,6 +454,7 @@ class WinDrag extends AKPlugin {
         break
       if (pollStatus = "cancelled") {
         this.restoreOriginalWindowState(ctx.hwnd)
+        this._restoreStickyNeighbors(stickyNeighbors)
         break
       }
 
@@ -383,26 +467,55 @@ class WinDrag extends AKPlugin {
 
       if (ctx.quickPositionHotkey_wasUp && IsHotkeyStatePressed(ctx.quickPositionHotkey)) {
         ctx.isQuickPositioning := true
+        wasQuickPositioning := true
         this.quickPositionWindowOnEdge(ctx.hwnd, &xWinDst, &yWinDst, &wWinDst, &hWinDst)
-      } else if (this.Config.EnableSnapping) {
-        xWinDst := ctx.xWinSrc + (xMul = 1 ? 1 : 0) * xMouDif
-        yWinDst := ctx.yWinSrc + (yMul = 1 ? 1 : 0) * yMouDif
-        wWinDst := ctx.wWinSrc - xMul * xMouDif
-        hWinDst := ctx.hWinSrc - yMul * yMouDif
-
-        GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
-        screenRect := { left: CurScrLeft, right: CurScrRight, top: CurScrTop, bottom: CurScrBottom }
-
-        this._snapToScreenEdges(&xWinDst, &yWinDst, &wWinDst, &hWinDst, insets, snappingDistance, screenRect, "resize", xMul, yMul)
-
-        if (this.Config.SnapToWindows) {
-          this._snapToNeighborEdges(&xWinDst, &yWinDst, &wWinDst, &hWinDst, insets, windowSnappingDistance, neighborEdges, "resize", xMul, yMul)
-        }
       } else {
-        xWinDst := ctx.xWinSrc + (xMul = 1 ? 1 : 0) * xMouDif
-        yWinDst := ctx.yWinSrc + (yMul = 1 ? 1 : 0) * yMouDif
-        wWinDst := ctx.wWinSrc - xMul * xMouDif
-        hWinDst := ctx.hWinSrc - yMul * yMouDif
+        ; Rebase after QP release so the window continues from its QP geometry
+        if (wasQuickPositioning) {
+          wasQuickPositioning := false
+          ctx.xWinSrc := xWinDst
+          ctx.yWinSrc := yWinDst
+          ctx.wWinSrc := wWinDst
+          ctx.hWinSrc := hWinDst
+          ctx.xMouSrc := ctx.xMouLst
+          ctx.yMouSrc := ctx.yMouLst
+          xMouDif := 0
+          yMouDif := 0
+          ; No longer snapped — restore rounding and clear snap tracking
+          this._snappedWindows.Delete(ctx.hwnd)
+          this._setCornerRounding(ctx.hwnd, WindowFlags.DWMWCP_DEFAULT)
+          ; Re-query min size and dock state for the new geometry
+          minSize := this._getMinTrackSize(ctx.hwnd)
+          winRect := { x: ctx.xWinSrc, y: ctx.yWinSrc, w: ctx.wWinSrc, h: ctx.hWinSrc }
+          dockState := this._detectDockedEdges(winRect, insets, screenRect, neighborEdges, 3)
+          ; Re-detect sticky neighbors from new geometry
+          stickyNeighbors := this._getStickyNeighbors(ctx.hwnd, insets, xMul, yMul)
+          stickyOrigX := ctx.xWinSrc
+          stickyOrigW := ctx.wWinSrc
+          stickyOrigY := ctx.yWinSrc
+          stickyOrigH := ctx.hWinSrc
+        }
+
+        if (this.Config.EnableSnapping) {
+          xWinDst := ctx.xWinSrc + (xMul = 1 ? 1 : 0) * xMouDif
+          yWinDst := ctx.yWinSrc + (yMul = 1 ? 1 : 0) * yMouDif
+          wWinDst := ctx.wWinSrc - xMul * xMouDif
+          hWinDst := ctx.hWinSrc - yMul * yMouDif
+
+          GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
+          screenRect := { left: CurScrLeft, right: CurScrRight, top: CurScrTop, bottom: CurScrBottom }
+
+          this._snapToScreenEdges(&xWinDst, &yWinDst, &wWinDst, &hWinDst, insets, snappingDistance, screenRect, "resize", xMul, yMul)
+
+          if (this.Config.SnapToWindows) {
+            this._snapToNeighborEdges(&xWinDst, &yWinDst, &wWinDst, &hWinDst, insets, windowSnappingDistance, neighborEdges, "resize", xMul, yMul)
+          }
+        } else {
+          xWinDst := ctx.xWinSrc + (xMul = 1 ? 1 : 0) * xMouDif
+          yWinDst := ctx.yWinSrc + (yMul = 1 ? 1 : 0) * yMouDif
+          wWinDst := ctx.wWinSrc - xMul * xMouDif
+          hWinDst := ctx.hWinSrc - yMul * yMouDif
+        }
       }
 
       ; Apply oversize resistance
@@ -418,6 +531,15 @@ class WinDrag extends AKPlugin {
 
       this._renderDragFeedback(ctx.hwnd, xWinDst, yWinDst, wWinDst, hWinDst, insets, ctx.isQuickPositioning, "ShowWindowContentOnResize")
       this._updateInfoTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst / 2, yWinDst + hWinDst / 2)
+
+      ; Sticky resize: co-resize neighboring windows sharing an edge
+      if (!ctx.isQuickPositioning && stickyKey && GetKeyState(stickyKey, "P") && stickyNeighbors.Length > 0) {
+        dLeft := xWinDst - stickyOrigX
+        dRight := (xWinDst + wWinDst) - (stickyOrigX + stickyOrigW)
+        dTop := yWinDst - stickyOrigY
+        dBottom := (yWinDst + hWinDst) - (stickyOrigY + stickyOrigH)
+        this._applyStickyResize(stickyNeighbors, dLeft, dRight, dTop, dBottom)
+      }
     }
 
     this._finalizeDragFeedback(ctx.hwnd, xWinDst, yWinDst, wWinDst, hWinDst, insets, ctx.isQuickPositioning, "ShowWindowContentOnResize", ctx.EscButtonState != "U")
@@ -1008,6 +1130,88 @@ class WinDrag extends AKPlugin {
     }
 
     return Map("x", xEdges, "y", yEdges)
+  }
+
+  _getStickyNeighbors(hwnd, insets, xMul, yMul) {
+    ; Find windows whose edges touch the edges being resized.
+    ; "follows" flags: neighbor's opposite edge touches my edge (e.g. neighbor is to my right).
+    ; "aligns" flags: perpendicular neighbor's same-side edge is co-linear with mine
+    ;   (e.g. neighbor below me has its left edge aligned with my left edge).
+    WinGetPos(&wx, &wy, &ww, &wh, "ahk_id " hwnd)
+    vis := this._getVisibleRect(wx, wy, ww, wh, insets.left, insets.top, insets.right, insets.bottom)
+    tolerance := 5
+    neighbors := []
+
+    for otherHwnd in WinGetList() {
+      if (otherHwnd = hwnd)
+        continue
+      try {
+        if (WinGetMinMax("ahk_id " otherHwnd) != 0)
+          continue
+      } catch
+        continue
+      if (this._isSystemWindow(otherHwnd))
+        continue
+
+      nli := 0, nti := 0, nri := 0, nbi := 0
+      this._getInvisibleBorderOffsets(otherHwnd, &nli, &nti, &nri, &nbi)
+      WinGetPos(&nx, &ny, &nw, &nh, "ahk_id " otherHwnd)
+      nVis := this._getVisibleRect(nx, ny, nw, nh, nli, nti, nri, nbi)
+
+      ; Windows must overlap on the perpendicular axis to share an edge
+      vOverlap := (nVis.top < vis.bottom - tolerance) && (nVis.bottom > vis.top + tolerance)
+      hOverlap := (nVis.left < vis.right - tolerance) && (nVis.right > vis.left + tolerance)
+
+      ; Adjacency detection (ungated by xMul/yMul)
+      isRight := vOverlap && Abs(nVis.left - vis.right) <= tolerance
+      isLeft  := vOverlap && Abs(nVis.right - vis.left) <= tolerance
+      isBelow := hOverlap && Abs(nVis.top - vis.bottom) <= tolerance
+      isAbove := hOverlap && Abs(nVis.bottom - vis.top) <= tolerance
+
+      fRight := false, fLeft := false, fBottom := false, fTop := false
+      aLeft := false, aRight := false, aTop := false, aBottom := false
+
+      ; Direct edge followers: neighbor's opposite edge touches my moving edge
+      if (xMul < 0 && isRight)
+        fRight := true
+      if (xMul > 0 && isLeft)
+        fLeft := true
+      if (yMul < 0 && isBelow)
+        fBottom := true
+      if (yMul > 0 && isAbove)
+        fTop := true
+
+      ; Aligned edges: perpendicular neighbor's same-side edge matches mine
+      if ((isBelow || isAbove) && xMul > 0 && Abs(nVis.left - vis.left) <= tolerance)
+        aLeft := true
+      if ((isBelow || isAbove) && xMul < 0 && Abs(nVis.right - vis.right) <= tolerance)
+        aRight := true
+      if ((isLeft || isRight) && yMul > 0 && Abs(nVis.top - vis.top) <= tolerance)
+        aTop := true
+      if ((isLeft || isRight) && yMul < 0 && Abs(nVis.bottom - vis.bottom) <= tolerance)
+        aBottom := true
+
+      if (fRight || fLeft || fBottom || fTop || aLeft || aRight || aTop || aBottom)
+        neighbors.Push({ hwnd: otherHwnd, origX: nx, origY: ny, origW: nw, origH: nh,
+          followsRight: fRight, followsLeft: fLeft, followsBottom: fBottom, followsTop: fTop,
+          alignsLeft: aLeft, alignsRight: aRight, alignsTop: aTop, alignsBottom: aBottom })
+    }
+    return neighbors
+  }
+
+  _applyStickyResize(neighbors, dLeft, dRight, dTop, dBottom) {
+    for n in neighbors {
+      nx := n.origX + (n.followsRight ? dRight : 0) + (n.alignsLeft ? dLeft : 0)
+      nw := n.origW - (n.followsRight ? dRight : 0) + (n.followsLeft ? dLeft : 0) - (n.alignsLeft ? dLeft : 0) + (n.alignsRight ? dRight : 0)
+      ny := n.origY + (n.followsBottom ? dBottom : 0) + (n.alignsTop ? dTop : 0)
+      nh := n.origH - (n.followsBottom ? dBottom : 0) + (n.followsTop ? dTop : 0) - (n.alignsTop ? dTop : 0) + (n.alignsBottom ? dBottom : 0)
+      this._applyWindowRect(n.hwnd, nx, ny, nw, nh)
+    }
+  }
+
+  _restoreStickyNeighbors(neighbors) {
+    for n in neighbors
+      this._applyWindowRect(n.hwnd, n.origX, n.origY, n.origW, n.origH)
   }
 
   _renderDragFeedback(hwnd, x, y, w, h, insets, isQuickPositioning, showContentKey) {
