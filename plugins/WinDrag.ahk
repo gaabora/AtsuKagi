@@ -162,6 +162,14 @@ class WinDrag extends AKPlugin {
           "section", "Behavior",
         ),
         Map(
+          "key", "ShowGeometryTooltip",
+          "label", "Show geometry tooltip",
+          "description", "Display a tooltip with window position and size during move and resize",
+          "type", "boolean",
+          "default", true,
+          "section", "Visuals",
+        ),
+        Map(
           "key", "OverlayColor",
           "label", "Overlay color",
           "description", "Hex color for the drag frame overlay",
@@ -211,226 +219,89 @@ class WinDrag extends AKPlugin {
   }
   
   EnterWindowMovingMode() { ;;;
-    SnappingDistance := Number(this.Config.SnappingDistance)
     this._destroySnapPreview()
     
-    CoordMode("Mouse", "Screen")
-    CoordMode("Pixel", "Screen")
-    CoordMode("ToolTip", "Screen")
-
-    this.initEscapeHook()
-    this.disableEscapeHook()
-
-    MouseGetPos(&xMouSrc, &yMouSrc, &hwnd)
-    hotkeyInfo := ExtractHotkeyInfo(A_ThisHotkey)
-    MouseButton := hotkeyInfo.key
-
-    if (!hwnd || this._isSystemWindow(hwnd))
+    ctx := {}
+    if (!this._initDragSession(&ctx, A_ThisFunc))
       return
-
-    if (this.IsWindowBlocklisted(hwnd, A_ThisFunc)) {
-      SendEvent("{Blind}{" MouseButton " down}")
-      KeyWait(MouseButton, "U")
-      SendEvent("{Blind}{" MouseButton " up}")
-      return
-    }
-
-    if (this._snappedWindows.Has(hwnd)) {
-      snapState := this._snappedWindows[hwnd]
-      this._snappedWindows.Delete(hwnd)
-      ; Restore default corner rounding (undo DWMWCP_DONOTROUND)
-      try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 33, "Int*", 0, "UInt", 4)
-      this._applyWindowRect(
-        hwnd,
-        Round(xMouSrc - snapState["w"] / 2),
-        Round(yMouSrc - snapState["h"] / 2),
-        snapState["w"],
-        snapState["h"]
-      )
-    }
-
-
-
-    this.saveOriginalWindowState(hwnd)
-    this.enableEscapeHook()
 
     if (!this.Config.ShowWindowContentOnMove)
       this._createOverlay()
-    this._createInfoTip()
 
-    if (this.Config.BringToFront)
-      WinActivate("ahk_id " hwnd)
-    
-    IsMaximized := WinGetMinMax("ahk_id " hwnd)
-
-    if (IsMaximized) {
-      WinRestore("ahk_id " hwnd)
-      this.saveOriginalWindowState(hwnd)
-      this.windowState.max := 1
+    ; Handle snapped window (drag-to-unstick)
+    if (this._snappedWindows.Has(ctx.hwnd)) {
+      snapState := this._snappedWindows[ctx.hwnd]
+      this._snappedWindows.Delete(ctx.hwnd)
+      this._setCornerRounding(ctx.hwnd, WindowFlags.DWMWCP_DEFAULT)
+      this._applyWindowRect(
+        ctx.hwnd,
+        Round(ctx.xMouSrc - snapState["w"] / 2),
+        Round(ctx.yMouSrc - snapState["h"] / 2),
+        snapState["w"],
+        snapState["h"]
+      )
+      ; Re-grab source coords and state after unstick so drag offsets and cancel work correctly
+      this.saveOriginalWindowState(ctx.hwnd)
+      WinGetPos(&xSrc, &ySrc, &wSrc, &hSrc, "ahk_id " ctx.hwnd)
+      ctx.xWinSrc := xSrc
+      ctx.yWinSrc := ySrc
+      ctx.wWinSrc := wSrc
+      ctx.hWinSrc := hSrc
     }
 
-    QuickPositionHotkey := ResolveHotkeyStateKeyName(this.Config.QuickPositionHotkey, "LWin")
-    QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey) ; check that button was released once before window is QuickPositioned
-
-    WinGetPos(&xWinSrc, &yWinSrc, &wWinSrc, &hWinSrc, "ahk_id " hwnd)
-
-    wWinDst := wWinSrc
-    hWinDst := hWinSrc
-
-    leftInset := 0
-    topInset := 0
-    rightInset := 0
-    bottomInset := 0
-    this._getInvisibleBorderOffsets(hwnd, &leftInset, &topInset, &rightInset, &bottomInset)
-
-    EscButtonState := "U"
-    isQuickPositioning := false
+    xWinDst := ctx.xWinSrc
+    yWinDst := ctx.yWinSrc
+    wWinDst := ctx.wWinSrc
+    hWinDst := ctx.hWinSrc
     pendingSnapZone := ""
-    WindowSnappingDistance := Number(this.Config.SnapToWindowsDistance)
-    neighborEdges := this.Config.SnapToWindows ? this._getNeighborEdges(hwnd) : Map("x", [], "y", [])
+    snappingDistance := Number(this.Config.SnappingDistance)
+    windowSnappingDistance := Number(this.Config.SnapToWindowsDistance)
+    neighborEdges := this.Config.SnapToWindows ? this._getNeighborEdges(ctx.hwnd) : Map("x", [], "y", [])
+    insets := { left: ctx.leftInset, top: ctx.topInset, right: ctx.rightInset, bottom: ctx.bottomInset }
 
     Loop {
-      MouseButtonState := GetKeyState(MouseButton, "P") ? "D" : "U"
-      if (MouseButtonState = "U")
+      pollStatus := this._pollDragInput(ctx)
+      if (pollStatus = "released")
         break
-
-      EscButtonState := GetKeyState("Escape", "P") ? "D" : "U"
-      if (EscButtonState = "D") {
-        this.restoreOriginalWindowState(hwnd)
+      if (pollStatus = "cancelled") {
+        this.restoreOriginalWindowState(ctx.hwnd)
         break
       }
 
-      if (!QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey)
-
-      MouseGetPos(&xMouCur, &yMouCur)
-      isQuickPositioning := false
-      
-      if (QuickPositionHotkey_wasUp && IsHotkeyStatePressed(QuickPositionHotkey)) {
-        isQuickPositioning := true
-        this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
+      ctx.isQuickPositioning := false
+      pendingSnapZone := ""
+      if (ctx.quickPositionHotkey_wasUp && IsHotkeyStatePressed(ctx.quickPositionHotkey)) {
+        ctx.isQuickPositioning := true
+        this.quickPositionWindowOnEdge(ctx.hwnd, &xWinDst, &yWinDst, &wWinDst, &hWinDst)
       } else {
+        xWinDst := ctx.xWinSrc + ctx.xMouDif
+        yWinDst := ctx.yWinSrc + ctx.yMouDif
 
-        MouseGetPos(&xMouLst, &yMouLst)
-        xMouDif := xMouLst - xMouSrc
-        yMouDif := yMouLst - yMouSrc
-
-        ; Apply this offset to the window position.
-        xWinDst := (xWinSrc + xMouDif)
-        yWinDst := (yWinSrc + yMouDif)
-
-        ; allow snapping on all monitors without releasing button
         GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
+        screenRect := { left: CurScrLeft, right: CurScrRight, top: CurScrTop, bottom: CurScrBottom }
 
         if (this.Config.EnableSnapping) {
-          visLeft := xWinDst + leftInset
-          visTop := yWinDst + topInset
-          visRight := xWinDst + wWinSrc - rightInset
-          visBottom := yWinDst + hWinSrc - bottomInset
-
-          if (visLeft < CurScrLeft + SnappingDistance) && (visLeft > CurScrLeft - SnappingDistance)
-            xWinDst := CurScrLeft - leftInset
-
-          if (visTop < CurScrTop + SnappingDistance) && (visTop > CurScrTop - SnappingDistance)
-            yWinDst := CurScrTop - topInset
-
-          if (visRight > CurScrRight - SnappingDistance) && (visRight < CurScrRight + SnappingDistance)
-            xWinDst := CurScrRight - (wWinSrc - rightInset)
-
-          if (visBottom > CurScrBottom - SnappingDistance) && (visBottom < CurScrBottom + SnappingDistance)
-            yWinDst := CurScrBottom - (hWinSrc - bottomInset)
+          this._snapToScreenEdges(&xWinDst, &yWinDst, &wWinDst, &hWinDst, insets, snappingDistance, screenRect, "move")
         }
 
-        ; Snap to neighbor window edges
         if (this.Config.SnapToWindows) {
-          visLeft := xWinDst + leftInset
-          visRight := xWinDst + wWinSrc - rightInset
-          visTop := yWinDst + topInset
-          visBottom := yWinDst + hWinSrc - bottomInset
-
-          for edge in neighborEdges["x"] {
-            if (Abs(visLeft - edge) <= WindowSnappingDistance) {
-              xWinDst := edge - leftInset
-              break
-            }
-            if (Abs(visRight - edge) <= WindowSnappingDistance) {
-              xWinDst := edge - (wWinSrc - rightInset)
-              break
-            }
-          }
-          for edge in neighborEdges["y"] {
-            if (Abs(visTop - edge) <= WindowSnappingDistance) {
-              yWinDst := edge - topInset
-              break
-            }
-            if (Abs(visBottom - edge) <= WindowSnappingDistance) {
-              yWinDst := edge - (hWinSrc - bottomInset)
-              break
-            }
-          }
+          this._snapToNeighborEdges(&xWinDst, &yWinDst, &wWinDst, &hWinDst, insets, windowSnappingDistance, neighborEdges, "move")
         }
       }
 
-      pendingSnapZone := ""
-      if (!isQuickPositioning && this.Config.SnapOnRelease) {
-        zone := ""
-        if (this._detectSnapZone(xMouCur, yMouCur, &zone)) {
-          pendingSnapZone := zone
-          this._showSnapPreview(zone["x"], zone["y"], zone["w"], zone["h"])
-        } else {
-          this._hideSnapPreview()
-        }
-      } else {
-        this._hideSnapPreview()
-      }
+      this._handleSnapPreview(ctx.xMouLst, ctx.yMouLst, ctx.isQuickPositioning, &pendingSnapZone)
 
-      showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnMove
-      if (showContent) {
-        if (isQuickPositioning)
-          this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
-        else
-          this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
-      }
-      else
-        this._showOverlay(xWinDst, yWinDst, wWinDst, hWinDst)
-
+      this._renderDragFeedback(ctx.hwnd, xWinDst, yWinDst, wWinDst, hWinDst, insets, ctx.isQuickPositioning, "ShowWindowContentOnMove")
       this._updateInfoTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst/2, yWinDst + hWinDst/2)
     }
 
     this._hideSnapPreview()
     this._destroySnapPreview()
 
-    showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnMove
-    if (!showContent) {
-      this._destroyOverlay()
-      if (EscButtonState = "U")
-        if (isQuickPositioning)
-          this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
-        else
-          this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
-    }
+    this._finalizeDragFeedback(ctx.hwnd, xWinDst, yWinDst, wWinDst, hWinDst, insets, ctx.isQuickPositioning, "ShowWindowContentOnMove", ctx.EscButtonState != "U")
 
-    if (EscButtonState = "U" && IsObject(pendingSnapZone)) {
-      action := pendingSnapZone["action"]
-      if (action = "minimize") {
-        WinMinimize("ahk_id " hwnd)
-      } else {
-        WinGetPos(&preSnapX, &preSnapY, &preSnapW, &preSnapH, "ahk_id " hwnd)
-        this._snappedWindows[hwnd] := Map("x", preSnapX, "y", preSnapY, "w", preSnapW, "h", preSnapH)
-        this._applyVisibleWindowRect(
-          hwnd,
-          pendingSnapZone["x"],
-          pendingSnapZone["y"],
-          pendingSnapZone["w"],
-          pendingSnapZone["h"],
-          leftInset,
-          topInset,
-          rightInset,
-          bottomInset
-        )
-        ; Square corners for flush tiling (Win11 DWMWCP_DONOTROUND)
-        try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 33, "Int*", 1, "UInt", 4)
-      }
+    if (ctx.EscButtonState = "U" && IsObject(pendingSnapZone)) {
+      this._applySnapZone(ctx.hwnd, pendingSnapZone, insets)
     }
 
     this._destroyInfoTip()
@@ -439,10 +310,124 @@ class WinDrag extends AKPlugin {
   }
 
   EnterWindowResizingMode() { ;;;
-    SnappingDistance := Number(this.Config.SnappingDistance)
     RestoreOnResize := 1
     Use9WindowAreasToResize := 0
 
+    ctx := {}
+    if (!this._initDragSession(&ctx, A_ThisFunc))
+      return
+
+    ; Check window has sizing border
+    style := WinGetStyle("ahk_id " ctx.hwnd)
+    if (!(style & WindowFlags.WS_SIZEBOX)) {
+      this._destroyInfoTip()
+      this.disableEscapeHook()
+      return
+    }
+
+    if (!this.Config.ShowWindowContentOnResize)
+      this._createOverlay()
+
+    ; Resize-specific setup
+    if (RestoreOnResize) {
+      IsMaximized := WinGetMinMax("ahk_id " ctx.hwnd)
+      if (IsMaximized) {
+        GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
+        WinRestore("ahk_id " ctx.hwnd)
+        this.saveOriginalWindowState(ctx.hwnd)
+        this.windowState.max := 1
+        WinMove(CurScrLeft, CurScrTop, CurScrRight - CurScrLeft, CurScrBottom - CurScrTop, "ahk_id " ctx.hwnd)
+      }
+    }
+
+    xWinDst := ctx.xWinSrc
+    yWinDst := ctx.yWinSrc
+    wWinDst := ctx.wWinSrc
+    hWinDst := ctx.hWinSrc
+    insets := { left: ctx.leftInset, top: ctx.topInset, right: ctx.rightInset, bottom: ctx.bottomInset }
+
+    ; Calculate resize multipliers
+    mul := this._calcResizeMultipliers(ctx.xMouSrc, ctx.yMouSrc, ctx.xWinSrc, ctx.yWinSrc, ctx.wWinSrc, ctx.hWinSrc, Use9WindowAreasToResize)
+    xMul := mul["xMul"]
+    yMul := mul["yMul"]
+
+    snappingDistance := Number(this.Config.SnappingDistance)
+    windowSnappingDistance := Number(this.Config.SnapToWindowsDistance)
+    resizeAxisThreshold := Number(this.Config.ResizeAxisThreshold)
+    neighborEdges := this.Config.SnapToWindows ? this._getNeighborEdges(ctx.hwnd) : Map("x", [], "y", [])
+
+    ; Query minimum tracking size so we can clamp and prevent sliding at min size
+    minSize := this._getMinTrackSize(ctx.hwnd)
+
+    ; Detect docked edges
+    GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
+    screenRect := { left: CurScrLeft, right: CurScrRight, top: CurScrTop, bottom: CurScrBottom, x: CurScrLeft, y: CurScrTop, w: CurScrRight - CurScrLeft, h: CurScrBottom - CurScrTop }
+    winRect := { x: ctx.xWinSrc, y: ctx.yWinSrc, w: ctx.wWinSrc, h: ctx.hWinSrc }
+    dockState := this._detectDockedEdges(winRect, insets, screenRect, neighborEdges, 3)
+
+    Loop {
+      pollStatus := this._pollDragInput(ctx)
+      if (pollStatus = "released")
+        break
+      if (pollStatus = "cancelled") {
+        this.restoreOriginalWindowState(ctx.hwnd)
+        break
+      }
+
+      ctx.isQuickPositioning := false
+
+      ; Apply axis resistance
+      xMouDif := ctx.xMouDif
+      yMouDif := ctx.yMouDif
+      this._applyAxisResistance(&xMouDif, &yMouDif, resizeAxisThreshold, xMul, yMul, dockState)
+
+      if (ctx.quickPositionHotkey_wasUp && IsHotkeyStatePressed(ctx.quickPositionHotkey)) {
+        ctx.isQuickPositioning := true
+        this.quickPositionWindowOnEdge(ctx.hwnd, &xWinDst, &yWinDst, &wWinDst, &hWinDst)
+      } else if (this.Config.EnableSnapping) {
+        xWinDst := ctx.xWinSrc + (xMul = 1 ? 1 : 0) * xMouDif
+        yWinDst := ctx.yWinSrc + (yMul = 1 ? 1 : 0) * yMouDif
+        wWinDst := ctx.wWinSrc - xMul * xMouDif
+        hWinDst := ctx.hWinSrc - yMul * yMouDif
+
+        GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
+        screenRect := { left: CurScrLeft, right: CurScrRight, top: CurScrTop, bottom: CurScrBottom }
+
+        this._snapToScreenEdges(&xWinDst, &yWinDst, &wWinDst, &hWinDst, insets, snappingDistance, screenRect, "resize", xMul, yMul)
+
+        if (this.Config.SnapToWindows) {
+          this._snapToNeighborEdges(&xWinDst, &yWinDst, &wWinDst, &hWinDst, insets, windowSnappingDistance, neighborEdges, "resize", xMul, yMul)
+        }
+      } else {
+        xWinDst := ctx.xWinSrc + (xMul = 1 ? 1 : 0) * xMouDif
+        yWinDst := ctx.yWinSrc + (yMul = 1 ? 1 : 0) * yMouDif
+        wWinDst := ctx.wWinSrc - xMul * xMouDif
+        hWinDst := ctx.hWinSrc - yMul * yMouDif
+      }
+
+      ; Apply oversize resistance
+      if (!ctx.isQuickPositioning) {
+        GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
+        screenRect := { left: CurScrLeft, right: CurScrRight, top: CurScrTop, bottom: CurScrBottom }
+        this._applyOversizeResistance(&xWinDst, &yWinDst, &wWinDst, &hWinDst, insets, screenRect, xMul, yMul)
+      }
+
+      ; Clamp to minimum window size, pinning the fixed edge
+      if (!ctx.isQuickPositioning)
+        this._clampToMinSize(&xWinDst, &yWinDst, &wWinDst, &hWinDst, ctx.xWinSrc, ctx.yWinSrc, ctx.wWinSrc, ctx.hWinSrc, xMul, yMul, minSize)
+
+      this._renderDragFeedback(ctx.hwnd, xWinDst, yWinDst, wWinDst, hWinDst, insets, ctx.isQuickPositioning, "ShowWindowContentOnResize")
+      this._updateInfoTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst / 2, yWinDst + hWinDst / 2)
+    }
+
+    this._finalizeDragFeedback(ctx.hwnd, xWinDst, yWinDst, wWinDst, hWinDst, insets, ctx.isQuickPositioning, "ShowWindowContentOnResize", ctx.EscButtonState != "U")
+
+    this._destroyInfoTip()
+    this.disableEscapeHook()
+    return
+  }
+
+  _initDragSession(&ctx, callerName) {
     CoordMode("Mouse", "Screen")
     CoordMode("Pixel", "Screen")
     CoordMode("ToolTip", "Screen")
@@ -455,52 +440,34 @@ class WinDrag extends AKPlugin {
     MouseButton := hotkeyInfo.key
 
     if (!hwnd || this._isSystemWindow(hwnd))
-      return
+      return false
 
-    style := WinGetStyle("ahk_id " hwnd)
-    if (!(style & WindowFlags.WS_SIZEBOX))
-      return ; Only allow resizing windows that have a sizing border
-
-    if (this.IsWindowBlocklisted(hwnd, A_ThisFunc)) {
+    if (this.IsWindowBlocklisted(hwnd, callerName)) {
       SendEvent("{Blind}{" MouseButton " down}")
       KeyWait(MouseButton, "U")
       SendEvent("{Blind}{" MouseButton " up}")
-      return
+      return false
     }
 
     this.saveOriginalWindowState(hwnd)
     this.enableEscapeHook()
-
-    if (!this.Config.ShowWindowContentOnResize)
-      this._createOverlay()
-    this._createInfoTip()
 
     if (this.Config.BringToFront)
       WinActivate("ahk_id " hwnd)
 
     IsMaximized := WinGetMinMax("ahk_id " hwnd)
     if (IsMaximized) {
-      if (RestoreOnResize) {
-        WinRestore("ahk_id " hwnd)
-        this.saveOriginalWindowState(hwnd)
-        this.windowState.max := 1
-      } else {
-        GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
-        WinRestore("ahk_id " hwnd)
-        this.saveOriginalWindowState(hwnd)
-        this.windowState.max := 1
-        WinMove(CurScrLeft, CurScrTop, CurScrRight - CurScrLeft, CurScrBottom - CurScrTop, "ahk_id " hwnd)
-      }
+      WinRestore("ahk_id " hwnd)
+      this.saveOriginalWindowState(hwnd)
+      this.windowState.max := 1
     }
 
+    this._createInfoTip()
+
     QuickPositionHotkey := ResolveHotkeyStateKeyName(this.Config.QuickPositionHotkey, "LWin")
-    QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey) ; check that button was released once before window is QuickPositioned
+    QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey)
 
     WinGetPos(&xWinSrc, &yWinSrc, &wWinSrc, &hWinSrc, "ahk_id " hwnd)
-    xWinDst := xWinSrc
-    yWinDst := yWinSrc
-    wWinDst := wWinSrc
-    hWinDst := hWinSrc
 
     leftInset := 0
     topInset := 0
@@ -508,227 +475,48 @@ class WinDrag extends AKPlugin {
     bottomInset := 0
     this._getInvisibleBorderOffsets(hwnd, &leftInset, &topInset, &rightInset, &bottomInset)
 
-    if (Use9WindowAreasToResize) {
-      ; WinLeft = [-1;0;1], WinUp = [-1;0;1]
-      xMultiplier := 0
-      yMultiplier   := 0
-      if (xMouSrc < xWinSrc + wWinSrc / 3)
-        xMultiplier := 1
-      if (xMouSrc > xWinSrc + wWinSrc *2/3)
-        xMultiplier := -1
-      if (yMouSrc < yWinSrc + hWinSrc / 3)
-        yMultiplier := 1
-      if (yMouSrc > yWinSrc + hWinSrc *2/3)
-        yMultiplier := -1
-    } else {
-      ; WinLeft = [-1;1], WinUp = [-1;1]
-      xMultiplier := (xMouSrc < xWinSrc + wWinSrc / 2) ? 1 : -1
-      yMultiplier := (yMouSrc < yWinSrc + hWinSrc / 2) ? 1 : -1
+    ctx := {
+      hwnd: hwnd,
+      mouseButton: MouseButton,
+      xMouSrc: xMouSrc,
+      yMouSrc: yMouSrc,
+      xWinSrc: xWinSrc,
+      yWinSrc: yWinSrc,
+      wWinSrc: wWinSrc,
+      hWinSrc: hWinSrc,
+      leftInset: leftInset,
+      topInset: topInset,
+      rightInset: rightInset,
+      bottomInset: bottomInset,
+      quickPositionHotkey: QuickPositionHotkey,
+      quickPositionHotkey_wasUp: QuickPositionHotkey_wasUp,
+      EscButtonState: "U",
+      isQuickPositioning: false
+    }
+    return true
+  }
+
+  _pollDragInput(ctx) {
+    mouseButtonState := GetKeyState(ctx.mouseButton, "P") ? "D" : "U"
+    if (mouseButtonState = "U")
+      return "released"
+
+    escButtonState := GetKeyState("Escape", "P") ? "D" : "U"
+    if (escButtonState = "D") {
+      ctx.EscButtonState := escButtonState
+      return "cancelled"
     }
 
-    EscButtonState := "U"
-    isQuickPositioning := false
-    WindowSnappingDistance := Number(this.Config.SnapToWindowsDistance)
-    ResizeAxisThreshold := Number(this.Config.ResizeAxisThreshold)
-    neighborEdges := this.Config.SnapToWindows ? this._getNeighborEdges(hwnd) : Map("x", [], "y", [])
+    if (!ctx.quickPositionHotkey_wasUp)
+      ctx.quickPositionHotkey_wasUp := !IsHotkeyStatePressed(ctx.quickPositionHotkey)
 
-    ; Detect which edges are docked (aligned with screen/neighbor edges at drag start)
-    dockTolerance := 3
-    visLeft0 := xWinSrc + leftInset
-    visTop0 := yWinSrc + topInset
-    visRight0 := xWinSrc + wWinSrc - rightInset
-    visBottom0 := yWinSrc + hWinSrc - bottomInset
-    GetCurrentScreenBorders(&CurScrLeft0, &CurScrRight0, &CurScrTop0, &CurScrBottom0)
-    leftDocked := Abs(visLeft0 - CurScrLeft0) <= dockTolerance
-    rightDocked := Abs(visRight0 - CurScrRight0) <= dockTolerance
-    topDocked := Abs(visTop0 - CurScrTop0) <= dockTolerance
-    bottomDocked := Abs(visBottom0 - CurScrBottom0) <= dockTolerance
-    for edge in neighborEdges["x"] {
-      if (Abs(visLeft0 - edge) <= dockTolerance)
-        leftDocked := true
-      if (Abs(visRight0 - edge) <= dockTolerance)
-        rightDocked := true
-    }
-    for edge in neighborEdges["y"] {
-      if (Abs(visTop0 - edge) <= dockTolerance)
-        topDocked := true
-      if (Abs(visBottom0 - edge) <= dockTolerance)
-        bottomDocked := true
-    }
+    MouseGetPos(&xMouLst, &yMouLst)
+    ctx.xMouLst := xMouLst
+    ctx.yMouLst := yMouLst
+    ctx.xMouDif := xMouLst - ctx.xMouSrc
+    ctx.yMouDif := yMouLst - ctx.yMouSrc
 
-    Loop{
-      MouseButtonState := GetKeyState(MouseButton, "P") ? "D" : "U"
-      if (MouseButtonState = "U") {
-        break
-      }
-
-      EscButtonState := GetKeyState("Escape", "P") ? "D" : "U"
-      if (EscButtonState = "D") {
-        this.restoreOriginalWindowState(hwnd)
-        break
-      }
-
-      if (!QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey)
-
-      MouseGetPos(&xMouLst, &yMouLst)
-      xMouDif := xMouLst - xMouSrc
-      yMouDif := yMouLst - yMouSrc
-
-      if (ResizeAxisThreshold > 0) {
-        ; Axis resistance: suppress secondary axis until threshold exceeded
-        absX := Abs(xMouDif)
-        absY := Abs(yMouDif)
-        xEdgeDocked := (xMultiplier > 0 && leftDocked) || (xMultiplier < 0 && rightDocked)
-        yEdgeDocked := (yMultiplier > 0 && topDocked) || (yMultiplier < 0 && bottomDocked)
-        if (absX >= absY) {
-          yThresh := yEdgeDocked ? ResizeAxisThreshold * 2 : ResizeAxisThreshold
-          if (absY < yThresh)
-            yMouDif := 0
-        } else {
-          xThresh := xEdgeDocked ? ResizeAxisThreshold * 2 : ResizeAxisThreshold
-          if (absX < xThresh)
-            xMouDif := 0
-        }
-      }
-
-      ; snap the window to the edge of the screen if closer than 10 pixels to border
-      ; first, get current screen borders for snapping, do this within the loop to allow snapping on all monitors without releasing button
-
-      ; allow snapping on all monitors without releasing button
-      GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
-
-      if (!QuickPositionHotkey_wasUp)
-        QuickPositionHotkey_wasUp := !IsHotkeyStatePressed(QuickPositionHotkey)
-
-      isQuickPositioning := false
-
-      if (QuickPositionHotkey_wasUp && IsHotkeyStatePressed(QuickPositionHotkey)) {
-        isQuickPositioning := true
-        this.quickPositionWindowOnEdge(&xWinDst, &yWinDst, &wWinDst, &hWinDst)
-      } else if (this.Config.EnableSnapping) {
-        ; "normal" resizing
-        xWinDst := (xWinSrc + (xMultiplier =1 ? 1 : 0) * xMouDif)
-        yWinDst := (yWinSrc + (yMultiplier =1 ? 1 : 0) * yMouDif)
-        wWinDst := (wWinSrc - xMultiplier * xMouDif)
-        hWinDst := (hWinSrc - yMultiplier * yMouDif)
-
-        visLeft := xWinDst + leftInset
-        visTop := yWinDst + topInset
-        visRight := xWinDst + wWinDst - rightInset
-        visBottom := yWinDst + hWinDst - bottomInset
-
-        if (visLeft < CurScrLeft + SnappingDistance) && (visLeft > CurScrLeft - SnappingDistance) && (xMultiplier > 0) {
-          xWinDst := CurScrLeft - leftInset
-          wWinDst := wWinSrc + xWinSrc - xWinDst
-        }
-        if (visTop < CurScrTop + SnappingDistance) && (visTop > CurScrTop - SnappingDistance) && (yMultiplier > 0) {
-          yWinDst := CurScrTop - topInset
-          hWinDst := hWinSrc + yWinSrc - yWinDst
-        }
-        if (visRight > CurScrRight - SnappingDistance) && (visRight < CurScrRight + SnappingDistance) && (xMultiplier < 0) {
-          wWinDst := CurScrRight - xWinDst + rightInset
-        }
-        if (visBottom > CurScrBottom - SnappingDistance) && (visBottom < CurScrBottom + SnappingDistance) && (yMultiplier < 0) {
-          hWinDst := CurScrBottom - yWinDst + bottomInset
-        }
-
-        ; Snap to neighbor window edges during resize
-        if (this.Config.SnapToWindows) {
-          visLeft := xWinDst + leftInset
-          visRight := xWinDst + wWinDst - rightInset
-          visTop := yWinDst + topInset
-          visBottom := yWinDst + hWinDst - bottomInset
-
-          for edge in neighborEdges["x"] {
-            if (xMultiplier > 0 && Abs(visLeft - edge) <= WindowSnappingDistance) {
-              xWinDst := edge - leftInset
-              wWinDst := wWinSrc + xWinSrc - xWinDst
-              break
-            }
-            if (xMultiplier < 0 && Abs(visRight - edge) <= WindowSnappingDistance) {
-              wWinDst := edge - xWinDst + rightInset
-              break
-            }
-          }
-          for edge in neighborEdges["y"] {
-            if (yMultiplier > 0 && Abs(visTop - edge) <= WindowSnappingDistance) {
-              yWinDst := edge - topInset
-              hWinDst := hWinSrc + yWinSrc - yWinDst
-              break
-            }
-            if (yMultiplier < 0 && Abs(visBottom - edge) <= WindowSnappingDistance) {
-              hWinDst := edge - yWinDst + bottomInset
-              break
-            }
-          }
-        }
-      } else {
-        ; no snapping, just resizing
-        xWinDst := (xWinSrc + (xMultiplier = 1 ? 1 : 0) * xMouDif)
-        yWinDst := (yWinSrc + (yMultiplier = 1 ? 1 : 0) * yMouDif)
-        wWinDst := (wWinSrc - xMultiplier * xMouDif)
-        hWinDst := (hWinSrc - yMultiplier * yMouDif)
-      }
-
-      ; Oversize resistance: absorb mouse movement when resizing past screen edges.
-      ; The window sticks at the screen edge until the mouse pushes 30% of screen past it.
-      if (!isQuickPositioning) {
-        scrW := CurScrRight - CurScrLeft
-        scrH := CurScrBottom - CurScrTop
-        oversizeThreshX := Round(scrW * 0.3)
-        oversizeThreshY := Round(scrH * 0.3)
-
-        visLeft := xWinDst + leftInset
-        if (visLeft < CurScrLeft && xMultiplier > 0) {
-          absorbed := Min(CurScrLeft - visLeft, oversizeThreshX)
-          xWinDst += absorbed
-          wWinDst -= absorbed
-        }
-        visRight := xWinDst + wWinDst - rightInset
-        if (visRight > CurScrRight && xMultiplier < 0) {
-          absorbed := Min(visRight - CurScrRight, oversizeThreshX)
-          wWinDst -= absorbed
-        }
-        visTop := yWinDst + topInset
-        if (visTop < CurScrTop && yMultiplier > 0) {
-          absorbed := Min(CurScrTop - visTop, oversizeThreshY)
-          yWinDst += absorbed
-          hWinDst -= absorbed
-        }
-        visBottom := yWinDst + hWinDst - bottomInset
-        if (visBottom > CurScrBottom && yMultiplier < 0) {
-          absorbed := Min(visBottom - CurScrBottom, oversizeThreshY)
-          hWinDst -= absorbed
-        }
-      }
-
-      showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnResize
-      if (showContent) {
-        if (isQuickPositioning)
-          this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
-        else
-          this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
-      } else {
-        this._showOverlay(xWinDst, yWinDst, wWinDst, hWinDst)
-      }
-      this._updateInfoTip(this.formatWindowGeometryInfo(xWinDst, yWinDst, wWinDst, hWinDst), xWinDst + wWinDst / 2, yWinDst + hWinDst / 2)
-      ; Sleep, 1
-    }
-
-    showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config.ShowWindowContentOnResize
-    if (!showContent) {
-      this._destroyOverlay()
-      if (EscButtonState = "U")
-        if (isQuickPositioning)
-          this._applyVisibleWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst, leftInset, topInset, rightInset, bottomInset)
-        else
-          this._applyWindowRect(hwnd, xWinDst, yWinDst, wWinDst, hWinDst)
-    }
-
-    this._destroyInfoTip()
-    this.disableEscapeHook()
-    return
+    return "continue"
   }
 
   saveOriginalWindowState(hwnd) {
@@ -778,6 +566,149 @@ class WinDrag extends AKPlugin {
       w + leftInset + rightInset,
       h + topInset + bottomInset
     )
+  }
+
+  _getVisibleRect(x, y, w, h, leftInset, topInset, rightInset, bottomInset) {
+    return {
+      left: x + leftInset,
+      top: y + topInset,
+      right: x + w - rightInset,
+      bottom: y + h - bottomInset
+    }
+  }
+
+  _detectDockedEdges(winRect, insets, screenRect, neighborEdges, tolerance) {
+    visLeft := winRect.x + insets.left
+    visTop := winRect.y + insets.top
+    visRight := winRect.x + winRect.w - insets.right
+    visBottom := winRect.y + winRect.h - insets.bottom
+
+    docked := { left: false, right: false, top: false, bottom: false }
+
+    if (Abs(visLeft - screenRect.left) <= tolerance)
+      docked.left := true
+    if (Abs(visRight - screenRect.right) <= tolerance)
+      docked.right := true
+    if (Abs(visTop - screenRect.top) <= tolerance)
+      docked.top := true
+    if (Abs(visBottom - screenRect.bottom) <= tolerance)
+      docked.bottom := true
+
+    for edge in neighborEdges["x"] {
+      if (Abs(visLeft - edge) <= tolerance)
+        docked.left := true
+      if (Abs(visRight - edge) <= tolerance)
+        docked.right := true
+    }
+    for edge in neighborEdges["y"] {
+      if (Abs(visTop - edge) <= tolerance)
+        docked.top := true
+      if (Abs(visBottom - edge) <= tolerance)
+        docked.bottom := true
+    }
+
+    return docked
+  }
+
+  _calcResizeMultipliers(mouseX, mouseY, winX, winY, winW, winH, use9Areas) {
+    if (use9Areas) {
+      xMul := 0
+      yMul := 0
+      if (mouseX < winX + winW / 3)
+        xMul := 1
+      if (mouseX > winX + winW * 2/3)
+        xMul := -1
+      if (mouseY < winY + winH / 3)
+        yMul := 1
+      if (mouseY > winY + winH * 2/3)
+        yMul := -1
+    } else {
+      xMul := (mouseX < winX + winW / 2) ? 1 : -1
+      yMul := (mouseY < winY + winH / 2) ? 1 : -1
+    }
+    return Map("xMul", xMul, "yMul", yMul)
+  }
+
+  _applyAxisResistance(&xMouDif, &yMouDif, threshold, xMul, yMul, dockState) {
+    if (threshold <= 0)
+      return
+
+    absX := Abs(xMouDif)
+    absY := Abs(yMouDif)
+    xEdgeDocked := (xMul > 0 && dockState.left) || (xMul < 0 && dockState.right)
+    yEdgeDocked := (yMul > 0 && dockState.top) || (yMul < 0 && dockState.bottom)
+
+    if (absX >= absY) {
+      yThresh := yEdgeDocked ? threshold * 2 : threshold
+      if (absY < yThresh)
+        yMouDif := 0
+    } else {
+      xThresh := xEdgeDocked ? threshold * 2 : threshold
+      if (absX < xThresh)
+        xMouDif := 0
+    }
+  }
+
+  _applyOversizeResistance(&x, &y, &w, &h, insets, screenRect, xMul, yMul) {
+    scrW := screenRect.right - screenRect.left
+    scrH := screenRect.bottom - screenRect.top
+    oversizeThreshX := Round(scrW * 0.3)
+    oversizeThreshY := Round(scrH * 0.3)
+
+    visLeft := x + insets.left
+    if (visLeft < screenRect.left && xMul > 0) {
+      absorbed := Min(screenRect.left - visLeft, oversizeThreshX)
+      x += absorbed
+      w -= absorbed
+    }
+
+    visRight := x + w - insets.right
+    if (visRight > screenRect.right && xMul < 0) {
+      absorbed := Min(visRight - screenRect.right, oversizeThreshX)
+      w -= absorbed
+    }
+
+    visTop := y + insets.top
+    if (visTop < screenRect.top && yMul > 0) {
+      absorbed := Min(screenRect.top - visTop, oversizeThreshY)
+      y += absorbed
+      h -= absorbed
+    }
+
+    visBottom := y + h - insets.bottom
+    if (visBottom > screenRect.bottom && yMul < 0) {
+      absorbed := Min(visBottom - screenRect.bottom, oversizeThreshY)
+      h -= absorbed
+    }
+  }
+
+  _getMinTrackSize(hwnd) {
+    ; Query the window's minimum tracking size via WM_GETMINMAXINFO
+    mmi := Buffer(40, 0)
+    try SendMessage(WindowFlags.WM_GETMINMAXINFO, 0, mmi.Ptr, "ahk_id " hwnd)
+    minW := NumGet(mmi, 24, "Int") ; ptMinTrackSize.x
+    minH := NumGet(mmi, 28, "Int") ; ptMinTrackSize.y
+    ; Fall back to system defaults if the window returned zeros
+    if (minW <= 0)
+      minW := DllCall("GetSystemMetrics", "Int", WindowFlags.SM_CXMINTRACK)
+    if (minH <= 0)
+      minH := DllCall("GetSystemMetrics", "Int", WindowFlags.SM_CYMINTRACK)
+    return { w: minW, h: minH }
+  }
+
+  _clampToMinSize(&x, &y, &w, &h, xSrc, ySrc, wSrc, hSrc, xMul, yMul, minSize) {
+    if (w < minSize.w) {
+      w := minSize.w
+      ; Pin the fixed edge: when dragging from left (xMul=1), right edge is fixed
+      if (xMul > 0)
+        x := xSrc + wSrc - minSize.w
+    }
+    if (h < minSize.h) {
+      h := minSize.h
+      ; Pin the fixed edge: when dragging from top (yMul=1), bottom edge is fixed
+      if (yMul > 0)
+        y := ySrc + hSrc - minSize.h
+    }
   }
 
   _getInvisibleBorderOffsets(hwnd, &leftInset, &topInset, &rightInset, &bottomInset) {
@@ -842,39 +773,12 @@ class WinDrag extends AKPlugin {
     return "x: " . Round(x) . ", y: " . Round(y) . "`n(" . Round(w) . " x " . Round(h) . ")"
   }
 
-  quickPositionWindowOnEdge(&xWin, &yWin, &wWin, &hWin) {
-    ; Resize&Snapping Areas:
-    ; Off   X,Y  W,H  QkSize X,Y    W,H  Off_l
-    ;  0    0    1/4   =[1]  [0]     [1]   1
-    ;  1/16 0    1/3   =[2]  [0]     [2]   2
-    ;  2/16 0    0.382 =[3]  [0]     [3]   3
-    ;  3/16 0    1/2   =[4]  [0]     [4]   4
-    ;  4/16 0    0.618       [0]   1-[3]   5
-    ;  5/16 0    2/3         [0]   1-[2]   6
-    ;  6/16 0    3/4         [0]   1-[1]   7
-    ;  7/16 0      1         [0]   1-[0]   8
-    ;  8/16 0      1       1-W,H   1-[0]   8
-    ;  9/16 1/4   3/4      1-W,H   1-[1]   7
-    ; 10/16 1/3   2/3      1-W,H   1-[2]   6
-    ; 11/16 0.382 0.618    1-W,H   1-[3]   5
-    ; 12/16 1/2   1/2      1-W,H     [4]   4
-    ; 13/16 0.618 0.382    1-W,H     [3]   3
-    ; 14/16 2/3   1/3      1-W,H     [2]   2
-    ; 15/16 3/4   1/4      1-W,H     [1]   1
+  quickPositionWindowOnEdge(hwnd, &xWin, &yWin, &wWin, &hWin) {
+    ; 16-zone grid: mouse position maps to a grid cell (0..15 on each axis).
+    ; Cells fold symmetrically around the center, giving 8 size tiers per axis.
+    ; The sizeSteps array maps folded index (1..8) to the fraction of screen filled.
+    static sizeSteps := [1/4, 1/3, 0.382, 1/2, 0.618, 2/3, 3/4, 1]
 
-    QuickSize0 := 0
-    QuickSize1 := 1/4
-    QuickSize2 := 1/3
-    QuickSize3 := 0.382
-    QuickSize4 := 1/2
-
-    ; Center: (at 7/16 <= .. < 9/16)
-    ; Off X+Y  X=Y, W=H
-    ;  outer:       1
-    ;  middle:      0.66
-    ;  inner:       0.333
-
-    ; Initialize with sensible defaults in case GetCurrentScreenBorders fails
     CurScrLeft := 0
     CurScrRight := A_ScreenWidth
     CurScrTop := 0
@@ -882,71 +786,67 @@ class WinDrag extends AKPlugin {
     GetCurrentScreenBorders(&CurScrLeft, &CurScrRight, &CurScrTop, &CurScrBottom)
     scrWidth  := CurScrRight - CurScrLeft
     scrHeight := CurScrBottom - CurScrTop
-    MouseGetPos(&WinCenterX, &WinCenterY)
+    MouseGetPos(&mouseX, &mouseY)
 
-    WinCenterXl := WinCenterX - CurScrLeft
-    WinCenterYl := WinCenterY - CurScrTop
-    
-    OffX := Floor((16 * WinCenterXl) / scrWidth)  ; floor divide to obtain OffX 0..15
-    OffY := Floor((16 * WinCenterYl) / scrHeight) ; floor divide to obtain OffY 0..15
-    
-    OffX_l := OffX + 1
-    OffY_l := OffY + 1
-    if (OffX >= 8)
-      OffX_l := 16 - OffX
-    if (OffY >= 8)
-      OffY_l := 16 - OffY
+    localX := mouseX - CurScrLeft
+    localY := mouseY - CurScrTop
 
-    M8mOffX_l := 8 - OffX_l
-    M8mOffY_l := 8 - OffY_l
-    
-    if (Abs(WinCenterXl - scrWidth / 2) < scrWidth /16 * 0.33 && Abs(WinCenterYl - scrHeight / 2) < scrHeight / 16 * 0.33) { ; inner center
+    cellX := Floor((16 * localX) / scrWidth)  ; 0..15
+    cellY := Floor((16 * localY) / scrHeight) ; 0..15
+
+    ; Fold to symmetric index (1..8): cells 0..7 → 1..8, cells 8..15 → 8..1
+    foldX := (cellX < 8) ? cellX + 1 : 16 - cellX
+    foldY := (cellY < 8) ? cellY + 1 : 16 - cellY
+
+    ; Center zone detection (mouse near screen center)
+    dxCenter := Abs(localX - scrWidth / 2)
+    dyCenter := Abs(localY - scrHeight / 2)
+    cellW := scrWidth / 16
+    cellH := scrHeight / 16
+
+    if (dxCenter < cellW * 0.33 && dyCenter < cellH * 0.33) {
+      ; Inner center — 33% of screen
       xWin := CurScrLeft + 0.33 * scrWidth
       yWin := CurScrTop + 0.33 * scrHeight
       wWin := scrWidth * 0.33
       hWin := scrHeight * 0.33
-    } else if (Abs(WinCenterXl - scrWidth / 2) < scrWidth /16 * 0.66 && Abs(WinCenterYl - scrHeight / 2) < scrHeight / 16 * 0.66) { ; middle center
+    } else if (dxCenter < cellW * 0.66 && dyCenter < cellH * 0.66) {
+      ; Middle center — 50% of screen
       xWin := CurScrLeft + 0.25 * scrWidth
       yWin := CurScrTop + 0.25 * scrHeight
       wWin := scrWidth * 0.5
       hWin := scrHeight * 0.5
-    } else if (Abs(WinCenterXl - scrWidth / 2) < scrWidth / 16 * 1 && Abs(WinCenterYl - scrHeight / 2) < scrHeight / 16 * 1) { ; outer center
-      xWin := CurScrLeft + 0.382 * 0.382 * scrWidth
-      yWin := CurScrTop + 0.382 * 0.382 * scrHeight
-      wWin := scrWidth * (1 - 2 * 0.382 * 0.382)
-      hWin := scrHeight * (1 - 2 * 0.382 * 0.382)
-    } else { ; one of the outer squares
-      if (OffX_l <= 4)
-        wWin := scrWidth * QuickSize%OffX_l%
-      else
-        wWin := scrWidth * (1 - QuickSize%M8mOffX_l%)
-          
-      if (OffX < 8)
-        xWin := CurScrLeft
-      else
-        xWin := CurScrLeft + scrWidth - wWin
+    } else if (dxCenter < cellW && dyCenter < cellH) {
+      ; Outer center — golden ratio inset
+      inset := 0.382 * 0.382
+      xWin := CurScrLeft + inset * scrWidth
+      yWin := CurScrTop + inset * scrHeight
+      wWin := scrWidth * (1 - 2 * inset)
+      hWin := scrHeight * (1 - 2 * inset)
+    } else {
+      ; Edge/corner tile — look up size from sizeSteps
+      wWin := scrWidth * sizeSteps[foldX]
+      hWin := scrHeight * sizeSteps[foldY]
 
-      if (OffY_l <= 4)
-        hWin := scrHeight * QuickSize%OffY_l%
-      else
-        hWin := scrHeight * (1 - QuickSize%M8mOffY_l%)
-          
-      if (OffY < 8)
-        yWin := CurScrTop
-      else
-        yWin := CurScrTop + scrHeight - hWin
+      xWin := (cellX < 8) ? CurScrLeft : CurScrLeft + scrWidth - wWin
+      yWin := (cellY < 8) ? CurScrTop : CurScrTop + scrHeight - hWin
     }
+
+    ; Track pre-snap state and set square corners
+    if (!this._snappedWindows.Has(hwnd)) {
+      WinGetPos(&preX, &preY, &preW, &preH, "ahk_id " hwnd)
+      this._snappedWindows[hwnd] := Map("x", preX, "y", preY, "w", preW, "h", preH)
+    }
+    this._setCornerRounding(hwnd, WindowFlags.DWMWCP_DONOTROUND)
+  }
+
+  _setCornerRounding(hwnd, mode) {
+    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_WINDOW_CORNER_PREFERENCE, "Int*", mode, "UInt", 4)
   }
 
   _createOverlay() {
     this._destroyOverlay()
-    this._overlayGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
-    this._overlayGui.BackColor := this.Config.OverlayColor
-    this._overlayGui.Show("Hide NoActivate")
-    WinSetTransparent(Number(this.Config.OverlayOpacity), "ahk_id " this._overlayGui.Hwnd)
-    ; Rounded corners on Win11+ (DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND)
-    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._overlayGui.Hwnd
-        , "UInt", 33, "Int*", 2, "UInt", 4)
+    this._overlayGui := this._createOverlayGui()
   }
 
   _showOverlay(x, y, w, h) {
@@ -962,15 +862,18 @@ class WinDrag extends AKPlugin {
     }
   }
 
+  _createOverlayGui() {
+    overlayGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
+    overlayGui.BackColor := this.Config.OverlayColor
+    overlayGui.Show("Hide NoActivate") ; Show hidden first to establish the window
+    WinSetTransparent(Number(this.Config.OverlayOpacity), "ahk_id " overlayGui.Hwnd)
+    this._setCornerRounding(overlayGui.Hwnd, WindowFlags.DWMWCP_ROUND)
+    return overlayGui
+  }
+
   _createSnapPreview() {
     this._destroySnapPreview()
-    this._snapPreviewGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
-    this._snapPreviewGui.BackColor := this.Config.OverlayColor
-    this._snapPreviewGui.Show("Hide NoActivate")
-    WinSetTransparent(Number(this.Config.OverlayOpacity), "ahk_id " this._snapPreviewGui.Hwnd)
-    ; Rounded corners on Win11+ (DWMWA_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND)
-    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._snapPreviewGui.Hwnd
-        , "UInt", 33, "Int*", 2, "UInt", 4)
+    this._snapPreviewGui := this._createOverlayGui()
   }
 
   _showSnapPreview(x, y, w, h) {
@@ -989,6 +892,93 @@ class WinDrag extends AKPlugin {
     if (IsObject(this._snapPreviewGui)) {
       try this._snapPreviewGui.Destroy()
       this._snapPreviewGui := ""
+    }
+  }
+
+  _snapToScreenEdges(&x, &y, &w, &h, insets, snapDist, screenRect, mode, xMul := 0, yMul := 0) {
+    vis := this._getVisibleRect(x, y, w, h, insets.left, insets.top, insets.right, insets.bottom)
+
+    if (mode = "move") {
+      if (vis.left < screenRect.left + snapDist) && (vis.left > screenRect.left - snapDist)
+        x := screenRect.left - insets.left
+
+      if (vis.top < screenRect.top + snapDist) && (vis.top > screenRect.top - snapDist)
+        y := screenRect.top - insets.top
+
+      if (vis.right > screenRect.right - snapDist) && (vis.right < screenRect.right + snapDist)
+        x := screenRect.right - (w - insets.right)
+
+      if (vis.bottom > screenRect.bottom - snapDist) && (vis.bottom < screenRect.bottom + snapDist)
+        y := screenRect.bottom - (h - insets.bottom)
+    } else if (mode = "resize") {
+      if (vis.left < screenRect.left + snapDist) && (vis.left > screenRect.left - snapDist) && (xMul > 0) {
+        oldX := x
+        x := screenRect.left - insets.left
+        w := w + (oldX - x)
+      }
+      if (vis.top < screenRect.top + snapDist) && (vis.top > screenRect.top - snapDist) && (yMul > 0) {
+        oldY := y
+        y := screenRect.top - insets.top
+        h := h + (oldY - y)
+      }
+      if (vis.right > screenRect.right - snapDist) && (vis.right < screenRect.right + snapDist) && (xMul < 0) {
+        w := screenRect.right - x + insets.right
+      }
+      if (vis.bottom > screenRect.bottom - snapDist) && (vis.bottom < screenRect.bottom + snapDist) && (yMul < 0) {
+        h := screenRect.bottom - y + insets.bottom
+      }
+    }
+  }
+
+  _snapToNeighborEdges(&x, &y, &w, &h, insets, snapDist, neighborEdges, mode, xMul := 0, yMul := 0) {
+    vis := this._getVisibleRect(x, y, w, h, insets.left, insets.top, insets.right, insets.bottom)
+
+    for edge in neighborEdges["x"] {
+      if (mode = "move") {
+        if (Abs(vis.left - edge) <= snapDist) {
+          x := edge - insets.left
+          break
+        }
+        if (Abs(vis.right - edge) <= snapDist) {
+          x := edge - (w - insets.right)
+          break
+        }
+      } else if (mode = "resize") {
+        if (xMul > 0 && Abs(vis.left - edge) <= snapDist) {
+          oldX := x
+          x := edge - insets.left
+          w := w + (oldX - x)
+          break
+        }
+        if (xMul < 0 && Abs(vis.right - edge) <= snapDist) {
+          w := edge - x + insets.right
+          break
+        }
+      }
+    }
+
+    for edge in neighborEdges["y"] {
+      if (mode = "move") {
+        if (Abs(vis.top - edge) <= snapDist) {
+          y := edge - insets.top
+          break
+        }
+        if (Abs(vis.bottom - edge) <= snapDist) {
+          y := edge - (h - insets.bottom)
+          break
+        }
+      } else if (mode = "resize") {
+        if (yMul > 0 && Abs(vis.top - edge) <= snapDist) {
+          oldY := y
+          y := edge - insets.top
+          h := h + (oldY - y)
+          break
+        }
+        if (yMul < 0 && Abs(vis.bottom - edge) <= snapDist) {
+          h := edge - y + insets.bottom
+          break
+        }
+      }
     }
   }
 
@@ -1018,6 +1008,67 @@ class WinDrag extends AKPlugin {
     }
 
     return Map("x", xEdges, "y", yEdges)
+  }
+
+  _renderDragFeedback(hwnd, x, y, w, h, insets, isQuickPositioning, showContentKey) {
+    showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config[showContentKey]
+    if (showContent) {
+      if (isQuickPositioning)
+        this._applyVisibleWindowRect(hwnd, x, y, w, h, insets.left, insets.top, insets.right, insets.bottom)
+      else
+        this._applyWindowRect(hwnd, x, y, w, h)
+    } else {
+      this._showOverlay(x, y, w, h)
+    }
+  }
+
+  _finalizeDragFeedback(hwnd, x, y, w, h, insets, isQuickPositioning, showContentKey, cancelled) {
+    showContent := isQuickPositioning ? this.Config.ShowWindowContentOnQuickPosition : this.Config[showContentKey]
+    if (!showContent) {
+      this._destroyOverlay()
+      if (!cancelled) {
+        if (isQuickPositioning)
+          this._applyVisibleWindowRect(hwnd, x, y, w, h, insets.left, insets.top, insets.right, insets.bottom)
+        else
+          this._applyWindowRect(hwnd, x, y, w, h)
+      }
+    }
+  }
+
+  _handleSnapPreview(mouseX, mouseY, isQuickPositioning, &pendingSnapZone) {
+    if (!isQuickPositioning && this.Config.SnapOnRelease) {
+      zone := ""
+      if (this._detectSnapZone(mouseX, mouseY, &zone)) {
+        pendingSnapZone := zone
+        this._showSnapPreview(zone["x"], zone["y"], zone["w"], zone["h"])
+      } else {
+        this._hideSnapPreview()
+      }
+    } else {
+      this._hideSnapPreview()
+    }
+  }
+
+  _applySnapZone(hwnd, zone, insets) {
+    action := zone["action"]
+    if (action = "minimize") {
+      WinMinimize("ahk_id " hwnd)
+    } else {
+      WinGetPos(&preSnapX, &preSnapY, &preSnapW, &preSnapH, "ahk_id " hwnd)
+      this._snappedWindows[hwnd] := Map("x", preSnapX, "y", preSnapY, "w", preSnapW, "h", preSnapH)
+      this._applyVisibleWindowRect(
+        hwnd,
+        zone["x"],
+        zone["y"],
+        zone["w"],
+        zone["h"],
+        insets.left,
+        insets.top,
+        insets.right,
+        insets.bottom
+      )
+      this._setCornerRounding(hwnd, WindowFlags.DWMWCP_DONOTROUND)
+    }
   }
 
   _detectSnapZone(mouseX, mouseY, &zone) {
@@ -1104,6 +1155,8 @@ class WinDrag extends AKPlugin {
   }
 
   _createInfoTip() {
+    if (!this.Config.ShowGeometryTooltip)
+      return
     this._destroyInfoTip()
     this._infoTipGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
     this._infoTipGui.BackColor := "1A1A2E"
@@ -1113,9 +1166,7 @@ class WinDrag extends AKPlugin {
     this._infoTipTextCtrl := this._infoTipGui.Add("Text", "vInfoText w160 R2 Center", "`n")
     this._infoTipGui.Show("AutoSize Hide NoActivate")
     WinSetTransparent(220, "ahk_id " this._infoTipGui.Hwnd)
-    ; Rounded corners on Win11+
-    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._infoTipGui.Hwnd
-        , "UInt", 33, "Int*", 2, "UInt", 4)
+    this._setCornerRounding(this._infoTipGui.Hwnd, WindowFlags.DWMWCP_ROUND)
     this._lastInfoTipText := ""
     this._infoTipVisible := false
   }
@@ -1236,6 +1287,13 @@ class WindowFlags {
   ; Window Styles (WS_*)
   static WS_SIZEBOX := 0x40000 ; Window has a sizing border
 
+  ; Window Messages (WM_*)
+  static WM_GETMINMAXINFO := 0x0024
+
+  ; GetSystemMetrics indices
+  static SM_CXMINTRACK := 34
+  static SM_CYMINTRACK := 35
+
   ; Extended Window Styles (WS_EX_*)
   static WS_EX_TOOLWINDOW := 0x80
   static WS_EX_LAYERED := 0x08000000
@@ -1243,4 +1301,11 @@ class WindowFlags {
   ; DWM Window Attributes
   static DWMWA_CLOAKED := 14
   static DWMWA_EXTENDED_FRAME_BOUNDS := 9
+  static DWMWA_WINDOW_CORNER_PREFERENCE := 33
+
+  ; DWM Window Corner Preference (DWMWCP_*)
+  static DWMWCP_DEFAULT := 0
+  static DWMWCP_DONOTROUND := 1
+  static DWMWCP_ROUND := 2
+  static DWMWCP_ROUNDSMALL := 3
 }
