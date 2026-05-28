@@ -27,24 +27,15 @@ class SettingsDom {
       if (dataSection) this.navItems.set(dataSection, el);
     });
 
-    const fieldIds = [
-      'WelcomeMessage', 'DarkTheme', 'UIScalingPercent', 'DebugLevel', 'ToolTipTimeoutMs', 'WindowTransparencyValue',
-      'WindowOnTopBorderColor', 'StartupSound', 'NotificationSound',
-      'ReloadAppHotkey', 'SuspendAppHotkey', 'SwapMouseXButtons',
-      'ReloadAppHotkeyDisplay', 'SuspendAppHotkeyDisplay',
-      'WindowTransparencyLabel', 'BorderColorSwatch',
-      'plugins-list', 'hotkeys-tbody', 'logs-content',
-      'titleText'
-    ];
-
-    fieldIds.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) this.fields.set(id, el);
+    document.querySelectorAll('[id]').forEach((el) => {
+      this.fields.set(el.id, el);
     });
   }
   getSection(name) { return this.sections.get(name); }
   getNavItem(name) { return this.navItems.get(name); }
-  getField(id) { return this.fields.get(id); }
+  getField(id) {
+    return this.fields.get(id) || document.getElementById(id);
+  }
   getAllNavItems() { return Array.from(this.navItems.values()); }
   getAllSections() { return Array.from(this.sections.values()); }
   getPluginCheckboxes() { return document.querySelectorAll('#plugins-list input[type="checkbox"][id^="plugin_"]'); }

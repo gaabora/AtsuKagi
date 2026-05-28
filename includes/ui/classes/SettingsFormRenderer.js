@@ -3,6 +3,35 @@ class SettingsFormRenderer {
     this.form = form;
   }
 
+  _renderFieldWrapper({ scope, key, label, description, inputIdBase, controlHtml, pluginFieldSig }) {
+    const isPlugin = scope === 'plugin';
+    if (isPlugin) {
+      return `
+        <div class="setting-row plugin-setting-row" data-plugin-field-key="${this.form._escapeHtml(key)}" data-plugin-field-sig="${this.form._escapeHtml(pluginFieldSig || '')}">
+          <div class="plugin-field-meta">
+            <label class="field-label">${this.form._escapeHtml(label)}</label>
+            ${description ? `<p class="field-description">${this.form._escapeHtml(description)}</p>` : ''}
+          </div>
+          <div class="app-input-container">
+            ${controlHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="setting-row">
+        <div class="general-field-meta">
+          <label class="field-label" for="${this.form._escapeHtml(inputIdBase)}">${this.form._escapeHtml(label)}</label>
+          ${description ? `<p class="field-description">${this.form._escapeHtml(description)}</p>` : ''}
+        </div>
+        <div class="app-input-container">
+          ${controlHtml}
+        </div>
+      </div>
+    `;
+  }
+
   renderGeneralPage(page) {
     const container = document.getElementById('section-general');
     if (!container || !Array.isArray(page?.sections)) return;
@@ -184,32 +213,15 @@ class SettingsFormRenderer {
       }
     }
 
-    if (scope === 'plugin') {
-      const pluginFieldKey = `${key}`;
-      const pluginFieldSig = this.form._pluginFieldSignature(field);
-      return `
-        <div class="setting-row plugin-setting-row" data-plugin-field-key="${this.form._escapeHtml(pluginFieldKey)}" data-plugin-field-sig="${this.form._escapeHtml(pluginFieldSig)}">
-          <div class="plugin-field-meta">
-            <label class="field-label">${this.form._escapeHtml(label)}</label>
-            ${description ? `<p class="field-description">${this.form._escapeHtml(description)}</p>` : ''}
-          </div>
-          <div class="app-input-container">
-            ${controlHtml}
-          </div>
-        </div>
-      `;
-    }
-
-    return `
-      <div class="setting-row">
-        <div class="general-field-meta">
-          <label class="field-label" for="${this.form._escapeHtml(inputIdBase)}">${this.form._escapeHtml(label)}</label>
-          ${description ? `<p class="field-description">${this.form._escapeHtml(description)}</p>` : ''}
-        </div>
-        <div class="app-input-container">
-          ${controlHtml}
-        </div>
-      </div>
-    `;
+    const pluginFieldSig = scope === 'plugin' ? this.form._pluginFieldSignature(field) : '';
+    return this._renderFieldWrapper({
+      scope,
+      key,
+      label,
+      description,
+      inputIdBase,
+      controlHtml,
+      pluginFieldSig
+    });
   }
 }

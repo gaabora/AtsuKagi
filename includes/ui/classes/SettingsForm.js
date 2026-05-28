@@ -203,32 +203,43 @@ class SettingsForm {
     return general;
   }
 
-  _applyGeneralFieldValues(generalPage) {
-    if (!Array.isArray(generalPage?.sections)) return;
+  _applyFieldValue(target, value) {
+    if (!target) return;
 
-    generalPage.sections.forEach((section) => {
+    if (target.type === 'checkbox') {
+      target.checked = (value === true || value === 1 || value === '1' || value === 'true');
+    } else {
+      target.value = `${value ?? ''}`;
+    }
+
+    if (target.type === 'range' && target.hasAttribute('data-range-number-id')) {
+      const numberId = target.getAttribute('data-range-number-id');
+      const numberEl = numberId ? document.getElementById(numberId) : null;
+      if (numberEl instanceof HTMLInputElement) {
+        numberEl.value = target.value;
+      }
+    }
+  }
+
+  _applySectionFieldValues(sections, resolveTarget) {
+    (sections || []).forEach((section) => {
       (section?.fields || []).forEach((field) => {
         const key = `${field?.key || ''}`.trim();
         if (!key) return;
+
         const value = field && Object.prototype.hasOwnProperty.call(field, 'value') ? field.value : '';
-        const target = document.querySelector(`.general-field[data-key="${CSS.escape(key)}"]`);
+        const target = resolveTarget(field, key);
         if (!target) return;
 
-        if (target.type === 'checkbox') {
-          target.checked = (value === true || value === 1 || value === '1' || value === 'true');
-        } else {
-          target.value = `${value ?? ''}`;
-        }
-
-        // If this is a range input, also update its paired number input
-        if (target.type === 'range' && target.hasAttribute('data-range-number-id')) {
-          const numberId = target.getAttribute('data-range-number-id');
-          const numberEl = numberId ? document.getElementById(numberId) : null;
-          if (numberEl instanceof HTMLInputElement) {
-            numberEl.value = target.value;
-          }
-        }
+        this._applyFieldValue(target, value);
       });
+    });
+  }
+
+  _applyGeneralFieldValues(generalPage) {
+    if (!Array.isArray(generalPage?.sections)) return;
+    this._applySectionFieldValues(generalPage.sections, (_, key) => {
+      return document.querySelector(`.general-field[data-key="${CSS.escape(key)}"]`);
     });
   }
 
@@ -237,32 +248,9 @@ class SettingsForm {
       const pageId = `${page?.id || ''}`;
       if (!pageId) return;
 
-      (page?.sections || []).forEach((section) => {
-        (section?.fields || []).forEach((field) => {
-          const key = `${field?.key || ''}`.trim();
-          if (!key) return;
-
-          const value = field && Object.prototype.hasOwnProperty.call(field, 'value') ? field.value : '';
-          const selector = `.plugin-field[data-plugin-id="${CSS.escape(pageId)}"][data-key="${CSS.escape(key)}"]`;
-          const target = document.querySelector(selector);
-          if (!target) return;
-
-          if (target.type === 'checkbox') {
-            target.checked = (value === true || value === 1 || value === '1' || value === 'true');
-          } else {
-            target.value = `${value ?? ''}`;
-          }
-
-          // If this is a range input, also update its paired number input
-          if (target.type === 'range' && target.hasAttribute('data-range-number-id')) {
-            const numberId = target.getAttribute('data-range-number-id');
-            const numberEl = numberId ? document.getElementById(numberId) : null;
-            if (numberEl instanceof HTMLInputElement) {
-              numberEl.value = target.value;
-            }
-          }
-
-        });
+      this._applySectionFieldValues(page?.sections, (_, key) => {
+        const selector = `.plugin-field[data-plugin-id="${CSS.escape(pageId)}"][data-key="${CSS.escape(key)}"]`;
+        return document.querySelector(selector);
       });
     });
   }
@@ -322,9 +310,13 @@ class SettingsForm {
   }
 
   _escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return `${text ?? ''}`.replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[char]));
   }
 
   _renderPluginSettingsPages(pages) {
@@ -341,7 +333,6 @@ class SettingsForm {
       type: `${field?.type || ''}`,
       control: `${field?.control || ''}`,
       default: `${field?.default ?? ''}`,
-      value: `${field?.value ?? ''}`,
       scope: `${field?.scope || ''}`,
       validation: field?.validation || {},
       options: field?.options || []

@@ -367,7 +367,7 @@ class HotkeyRecorderController {
     this._setRecorderStatus(statusText || 'Hotkey captured. Press Apply to save, or Record to capture again.');
     const el = this._el('hotkeyRecordReadable');
     if (el) el.textContent = display || this._humanize(this.pendingRaw);
-    this._setManualControlsFromRaw(this.pendingRaw, true);
+    this._setManualControlsFromRaw(this.pendingRaw, true, false);
     // Don't call _updateManualPreview() here — it would recompose and potentially corrupt pendingRaw
   }
 
@@ -389,7 +389,6 @@ class HotkeyRecorderController {
     clearFilter('hotkeyManualKeyFilter');
     clearFilter('hotkeyManualPrefixKeyFilter');
 
-    this._updateModifiersVisibility();
     this._renderKeyList('hotkeyManualKeyList', 'hotkeyManualKeyFilter');
     this._renderKeyList('hotkeyManualPrefixKeyList', 'hotkeyManualPrefixKeyFilter');
     this._setManualControlsFromRaw(this.pendingRaw, true);
@@ -566,7 +565,7 @@ class HotkeyRecorderController {
     document.querySelectorAll('.hotkey-mod-btn').forEach((btn) => btn.classList.remove('active'));
   }
 
-  _setManualControlsFromRaw(rawHotkey, syncCustomModifier = false) {
+  _setManualControlsFromRaw(rawHotkey, syncCustomModifier = false, updateVisibility = true) {
     this._clearManualModifiers();
     const parsed = this._parseHotkey(rawHotkey);
     const lr = this._lrEnabled();
@@ -575,8 +574,10 @@ class HotkeyRecorderController {
       const customCombo = this._el('hotkeyOptUseCustomModifier');
       if (customCombo) customCombo.checked = !!parsed.prefixKey;
     }
-    this._updatePrefixKeyVisibility();
-    this._updateModifiersVisibility();
+    if (updateVisibility) {
+      this._updatePrefixKeyVisibility();
+      this._updateModifiersVisibility();
+    }
 
     const tokenMap = lr ? HotkeyRecorderController.MOD_TOKENS_LR : HotkeyRecorderController.MOD_TOKENS_GENERIC;
     if (!parsed.prefixKey) {

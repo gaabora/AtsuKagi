@@ -242,15 +242,20 @@ class SettingsPage {
     this._wireFilePicker('NotificationSound', 'browseNotificationSound', 'NotificationSoundFile');
   }
 
+  _bindOnce(el, key, event, handler) {
+    if (!el || el.dataset[key] === '1') return false;
+    el.dataset[key] = '1';
+    el.addEventListener(event, handler);
+    return true;
+  }
+
   _wireFilePicker(textInputId, browseBtnId, fileInputId) {
     const txt = document.getElementById(textInputId);
     const btn = document.getElementById(browseBtnId);
     const picker = document.getElementById(fileInputId);
     if (!txt || !btn || !picker) return;
-    if (btn.dataset.boundFilePicker === '1') return;
-    btn.dataset.boundFilePicker = '1';
 
-    btn.addEventListener('click', () => {
+    this._bindOnce(btn, 'boundFilePicker', 'click', () => {
       const selected = this.hostBridge.browseForFile(txt.value || '');
       if (selected) {
         txt.value = selected;
@@ -259,7 +264,7 @@ class SettingsPage {
       }
     });
 
-    picker.addEventListener('change', () => {
+    this._bindOnce(picker, 'boundFilePickerChange', 'change', () => {
       if (picker.files && picker.files.length > 0) {
         txt.value = picker.files[0].name;
         txt.title = picker.files[0].name;
@@ -300,13 +305,10 @@ class SettingsPage {
       });
     }
 
-    if (applyBtn && applyBtn.dataset.boundColorApply !== '1') {
-      applyBtn.dataset.boundColorApply = '1';
-      applyBtn.addEventListener('click', () => {
-        this.colorPicker.apply();
-        if (cancelBtn) cancelBtn.click();
-      });
-    }
+    this._bindOnce(applyBtn, 'boundColorApply', 'click', () => {
+      this.colorPicker.apply();
+      if (cancelBtn) cancelBtn.click();
+    });
   }
 
   _bindHotkeyRecorderDialog() {
@@ -315,24 +317,16 @@ class SettingsPage {
     const removeBtn = document.getElementById('removeHotkey');
     const resetBtn = document.getElementById('resetHotkey');
 
-    if (applyBtn && applyBtn.dataset.boundHotkeyApply !== '1') {
-      applyBtn.dataset.boundHotkeyApply = '1';
-      applyBtn.addEventListener('click', () => {
-        const ok = this.hotkeyRecorder.apply();
-        if (ok && cancelBtn) cancelBtn.click();
-      });
-    }
+    this._bindOnce(applyBtn, 'boundHotkeyApply', 'click', () => {
+      const ok = this.hotkeyRecorder.apply();
+      if (ok && cancelBtn) cancelBtn.click();
+    });
 
-    if (cancelBtn && cancelBtn.dataset.boundHotkeyCancel !== '1') {
-      cancelBtn.dataset.boundHotkeyCancel = '1';
-      cancelBtn.addEventListener('click', () => {
-        this.hotkeyRecorder.cancel();
-      });
-    }
+    this._bindOnce(cancelBtn, 'boundHotkeyCancel', 'click', () => {
+      this.hotkeyRecorder.cancel();
+    });
 
-    if (removeBtn && removeBtn.dataset.boundHotkeyRemove !== '1') {
-      removeBtn.dataset.boundHotkeyRemove = '1';
-      removeBtn.addEventListener('click', () => {
+    this._bindOnce(removeBtn, 'boundHotkeyRemove', 'click', () => {
         this.hotkeyRecorder.remove();
 
         if (this.hotkeyRecorder.actionTarget) {
@@ -370,15 +364,11 @@ class SettingsPage {
         input.dispatchEvent(new Event('change', { bubbles: true }));
         if (this.hotkeyRecorder.targetId) this.hotkeyRecorder.updatePreview(this.hotkeyRecorder.targetId);
         if (cancelBtn) cancelBtn.click();
-      });
-    }
+    });
 
-    if (resetBtn && resetBtn.dataset.boundHotkeyReset !== '1') {
-      resetBtn.dataset.boundHotkeyReset = '1';
-      resetBtn.addEventListener('click', () => {
-        this.hotkeyRecorder.reset();
-      });
-    }
+    this._bindOnce(resetBtn, 'boundHotkeyReset', 'click', () => {
+      this.hotkeyRecorder.reset();
+    });
 
   }
 
@@ -511,11 +501,7 @@ class SettingsPage {
 
   _bindDevToolsButton() {
     const openDevToolsBtn = document.getElementById('openDevTools');
-    if (!openDevToolsBtn) return;
-    if (openDevToolsBtn.dataset.boundDevTools === '1') return;
-    openDevToolsBtn.dataset.boundDevTools = '1';
-
-    openDevToolsBtn.addEventListener('click', () => {
+    this._bindOnce(openDevToolsBtn, 'boundDevTools', 'click', () => {
       this.hostBridge.openDevTools();
     });
   }

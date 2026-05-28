@@ -1,4 +1,19 @@
 class SettingsFormSerializer {
+  static stripFieldProperties(field) {
+    return {
+      key: field?.key || '',
+      pluginId: field?.pluginId || '',
+      label: field?.label || '',
+      description: field?.description || '',
+      type: field?.type || '',
+      control: field?.control || '',
+      default: field?.default ?? '',
+      scope: field?.scope || '',
+      validation: field?.validation || {},
+      options: field?.options || []
+    };
+  }
+
   static buildStateSignatures(state) {
     if (!state) {
       return {
@@ -59,18 +74,7 @@ class SettingsFormSerializer {
       sections: (page.sections || []).map((section) => ({
         id: section?.id || '',
         title: section?.title || '',
-        fields: (section?.fields || []).map((field) => ({
-          key: field?.key || '',
-          pluginId: field?.pluginId || '',
-          label: field?.label || '',
-          description: field?.description || '',
-          type: field?.type || '',
-          control: field?.control || '',
-          default: field?.default ?? '',
-          scope: field?.scope || '',
-          validation: field?.validation || {},
-          options: field?.options || []
-        }))
+        fields: (section?.fields || []).map((field) => SettingsFormSerializer.stripFieldProperties(field))
       }))
     };
   }
@@ -99,18 +103,7 @@ class SettingsFormSerializer {
       sections: (page?.sections || []).map((section) => ({
         id: section?.id || '',
         title: section?.title || '',
-        fields: (section?.fields || []).map((field) => ({
-          key: field?.key || '',
-          pluginId: field?.pluginId || '',
-          label: field?.label || '',
-          description: field?.description || '',
-          type: field?.type || '',
-          control: field?.control || '',
-          default: field?.default ?? '',
-          scope: field?.scope || '',
-          validation: field?.validation || {},
-          options: field?.options || []
-        }))
+        fields: (section?.fields || []).map((field) => SettingsFormSerializer.stripFieldProperties(field))
       })),
       actions: page?.actions || []
     }));
