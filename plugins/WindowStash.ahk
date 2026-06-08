@@ -3,6 +3,9 @@ class WindowStash extends AKPlugin {
   RevealedHwnd := 0
   _pollFn := 0
   _exitFn := 0
+  _displayChangeFn := 0
+  _displayChangeTimerFn := 0
+  _displaySignature := ""
   _polling := false
   _lastMouseX := ""
   _lastMouseY := ""
@@ -102,6 +105,11 @@ class WindowStash extends AKPlugin {
   _init() {
     this._pollFn := this._poll.Bind(this)
     this._exitFn := this._onExit.Bind(this)
+    this._displayChangeFn := this._onDisplayChange.Bind(this)
+    this._displayChangeTimerFn := this._applyDisplayChange.Bind(this)
+    this._displaySignature := this._getDisplaySignature()
+    OnMessage(0x007E, this._displayChangeFn) ; WM_DISPLAYCHANGE
+    OnMessage(0x001A, this._displayChangeFn) ; WM_SETTINGCHANGE
     OnExit(this._exitFn)
   }
 
@@ -407,6 +415,50 @@ class WindowStash extends AKPlugin {
     info["hiddenFrame"] := this._getHiddenFrame(currentFrame, monitor, info["edge"])
   }
 
+  _onDisplayChange(*) {
+    SetTimer(this._displayChangeTimerFn, 0)
+    SetTimer(this._displayChangeTimerFn, -250)
+  }
+
+  _applyDisplayChange() {
+    signature := this._getDisplaySignature()
+    if (signature = this._displaySignature)
+      return
+
+    if (this._animating) {
+      SetTimer(this._displayChangeTimerFn, -100)
+      return
+    }
+    this._displaySignature := signature
+
+    for hwnd, info in this.StashedWindows {
+      if (!WinExist("ahk_id " hwnd))
+        continue
+
+      originalMonitor := this._getMonitorForRect(
+        info["originalFrame"]["x"],
+        info["originalFrame"]["y"],
+        info["originalFrame"]["w"],
+        info["originalFrame"]["h"]
+      )
+      info["originalFrame"] := this._getClampedFrame(info["originalFrame"], originalMonitor)
+
+      currentMonitor := this._getMonitorForRect(
+        info["revealedFrame"]["x"],
+        info["revealedFrame"]["y"],
+        info["revealedFrame"]["w"],
+        info["revealedFrame"]["h"]
+      )
+      targetMonitor := this._getMonitorForEdge(currentMonitor, info["edge"])
+      info["monitor"] := targetMonitor
+      info["revealedFrame"] := this._getEdgeRevealedFrame(info["revealedFrame"], targetMonitor, info["edge"])
+      info["hiddenFrame"] := this._getHiddenFrame(info["revealedFrame"], targetMonitor, info["edge"])
+
+      targetFrame := info["revealed"] ? info["revealedFrame"] : info["hiddenFrame"]
+      this._moveWindow(hwnd, targetFrame)
+    }
+  }
+
   _restoreOverlappingWindows(newHwnd, edge, monitor, hiddenFrame) {
     overlapping := []
     for hwnd, info in this.StashedWindows {
@@ -429,13 +481,29 @@ class WindowStash extends AKPlugin {
     centerX := x + w / 2
     centerY := y + h / 2
     monitorCount := MonitorGetCount()
+    bestIndex := MonitorGetPrimary()
+    bestOverlap := -1
+    bestDistance := 0x7FFFFFFFFFFFFFFF
 
     Loop monitorCount {
       MonitorGet(A_Index, &left, &top, &right, &bottom)
       if (centerX >= left && centerX < right && centerY >= top && centerY < bottom)
         return this._getMonitorInfo(A_Index)
+
+      overlapWidth := Max(0, Min(x + w, right) - Max(x, left))
+      overlapHeight := Max(0, Min(y + h, bottom) - Max(y, top))
+      overlapArea := overlapWidth * overlapHeight
+      distanceX := centerX < left ? left - centerX : centerX >= right ? centerX - right : 0
+      distanceY := centerY < top ? top - centerY : centerY >= bottom ? centerY - bottom : 0
+      distance := distanceX * distanceX + distanceY * distanceY
+
+      if (overlapArea > bestOverlap || (overlapArea = bestOverlap && distance < bestDistance)) {
+        bestIndex := A_Index
+        bestOverlap := overlapArea
+        bestDistance := distance
+      }
     }
-    return this._getMonitorInfo(MonitorGetPrimary())
+    return this._getMonitorInfo(bestIndex)
   }
 
   _getMonitorInfo(index) {
@@ -452,6 +520,26 @@ class WindowStash extends AKPlugin {
       "fullRight", fullRight,
       "fullBottom", fullBottom
     )
+  }
+
+  _getDisplaySignature() {
+    signature := ""
+    Loop MonitorGetCount() {
+      monitor := this._getMonitorInfo(A_Index)
+      signature .= Format(
+        "{1}:{2},{3},{4},{5},{6},{7},{8},{9};",
+        A_Index,
+        monitor["fullLeft"],
+        monitor["fullTop"],
+        monitor["fullRight"],
+        monitor["fullBottom"],
+        monitor["left"],
+        monitor["top"],
+        monitor["right"],
+        monitor["bottom"]
+      )
+    }
+    return signature
   }
 
   _getMonitorForEdge(currentMonitor, edge) {
@@ -479,10 +567,11 @@ class WindowStash extends AKPlugin {
   }
 
   _getEdgeRevealedFrame(frame, monitor, edge) {
-    width := Min(frame["w"], monitor["right"] - monitor["left"])
-    height := Min(frame["h"], monitor["bottom"] - monitor["top"])
-    x := this._clamp(frame["x"], monitor["left"], monitor["right"] - width)
-    y := this._clamp(frame["y"], monitor["top"], monitor["bottom"] - height)
+    result := this._getClampedFrame(frame, monitor)
+    width := result["w"]
+    height := result["h"]
+    x := result["x"]
+    y := result["y"]
 
     switch edge {
       case "left":
@@ -492,6 +581,14 @@ class WindowStash extends AKPlugin {
       case "bottom":
         y := monitor["bottom"] - height
     }
+    return Map("x", x, "y", y, "w", width, "h", height)
+  }
+
+  _getClampedFrame(frame, monitor) {
+    width := Min(frame["w"], monitor["right"] - monitor["left"])
+    height := Min(frame["h"], monitor["bottom"] - monitor["top"])
+    x := this._clamp(frame["x"], monitor["left"], monitor["right"] - width)
+    y := this._clamp(frame["y"], monitor["top"], monitor["bottom"] - height)
     return Map("x", x, "y", y, "w", width, "h", height)
   }
 
@@ -670,6 +767,9 @@ class WindowStash extends AKPlugin {
 
   _onExit(*) {
     this._stopPolling()
+    SetTimer(this._displayChangeTimerFn, 0)
+    OnMessage(0x007E, this._displayChangeFn, 0)
+    OnMessage(0x001A, this._displayChangeFn, 0)
     for hwnd, info in this.StashedWindows {
       if (!WinExist("ahk_id " hwnd))
         continue
