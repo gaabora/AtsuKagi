@@ -57,6 +57,12 @@ class WindowStash extends AKPlugin {
           "type", "boolean", "control", "switch", "default", true, "section", "Behavior"
         ),
         Map(
+          "key", "MinimizeHiddenWindows",
+          "label", "Minimize hidden windows",
+          "description", "Keep hidden stashed windows minimized at their valid on-screen position for safer recovery",
+          "type", "boolean", "control", "switch", "default", true, "section", "Behavior"
+        ),
+        Map(
           "key", "AnimateTransitions",
           "label", "Animate transitions",
           "description", "Animate windows while stashing, revealing, and restoring",
@@ -97,7 +103,7 @@ class WindowStash extends AKPlugin {
         Map(
           "key", "UseStashHandle",
           "label", "Use stash handle",
-          "description", "Show a half-hidden rounded tab; hover reveals temporarily, while click or inward drag unstashes",
+          "description", "Show a half-hidden rounded tab; drag along the edge to reposition or inward to unstash",
           "type", "boolean", "control", "switch", "default", true, "section", "Handle"
         ),
         Map(
@@ -122,7 +128,7 @@ class WindowStash extends AKPlugin {
         Map(
           "key", "HandleThickness",
           "label", "Visible handle thickness",
-          "description", "Visible thickness of the tab; an equal portion remains beyond the screen edge",
+          "description", "Visible thickness of the tab; a deeper portion remains beyond the screen edge for pulling",
           "type", "integer", "control", "range", "default", 14, "section", "Handle",
           "validation", Map("min", 6, "max", 40, "step", 1)
         ),
@@ -183,15 +189,26 @@ class WindowStash extends AKPlugin {
       return
     }
 
+    if (key = "MinimizeHiddenWindows") {
+      for hwnd, info in this.StashedWindows {
+        if (info["revealed"])
+          continue
+        if (value)
+          this._parkHiddenWindow(hwnd, info)
+        else
+          this._prepareHiddenWindowForReveal(hwnd, info)
+      }
+      return
+    }
+
     if (key = "UseStashHandle" || key = "HandleColor" || key = "HandleGripColor" || key = "HandleOpacity"
-      || key = "HandleThickness" || key = "HandleLength") {
+      || key = "HandleThickness" || key = "HandleLength" || key = "HandleDragDistance") {
       for hwnd, info in this.StashedWindows {
         this._destroyHandle(info)
         info["hiddenFrame"] := this._getHiddenFrame(info["revealedFrame"], info["monitor"], info["edge"])
-        if (!info["revealed"]) {
-          this._moveWindow(hwnd, info["hiddenFrame"])
-          this._showHandle(hwnd, info)
-        }
+        if (!info["revealed"])
+          this._parkHiddenWindow(hwnd, info)
+        this._showHandle(hwnd, info)
       }
       return
     }
@@ -202,7 +219,7 @@ class WindowStash extends AKPlugin {
     for hwnd, info in this.StashedWindows {
       info["hiddenFrame"] := this._getHiddenFrame(info["revealedFrame"], info["monitor"], info["edge"])
       if (!info["revealed"] && WinExist("ahk_id " hwnd))
-        this._moveWindow(hwnd, info["hiddenFrame"])
+        this._parkHiddenWindow(hwnd, info)
     }
   }
 
@@ -316,7 +333,10 @@ class WindowStash extends AKPlugin {
       "hiddenFrame", hiddenFrame,
       "revealed", true,
       "revealMode", "",
+      "suppressHandleHover", false,
+      "parkedMinimized", false,
       "handleGui", "",
+      "handleBody", "",
       "handleGrip", "",
       "handleFrame", ""
     )
@@ -335,6 +355,7 @@ class WindowStash extends AKPlugin {
     this._destroyHandle(info)
     this._setWindowBorderColor(hwnd, -1)
     if (restoreFrame && WinExist("ahk_id " hwnd)) {
+      this._restoreParkedWindow(hwnd, info)
       this._transitionWindow(hwnd, info["originalFrame"])
       if (info["wasMaximized"])
         try WinMaximize("ahk_id " hwnd)
@@ -358,11 +379,12 @@ class WindowStash extends AKPlugin {
       this._hideWindow(this.RevealedHwnd, false)
 
     info := this.StashedWindows[hwnd]
-    this._destroyHandle(info)
+    this._prepareHiddenWindowForReveal(hwnd, info)
     this._transitionWindow(hwnd, info["revealedFrame"])
     info["revealed"] := true
     info["revealMode"] := revealMode
     this.RevealedHwnd := hwnd
+    this._showHandle(hwnd, info)
 
     if (this.Config.ShiftFocusWhenStashed)
       try WinActivate("ahk_id " hwnd)
@@ -382,6 +404,7 @@ class WindowStash extends AKPlugin {
     this._transitionWindow(hwnd, info["hiddenFrame"])
     info["revealed"] := false
     info["revealMode"] := ""
+    this._parkHiddenWindow(hwnd, info)
     this._showHandle(hwnd, info)
     if (this.RevealedHwnd = hwnd)
       this.RevealedHwnd := 0
@@ -424,6 +447,8 @@ class WindowStash extends AKPlugin {
       if (!this.StashedWindows.Count)
         return
 
+      this._raiseHandles()
+
       CoordMode("Mouse", "Screen")
       MouseGetPos(&mouseX, &mouseY)
       activeHwnd := WinExist("A")
@@ -432,6 +457,12 @@ class WindowStash extends AKPlugin {
       this._lastMouseX := mouseX
       this._lastMouseY := mouseY
       this._lastActiveHwnd := activeHwnd
+
+      for hwnd, info in this.StashedWindows {
+        if (info["suppressHandleHover"]
+          && (!IsObject(info["handleFrame"]) || !this._pointInFrame(mouseX, mouseY, info["handleFrame"])))
+          info["suppressHandleHover"] := false
+      }
 
       if (activeChanged && this.StashedWindows.Has(activeHwnd) && !this.StashedWindows[activeHwnd]["revealed"]) {
         this._revealWindow(activeHwnd, "activation")
@@ -455,6 +486,9 @@ class WindowStash extends AKPlugin {
       revealedInfo := this.StashedWindows[this.RevealedHwnd]
       pointerOutside := !this._isPointerInRevealArea(revealedInfo, mouseX, mouseY)
 
+      if (revealedInfo["revealMode"] = "handle")
+        return
+
       if (revealedInfo["revealMode"] = "activation") {
         if (activeHwnd != this.RevealedHwnd && pointerOutside && (activeChanged || mouseMoved))
           this._hideWindow(this.RevealedHwnd, false)
@@ -470,7 +504,8 @@ class WindowStash extends AKPlugin {
 
   _getStashedWindowAtPoint(x, y, includeRevealed:=false) {
     for hwnd, info in this.StashedWindows {
-      if (!info["revealed"] && IsObject(info["handleFrame"]) && this._pointInFrame(x, y, info["handleFrame"]))
+      if (!info["revealed"] && !info["suppressHandleHover"]
+        && IsObject(info["handleFrame"]) && this._pointInFrame(x, y, info["handleFrame"]))
         return hwnd
     }
 
@@ -502,6 +537,7 @@ class WindowStash extends AKPlugin {
     info["monitor"] := monitor
     info["revealedFrame"] := currentFrame
     info["hiddenFrame"] := this._getHiddenFrame(currentFrame, monitor, info["edge"])
+    this._showHandle(hwnd, info)
   }
 
   _onDisplayChange(*) {
@@ -543,12 +579,11 @@ class WindowStash extends AKPlugin {
       info["revealedFrame"] := this._getEdgeRevealedFrame(info["revealedFrame"], targetMonitor, info["edge"])
       info["hiddenFrame"] := this._getHiddenFrame(info["revealedFrame"], targetMonitor, info["edge"])
 
-      targetFrame := info["revealed"] ? info["revealedFrame"] : info["hiddenFrame"]
-      this._moveWindow(hwnd, targetFrame)
       if (info["revealed"])
-        this._destroyHandle(info)
+        this._moveWindow(hwnd, info["revealedFrame"])
       else
-        this._showHandle(hwnd, info)
+        this._parkHiddenWindow(hwnd, info)
+      this._showHandle(hwnd, info)
     }
   }
 
@@ -710,15 +745,20 @@ class WindowStash extends AKPlugin {
     if (!IsObject(info["handleGui"])) {
       handleGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000")
       handleGui.BackColor := this._normalizeColor(this.Config.HandleColor)
+      handleBody := handleGui.Add(
+        "Text",
+        "x0 y0 w1 h1 Background" this._normalizeColor(this.Config.HandleColor)
+      )
       handleGrip := handleGui.Add(
         "Text",
         "x0 y0 w1 h1 Background" this._normalizeColor(this.Config.HandleGripColor)
       )
       handleGui.Show("Hide NoActivate")
-      WinSetTransparent(Number(this.Config.HandleOpacity), "ahk_id " handleGui.Hwnd)
       info["handleGui"] := handleGui
+      info["handleBody"] := handleBody
       info["handleGrip"] := handleGrip
       this._handleWindows[handleGui.Hwnd] := hwnd
+      this._handleWindows[handleBody.Hwnd] := hwnd
       this._handleWindows[handleGrip.Hwnd] := hwnd
     }
 
@@ -731,19 +771,32 @@ class WindowStash extends AKPlugin {
       " h" Round(frame["h"])
       " NoActivate"
     )
+    pullProgress := this._clamp(inwardOffset / Max(1, Integer(this.Config.HandleDragDistance)), 0, 1)
+    opacity := Round(Number(this.Config.HandleOpacity) * (1 - 0.65 * pullProgress))
+    WinSetTransparent(Max(10, opacity), "ahk_id " info["handleGui"].Hwnd)
+    this._forceTopmost(info["handleGui"].Hwnd)
 
-    radius := Max(2, Floor(Min(frame["w"], frame["h"]) / 2))
+    radius := Max(2, Integer(this.Config.HandleThickness))
     try WinSetRegion(
       "0-0 W" Round(frame["w"]) " H" Round(frame["h"]) " R" radius "-" radius,
       "ahk_id " info["handleGui"].Hwnd
     )
+    info["handleBody"].Move(0, 0, Round(frame["w"]), Round(frame["h"]))
     this._positionHandleGrip(info, frame)
+    try DllCall(
+      "RedrawWindow",
+      "Ptr", info["handleGui"].Hwnd,
+      "Ptr", 0,
+      "Ptr", 0,
+      "UInt", 0x185
+    )
   }
 
   _getHandleFrame(info, inwardOffset:=0) {
     monitor := info["monitor"]
     revealedFrame := info["revealedFrame"]
     thickness := Integer(this.Config.HandleThickness)
+    hiddenDepth := Max(thickness * 2, Integer(this.Config.HandleDragDistance))
     configuredLength := Integer(this.Config.HandleLength)
 
     if (info["edge"] = "bottom") {
@@ -757,7 +810,7 @@ class WindowStash extends AKPlugin {
         "x", x,
         "y", monitor["bottom"] - thickness - inwardOffset,
         "w", length,
-        "h", thickness * 2
+        "h", hiddenDepth + thickness + inwardOffset
       )
     }
 
@@ -768,9 +821,9 @@ class WindowStash extends AKPlugin {
       monitor["bottom"] - length
     )
     x := info["edge"] = "left"
-      ? monitor["left"] - thickness + inwardOffset
+      ? monitor["left"] - hiddenDepth
       : monitor["right"] - thickness - inwardOffset
-    return Map("x", x, "y", y, "w", thickness * 2, "h", length)
+    return Map("x", x, "y", y, "w", hiddenDepth + thickness + inwardOffset, "h", length)
   }
 
   _positionHandleGrip(info, frame) {
@@ -790,7 +843,7 @@ class WindowStash extends AKPlugin {
       gripWidth := gripThickness
       gripHeight := Min(gripLength, frame["h"] - 4)
       gripY := (frame["h"] - gripHeight) / 2
-      visibleCenterX := info["edge"] = "left" ? thickness * 1.5 : thickness * 0.5
+      visibleCenterX := info["edge"] = "left" ? frame["w"] - thickness / 2 : thickness / 2
       gripX := visibleCenterX - gripWidth / 2
     }
 
@@ -817,10 +870,13 @@ class WindowStash extends AKPlugin {
     handleHwnd := info["handleGui"].Hwnd
     if (this._handleWindows.Has(handleHwnd))
       this._handleWindows.Delete(handleHwnd)
+    if (info.Has("handleBody") && IsObject(info["handleBody"]) && this._handleWindows.Has(info["handleBody"].Hwnd))
+      this._handleWindows.Delete(info["handleBody"].Hwnd)
     if (info.Has("handleGrip") && IsObject(info["handleGrip"]) && this._handleWindows.Has(info["handleGrip"].Hwnd))
       this._handleWindows.Delete(info["handleGrip"].Hwnd)
     try info["handleGui"].Destroy()
     info["handleGui"] := ""
+    info["handleBody"] := ""
     info["handleGrip"] := ""
     info["handleFrame"] := ""
   }
@@ -834,13 +890,23 @@ class WindowStash extends AKPlugin {
       return
 
     info := this.StashedWindows[hwnd]
-    if (info["revealed"])
-      return
 
     CoordMode("Mouse", "Screen")
     MouseGetPos(&startX, &startY)
     targetDistance := Max(1, Integer(this.Config.HandleDragDistance))
+    clickTolerance := 4
     lastDistance := 0
+    maxMovement := 0
+    startedRevealed := info["revealed"]
+    baseRevealedFrame := info["revealed"] ? this._getWindowFrame(hwnd) : info["revealedFrame"]
+    if (!baseRevealedFrame)
+      return
+    movedRevealedFrame := baseRevealedFrame
+    movedHiddenFrame := this._getHiddenFrame(baseRevealedFrame, info["monitor"], info["edge"])
+    info["revealedFrame"] := movedRevealedFrame
+    info["hiddenFrame"] := movedHiddenFrame
+    if (!startedRevealed)
+      this._prepareHiddenWindowForReveal(hwnd, info)
     this._draggingHandle := true
 
     try {
@@ -849,10 +915,24 @@ class WindowStash extends AKPlugin {
 
       while GetKeyState("LButton", "P") {
         MouseGetPos(&mouseX, &mouseY)
+        maxMovement := Max(maxMovement, Abs(mouseX - startX), Abs(mouseY - startY))
+        alongDistance := this._getAlongEdgeDragDistance(info["edge"], startX, startY, mouseX, mouseY)
+        movedRevealedFrame := this._moveFrameAlongEdge(
+          baseRevealedFrame,
+          info["monitor"],
+          info["edge"],
+          alongDistance
+        )
+        movedHiddenFrame := this._getHiddenFrame(movedRevealedFrame, info["monitor"], info["edge"])
+        info["revealedFrame"] := movedRevealedFrame
+        info["hiddenFrame"] := movedHiddenFrame
+
         inwardDistance := this._getInwardDragDistance(info["edge"], startX, startY, mouseX, mouseY)
         lastDistance := this._clamp(inwardDistance, 0, targetDistance)
         progress := lastDistance / targetDistance
-        frame := this._interpolateFrame(info["hiddenFrame"], info["originalFrame"], progress)
+        edgeFrame := info["revealed"] ? movedRevealedFrame : movedHiddenFrame
+        unstashFrame := this._getHandleUnstashFrame(info, movedRevealedFrame)
+        frame := this._interpolateFrame(edgeFrame, unstashFrame, progress)
 
         if (this.Config.ShowWindowContent)
           this._moveWindow(hwnd, frame)
@@ -863,13 +943,24 @@ class WindowStash extends AKPlugin {
       }
 
       if (lastDistance >= targetDistance) {
-        this._moveWindow(hwnd, info["originalFrame"])
+        unstashFrame := this._getHandleUnstashFrame(info, movedRevealedFrame)
+        info["originalFrame"] := unstashFrame
         this._unstashWindow(hwnd, true)
-      } else if (lastDistance <= 3) {
-        this._moveWindow(hwnd, info["hiddenFrame"])
-        this._unstashWindow(hwnd, true)
+      } else if (maxMovement <= clickTolerance) {
+        info["revealedFrame"] := baseRevealedFrame
+        info["hiddenFrame"] := this._getHiddenFrame(baseRevealedFrame, info["monitor"], info["edge"])
+        if (startedRevealed) {
+          info["suppressHandleHover"] := true
+          this._hideWindow(hwnd)
+        } else {
+          info["suppressHandleHover"] := false
+          this._revealWindow(hwnd, "handle")
+        }
       } else {
-        this._moveWindow(hwnd, info["hiddenFrame"])
+        edgeFrame := info["revealed"] ? movedRevealedFrame : movedHiddenFrame
+        this._moveWindow(hwnd, edgeFrame)
+        if (!info["revealed"])
+          this._parkHiddenWindow(hwnd, info)
         this._showHandle(hwnd, info)
       }
     } finally {
@@ -890,23 +981,107 @@ class WindowStash extends AKPlugin {
     return 0
   }
 
+  _getAlongEdgeDragDistance(edge, startX, startY, mouseX, mouseY) {
+    return edge = "bottom" ? mouseX - startX : mouseY - startY
+  }
+
+  _moveFrameAlongEdge(frame, monitor, edge, distance) {
+    x := frame["x"]
+    y := frame["y"]
+
+    if (edge = "bottom")
+      x := this._clamp(x + distance, monitor["left"], monitor["right"] - frame["w"])
+    else
+      y := this._clamp(y + distance, monitor["top"], monitor["bottom"] - frame["h"])
+
+    return Map("x", x, "y", y, "w", frame["w"], "h", frame["h"])
+  }
+
+  _getHandleUnstashFrame(info, revealedFrame) {
+    originalFrame := info["originalFrame"]
+    x := revealedFrame["x"]
+    y := revealedFrame["y"]
+
+    if (info["edge"] = "bottom")
+      y := originalFrame["y"]
+    else
+      x := originalFrame["x"]
+
+    return Map(
+      "x", x,
+      "y", y,
+      "w", revealedFrame["w"],
+      "h", revealedFrame["h"]
+    )
+  }
+
+  _restoreParkedWindow(hwnd, info) {
+    if (!WinExist("ahk_id " hwnd))
+      return
+
+    windowState := 0
+    try windowState := WinGetMinMax("ahk_id " hwnd)
+    if (info["parkedMinimized"] || windowState = -1)
+      try WinRestore("ahk_id " hwnd)
+    info["parkedMinimized"] := false
+  }
+
+  _prepareHiddenWindowForReveal(hwnd, info) {
+    this._restoreParkedWindow(hwnd, info)
+    this._moveWindow(hwnd, info["hiddenFrame"])
+  }
+
+  _parkHiddenWindow(hwnd, info) {
+    if (!WinExist("ahk_id " hwnd))
+      return
+
+    if (!this.Config.MinimizeHiddenWindows) {
+      this._restoreParkedWindow(hwnd, info)
+      this._moveWindow(hwnd, info["hiddenFrame"])
+      return
+    }
+
+    this._restoreParkedWindow(hwnd, info)
+    this._moveWindow(hwnd, info["revealedFrame"])
+    try WinMinimize("ahk_id " hwnd)
+    info["parkedMinimized"] := true
+  }
+
   _setWindowBorderColor(hwnd, color) {
     if (!WinExist("ahk_id " hwnd))
       return
 
-    dwmColor := 0xFFFFFFFF
-    if (color != -1) {
-      rgb := Integer("0x" this._normalizeColor(color))
-      red := (rgb & 0xFF0000) >> 16
-      green := (rgb & 0xFF00) >> 8
-      blue := rgb & 0xFF
-      dwmColor := (blue << 16) | (green << 8) | red
-    }
-    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 34, "UInt*", dwmColor, "UInt", 4)
+    colorValue := color = -1 ? -1 : "0x" this._normalizeColor(color)
+    try this.RunAction("SetWindowBorderColor(" colorValue ", " hwnd ")")
   }
 
   _normalizeColor(color) {
     return RegExReplace("" color, "i)^0x", "")
+  }
+
+  _raiseHandles() {
+    for hwnd, info in this.StashedWindows {
+      if (IsObject(info["handleGui"]))
+        this._forceTopmost(info["handleGui"].Hwnd)
+    }
+  }
+
+  _forceTopmost(hwnd) {
+    static HWND_TOPMOST := -1
+    static SWP_NOSIZE := 0x0001
+    static SWP_NOMOVE := 0x0002
+    static SWP_NOACTIVATE := 0x0010
+    static SWP_SHOWWINDOW := 0x0040
+    try DllCall(
+      "SetWindowPos",
+      "Ptr", hwnd,
+      "Ptr", HWND_TOPMOST,
+      "Int", 0,
+      "Int", 0,
+      "Int", 0,
+      "Int", 0,
+      "UInt", SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+    )
   }
 
   _moveWindow(hwnd, frame) {
@@ -1076,6 +1251,7 @@ class WindowStash extends AKPlugin {
       this._destroyHandle(info)
       if (!WinExist("ahk_id " hwnd))
         continue
+      this._restoreParkedWindow(hwnd, info)
       this._setWindowBorderColor(hwnd, -1)
       this._moveWindow(hwnd, info["originalFrame"])
       if (info["wasMaximized"])

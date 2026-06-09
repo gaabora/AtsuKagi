@@ -391,13 +391,13 @@ class WinDrag extends AKPlugin {
     if (!this._initDragSession(&ctx, A_ThisFunc))
       return
 
-    ; Check window has sizing border
-    style := WinGetStyle("ahk_id " ctx.hwnd)
-    if (!(style & WindowFlags.WS_SIZEBOX)) {
-      this._destroyInfoTip()
-      this.disableEscapeHook()
-      return
-    }
+    ; ; Check window has sizing border 
+    ; style := WinGetStyle("ahk_id " ctx.hwnd)
+    ; if (!(style & WindowFlags.WS_SIZEBOX)) { //FIXME: for this block make it still possible to resize the window, but just add some threshold before resize try to start
+    ;   this._destroyInfoTip()
+    ;   this.disableEscapeHook()
+    ;   return
+    ; }
 
     if (!this.Config.ShowWindowContentOnResize)
       this._createOverlay()

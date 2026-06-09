@@ -553,4 +553,18 @@ class WindowManager extends AKPlugin {
     prefix := (enable) ? '+' : '-'
     WinSetStyle(Format("{2}{1:#x}", style, prefix), "ahk_id " hwnd)
   }
+
+  _setWindowCloaked(hwnd, cloaked) {
+    if (!WinExist("ahk_id " hwnd))
+      return
+
+    cloakValue := cloaked ? 1 : 0
+    try DllCall(
+      "dwmapi\DwmSetWindowAttribute",
+      "Ptr", hwnd,
+      "UInt", 13,
+      "Int*", cloakValue,
+      "UInt", 4
+    )
+  }
 }
