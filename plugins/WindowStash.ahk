@@ -332,7 +332,9 @@ class WindowStash extends AKPlugin {
       "hiddenFrame", hiddenFrame,
       "revealed", true,
       "revealMode", "",
+      "activationRevealUntil", 0,
       "suppressHandleHover", false,
+      "suppressActivationReveal", false,
       "parkedMinimized", false,
       "borderColor", this._getWindowBorderColor(hwnd),
       "stashBorderColor", "",
@@ -382,10 +384,15 @@ class WindowStash extends AKPlugin {
       this._hideWindow(this.RevealedHwnd, false)
 
     info := this.StashedWindows[hwnd]
+    this._logState("reveal", hwnd, info, "mode=" revealMode)
     this._prepareHiddenWindowForReveal(hwnd, info)
     this._transitionWindow(hwnd, info["revealedFrame"])
     info["revealed"] := true
     info["revealMode"] := revealMode
+    info["activationRevealUntil"] := revealMode = "activation"
+      ? A_TickCount + Max(500, Integer(this.Config.AnimationDuration) + 250)
+      : 0
+    info["suppressActivationReveal"] := false
     this.RevealedHwnd := hwnd
     this._showHandle(hwnd, info)
 
@@ -401,12 +408,14 @@ class WindowStash extends AKPlugin {
     }
 
     info := this.StashedWindows[hwnd]
+    this._logState("hide", hwnd, info, "shiftFocus=" shiftFocus)
     if (shiftFocus && this.Config.ShiftFocusWhenStashed && WinExist("A") = hwnd)
       this._focusAnotherWindow(hwnd)
 
     this._transitionWindow(hwnd, info["hiddenFrame"])
     info["revealed"] := false
     info["revealMode"] := ""
+    info["activationRevealUntil"] := 0
     this._parkHiddenWindow(hwnd, info)
     this._showHandle(hwnd, info)
     if (this.RevealedHwnd = hwnd)
@@ -455,20 +464,33 @@ class WindowStash extends AKPlugin {
       activeHwnd := WinExist("A")
       mouseMoved := mouseX != this._lastMouseX || mouseY != this._lastMouseY
       activeChanged := activeHwnd != this._lastActiveHwnd
+      previousActiveHwnd := this._lastActiveHwnd
       this._lastMouseX := mouseX
       this._lastMouseY := mouseY
       this._lastActiveHwnd := activeHwnd
-      if (activeChanged)
+      if (activeChanged) {
         this._raiseHandles()
+        if (this.StashedWindows.Has(activeHwnd))
+          this._logState("active changed", activeHwnd, this.StashedWindows[activeHwnd], "from=" previousActiveHwnd)
+      }
 
       for hwnd, info in this.StashedWindows {
         if (info["suppressHandleHover"] && (!IsObject(info["handleFrame"]) || !this._pointInFrame(mouseX, mouseY, info["handleFrame"])))
           info["suppressHandleHover"] := false
+        if (info["suppressActivationReveal"] && activeHwnd != hwnd) {
+          info["suppressActivationReveal"] := false
+          this._logState("activation suppression cleared", hwnd, info, "active=" activeHwnd)
+        }
       }
 
       if (activeChanged && this.StashedWindows.Has(activeHwnd) && !this.StashedWindows[activeHwnd]["revealed"]) {
-        this._revealWindow(activeHwnd, "activation")
-        return
+        activeInfo := this.StashedWindows[activeHwnd]
+        if (activeInfo["suppressActivationReveal"] || this._isWindowMinimized(activeHwnd)) {
+          this._logState("activation reveal suppressed", activeHwnd, activeInfo)
+        } else {
+          this._revealWindow(activeHwnd, "activation")
+          return
+        }
       }
 
       if (this.RevealedHwnd)
@@ -492,7 +514,8 @@ class WindowStash extends AKPlugin {
         return
 
       if (revealedInfo["revealMode"] = "activation") {
-        if (activeHwnd != this.RevealedHwnd && pointerOutside && (activeChanged || mouseMoved))
+        activationSettled := A_TickCount >= revealedInfo["activationRevealUntil"]
+        if (activeHwnd != this.RevealedHwnd && pointerOutside && activationSettled && (activeChanged || mouseMoved))
           this._hideWindow(this.RevealedHwnd, false)
         return
       }
@@ -531,8 +554,11 @@ class WindowStash extends AKPlugin {
       return
 
     if (this._isWindowMinimized(hwnd)) {
+      this._logState("external minimize detected", hwnd, info)
       info["revealed"] := false
       info["revealMode"] := ""
+      info["activationRevealUntil"] := 0
+      info["suppressActivationReveal"] := true
       info["parkedMinimized"] := true
       if (this.RevealedHwnd = hwnd)
         this.RevealedHwnd := 0
@@ -929,6 +955,7 @@ class WindowStash extends AKPlugin {
       startedRevealed := false
       info["revealed"] := false
       info["revealMode"] := ""
+      info["activationRevealUntil"] := 0
       info["parkedMinimized"] := true
       if (this.RevealedHwnd = hwnd)
         this.RevealedHwnd := 0
@@ -1034,20 +1061,7 @@ class WindowStash extends AKPlugin {
     if (this.Config.RestorePositionOnUnstash)
       return info["originalFrame"]
 
-    return this._getEdgeUnstashFrame(info, revealedFrame)
-  }
-
-  _getEdgeUnstashFrame(info, revealedFrame) {
-    originalFrame := info["originalFrame"]
-    x := revealedFrame["x"]
-    y := revealedFrame["y"]
-
-    if (info["edge"] = "top" || info["edge"] = "bottom")
-      y := originalFrame["y"]
-    else
-      x := originalFrame["x"]
-
-    return Map("x", x, "y", y, "w", revealedFrame["w"], "h", revealedFrame["h"])
+    return revealedFrame
   }
 
   _restoreParkedWindow(hwnd, info) {
@@ -1056,8 +1070,10 @@ class WindowStash extends AKPlugin {
 
     windowState := 0
     try windowState := WinGetMinMax("ahk_id " hwnd)
-    if (info["parkedMinimized"] || windowState = -1)
+    if (info["parkedMinimized"] || windowState = -1) {
+      this._logState("restore parked", hwnd, info, "windowState=" windowState)
       try WinRestore("ahk_id " hwnd)
+    }
     info["parkedMinimized"] := false
   }
 
@@ -1074,6 +1090,20 @@ class WindowStash extends AKPlugin {
     this._moveWindow(hwnd, info["revealedFrame"])
     try WinMinimize("ahk_id " hwnd)
     info["parkedMinimized"] := true
+    this._logState("park minimized", hwnd, info)
+  }
+
+  _logState(event, hwnd, info, details:="") {
+    windowState := ""
+    try windowState := WinGetMinMax("ahk_id " hwnd)
+    message := event " hwnd=" hwnd " active=" WinExist("A") " windowState=" windowState
+    message .= " revealed=" info["revealed"] " revealMode=" info["revealMode"]
+    message .= " parkedMinimized=" info["parkedMinimized"] " suppressActivationReveal=" info["suppressActivationReveal"]
+    if (info["activationRevealUntil"])
+      message .= " activationGraceRemaining=" Max(0, info["activationRevealUntil"] - A_TickCount)
+    if (details != "")
+      message .= " " details
+    this.outputDebugLine(AKApp.LOG_DEBUG, message)
   }
 
   _setWindowBorderColor(hwnd, color) {
