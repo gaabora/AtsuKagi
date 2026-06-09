@@ -6,7 +6,10 @@ class WindowStash extends AKPlugin {
   _displayChangeFn := 0
   _displayChangeTimerFn := 0
   _displaySignature := ""
+  _handleMouseDownFn := 0
+  _handleWindows := Map()
   _polling := false
+  _draggingHandle := false
   _lastMouseX := ""
   _lastMouseY := ""
   _lastActiveHwnd := 0
@@ -84,6 +87,58 @@ class WindowStash extends AKPlugin {
           "description", "Opacity of the animated rectangle",
           "type", "integer", "control", "range", "default", 210, "section", "Visuals",
           "validation", Map("min", 20, "max", 255, "step", 5)
+        ),
+        Map(
+          "key", "StashedWindowBorderColor",
+          "label", "Stashed window outline",
+          "description", "Border color applied while a window is managed by Window Stash",
+          "type", "color", "control", "color", "default", "FF2D55", "section", "Visuals"
+        ),
+        Map(
+          "key", "UseStashHandle",
+          "label", "Use stash handle",
+          "description", "Show a half-hidden rounded tab; hover reveals temporarily, while click or inward drag unstashes",
+          "type", "boolean", "control", "switch", "default", true, "section", "Handle"
+        ),
+        Map(
+          "key", "HandleColor",
+          "label", "Handle color",
+          "description", "Color of the stash handle",
+          "type", "color", "control", "color", "default", "FF2D55", "section", "Handle"
+        ),
+        Map(
+          "key", "HandleGripColor",
+          "label", "Handle grip color",
+          "description", "Color of the smaller grip line inside the handle",
+          "type", "color", "control", "color", "default", "202020", "section", "Handle"
+        ),
+        Map(
+          "key", "HandleOpacity",
+          "label", "Handle opacity",
+          "description", "Opacity of the stash handle",
+          "type", "integer", "control", "range", "default", 245, "section", "Handle",
+          "validation", Map("min", 40, "max", 255, "step", 5)
+        ),
+        Map(
+          "key", "HandleThickness",
+          "label", "Visible handle thickness",
+          "description", "Visible thickness of the tab; an equal portion remains beyond the screen edge",
+          "type", "integer", "control", "range", "default", 14, "section", "Handle",
+          "validation", Map("min", 6, "max", 40, "step", 1)
+        ),
+        Map(
+          "key", "HandleLength",
+          "label", "Handle length",
+          "description", "Length of the handle along the screen edge",
+          "type", "integer", "control", "range", "default", 72, "section", "Handle",
+          "validation", Map("min", 24, "max", 240, "step", 4)
+        ),
+        Map(
+          "key", "HandleDragDistance",
+          "label", "Unstash drag distance",
+          "description", "How far the handle must be pulled inward to unstash the window",
+          "type", "integer", "control", "range", "default", 120, "section", "Handle",
+          "validation", Map("min", 40, "max", 400, "step", 10)
         )
       ],
       "actions", [
@@ -107,9 +162,11 @@ class WindowStash extends AKPlugin {
     this._exitFn := this._onExit.Bind(this)
     this._displayChangeFn := this._onDisplayChange.Bind(this)
     this._displayChangeTimerFn := this._applyDisplayChange.Bind(this)
+    this._handleMouseDownFn := this._onHandleMouseDown.Bind(this)
     this._displaySignature := this._getDisplaySignature()
     OnMessage(0x007E, this._displayChangeFn) ; WM_DISPLAYCHANGE
     OnMessage(0x001A, this._displayChangeFn) ; WM_SETTINGCHANGE
+    OnMessage(0x0201, this._handleMouseDownFn) ; WM_LBUTTONDOWN
     OnExit(this._exitFn)
   }
 
@@ -117,6 +174,25 @@ class WindowStash extends AKPlugin {
     if (key = "PollInterval" && this.StashedWindows.Count) {
       SetTimer(this._pollFn, 0)
       SetTimer(this._pollFn, Integer(value))
+      return
+    }
+
+    if (key = "StashedWindowBorderColor") {
+      for hwnd in this.StashedWindows
+        this._setWindowBorderColor(hwnd, value)
+      return
+    }
+
+    if (key = "UseStashHandle" || key = "HandleColor" || key = "HandleGripColor" || key = "HandleOpacity"
+      || key = "HandleThickness" || key = "HandleLength") {
+      for hwnd, info in this.StashedWindows {
+        this._destroyHandle(info)
+        info["hiddenFrame"] := this._getHiddenFrame(info["revealedFrame"], info["monitor"], info["edge"])
+        if (!info["revealed"]) {
+          this._moveWindow(hwnd, info["hiddenFrame"])
+          this._showHandle(hwnd, info)
+        }
+      }
       return
     }
 
@@ -239,9 +315,13 @@ class WindowStash extends AKPlugin {
       "revealedFrame", revealedFrame,
       "hiddenFrame", hiddenFrame,
       "revealed", true,
-      "revealMode", ""
+      "revealMode", "",
+      "handleGui", "",
+      "handleGrip", "",
+      "handleFrame", ""
     )
 
+    this._setWindowBorderColor(hwnd, this.Config.StashedWindowBorderColor)
     this._hideWindow(hwnd)
     this._startPolling()
     return true
@@ -252,6 +332,8 @@ class WindowStash extends AKPlugin {
       return false
 
     info := this.StashedWindows[hwnd]
+    this._destroyHandle(info)
+    this._setWindowBorderColor(hwnd, -1)
     if (restoreFrame && WinExist("ahk_id " hwnd)) {
       this._transitionWindow(hwnd, info["originalFrame"])
       if (info["wasMaximized"])
@@ -276,6 +358,7 @@ class WindowStash extends AKPlugin {
       this._hideWindow(this.RevealedHwnd, false)
 
     info := this.StashedWindows[hwnd]
+    this._destroyHandle(info)
     this._transitionWindow(hwnd, info["revealedFrame"])
     info["revealed"] := true
     info["revealMode"] := revealMode
@@ -299,6 +382,7 @@ class WindowStash extends AKPlugin {
     this._transitionWindow(hwnd, info["hiddenFrame"])
     info["revealed"] := false
     info["revealMode"] := ""
+    this._showHandle(hwnd, info)
     if (this.RevealedHwnd = hwnd)
       this.RevealedHwnd := 0
     return true
@@ -325,7 +409,7 @@ class WindowStash extends AKPlugin {
   }
 
   _poll() {
-    if (this._polling)
+    if (this._polling || this._draggingHandle)
       return
     this._polling := true
 
@@ -385,6 +469,11 @@ class WindowStash extends AKPlugin {
   }
 
   _getStashedWindowAtPoint(x, y, includeRevealed:=false) {
+    for hwnd, info in this.StashedWindows {
+      if (!info["revealed"] && IsObject(info["handleFrame"]) && this._pointInFrame(x, y, info["handleFrame"]))
+        return hwnd
+    }
+
     for hwnd in WinGetList() {
       if (!this.StashedWindows.Has(hwnd))
         continue
@@ -425,7 +514,7 @@ class WindowStash extends AKPlugin {
     if (signature = this._displaySignature)
       return
 
-    if (this._animating) {
+    if (this._animating || this._draggingHandle) {
       SetTimer(this._displayChangeTimerFn, -100)
       return
     }
@@ -456,6 +545,10 @@ class WindowStash extends AKPlugin {
 
       targetFrame := info["revealed"] ? info["revealedFrame"] : info["hiddenFrame"]
       this._moveWindow(hwnd, targetFrame)
+      if (info["revealed"])
+        this._destroyHandle(info)
+      else
+        this._showHandle(hwnd, info)
     }
   }
 
@@ -593,7 +686,7 @@ class WindowStash extends AKPlugin {
   }
 
   _getHiddenFrame(frame, monitor, edge) {
-    peekSize := Integer(this.Config.PeekSize)
+    peekSize := this.Config.UseStashHandle ? 0 : Integer(this.Config.PeekSize)
     x := frame["x"]
     y := frame["y"]
 
@@ -606,6 +699,214 @@ class WindowStash extends AKPlugin {
         y := monitor["bottom"] - peekSize
     }
     return Map("x", x, "y", y, "w", frame["w"], "h", frame["h"])
+  }
+
+  _showHandle(hwnd, info, inwardOffset:=0) {
+    if (!this.Config.UseStashHandle) {
+      this._destroyHandle(info)
+      return
+    }
+
+    if (!IsObject(info["handleGui"])) {
+      handleGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x08000000")
+      handleGui.BackColor := this._normalizeColor(this.Config.HandleColor)
+      handleGrip := handleGui.Add(
+        "Text",
+        "x0 y0 w1 h1 Background" this._normalizeColor(this.Config.HandleGripColor)
+      )
+      handleGui.Show("Hide NoActivate")
+      WinSetTransparent(Number(this.Config.HandleOpacity), "ahk_id " handleGui.Hwnd)
+      info["handleGui"] := handleGui
+      info["handleGrip"] := handleGrip
+      this._handleWindows[handleGui.Hwnd] := hwnd
+      this._handleWindows[handleGrip.Hwnd] := hwnd
+    }
+
+    frame := this._getHandleFrame(info, inwardOffset)
+    info["handleFrame"] := frame
+    info["handleGui"].Show(
+      "x" Round(frame["x"])
+      " y" Round(frame["y"])
+      " w" Round(frame["w"])
+      " h" Round(frame["h"])
+      " NoActivate"
+    )
+
+    radius := Max(2, Floor(Min(frame["w"], frame["h"]) / 2))
+    try WinSetRegion(
+      "0-0 W" Round(frame["w"]) " H" Round(frame["h"]) " R" radius "-" radius,
+      "ahk_id " info["handleGui"].Hwnd
+    )
+    this._positionHandleGrip(info, frame)
+  }
+
+  _getHandleFrame(info, inwardOffset:=0) {
+    monitor := info["monitor"]
+    revealedFrame := info["revealedFrame"]
+    thickness := Integer(this.Config.HandleThickness)
+    configuredLength := Integer(this.Config.HandleLength)
+
+    if (info["edge"] = "bottom") {
+      length := Min(configuredLength, monitor["right"] - monitor["left"])
+      x := this._clamp(
+        revealedFrame["x"] + (revealedFrame["w"] - length) / 2,
+        monitor["left"],
+        monitor["right"] - length
+      )
+      return Map(
+        "x", x,
+        "y", monitor["bottom"] - thickness - inwardOffset,
+        "w", length,
+        "h", thickness * 2
+      )
+    }
+
+    length := Min(configuredLength, monitor["bottom"] - monitor["top"])
+    y := this._clamp(
+      revealedFrame["y"] + (revealedFrame["h"] - length) / 2,
+      monitor["top"],
+      monitor["bottom"] - length
+    )
+    x := info["edge"] = "left"
+      ? monitor["left"] - thickness + inwardOffset
+      : monitor["right"] - thickness - inwardOffset
+    return Map("x", x, "y", y, "w", thickness * 2, "h", length)
+  }
+
+  _positionHandleGrip(info, frame) {
+    if (!info.Has("handleGrip") || !IsObject(info["handleGrip"]))
+      return
+
+    thickness := Integer(this.Config.HandleThickness)
+    gripThickness := Max(2, Min(4, Floor(thickness / 3)))
+    gripLength := Max(10, Round(Integer(this.Config.HandleLength) * 0.42))
+
+    if (info["edge"] = "bottom") {
+      gripWidth := Min(gripLength, frame["w"] - 4)
+      gripHeight := gripThickness
+      gripX := (frame["w"] - gripWidth) / 2
+      gripY := (thickness - gripHeight) / 2
+    } else {
+      gripWidth := gripThickness
+      gripHeight := Min(gripLength, frame["h"] - 4)
+      gripY := (frame["h"] - gripHeight) / 2
+      visibleCenterX := info["edge"] = "left" ? thickness * 1.5 : thickness * 0.5
+      gripX := visibleCenterX - gripWidth / 2
+    }
+
+    info["handleGrip"].Move(
+      Round(gripX),
+      Round(gripY),
+      Round(gripWidth),
+      Round(gripHeight)
+    )
+    gripRadius := Max(1, Floor(Min(gripWidth, gripHeight) / 2))
+    try WinSetRegion(
+      "0-0 W" Round(gripWidth) " H" Round(gripHeight) " R" gripRadius "-" gripRadius,
+      "ahk_id " info["handleGrip"].Hwnd
+    )
+  }
+
+  _destroyHandle(info) {
+    if (!info.Has("handleGui") || !IsObject(info["handleGui"])) {
+      if (info.Has("handleFrame"))
+        info["handleFrame"] := ""
+      return
+    }
+
+    handleHwnd := info["handleGui"].Hwnd
+    if (this._handleWindows.Has(handleHwnd))
+      this._handleWindows.Delete(handleHwnd)
+    if (info.Has("handleGrip") && IsObject(info["handleGrip"]) && this._handleWindows.Has(info["handleGrip"].Hwnd))
+      this._handleWindows.Delete(info["handleGrip"].Hwnd)
+    try info["handleGui"].Destroy()
+    info["handleGui"] := ""
+    info["handleGrip"] := ""
+    info["handleFrame"] := ""
+  }
+
+  _onHandleMouseDown(wParam, lParam, msg, sourceHwnd) {
+    if (!this._handleWindows.Has(sourceHwnd) || this._draggingHandle)
+      return
+
+    hwnd := this._handleWindows[sourceHwnd]
+    if (!this.StashedWindows.Has(hwnd))
+      return
+
+    info := this.StashedWindows[hwnd]
+    if (info["revealed"])
+      return
+
+    CoordMode("Mouse", "Screen")
+    MouseGetPos(&startX, &startY)
+    targetDistance := Max(1, Integer(this.Config.HandleDragDistance))
+    lastDistance := 0
+    this._draggingHandle := true
+
+    try {
+      if (!this.Config.ShowWindowContent)
+        this._createOverlay()
+
+      while GetKeyState("LButton", "P") {
+        MouseGetPos(&mouseX, &mouseY)
+        inwardDistance := this._getInwardDragDistance(info["edge"], startX, startY, mouseX, mouseY)
+        lastDistance := this._clamp(inwardDistance, 0, targetDistance)
+        progress := lastDistance / targetDistance
+        frame := this._interpolateFrame(info["hiddenFrame"], info["originalFrame"], progress)
+
+        if (this.Config.ShowWindowContent)
+          this._moveWindow(hwnd, frame)
+        else
+          this._showOverlay(frame)
+        this._showHandle(hwnd, info, lastDistance)
+        Sleep(10)
+      }
+
+      if (lastDistance >= targetDistance) {
+        this._moveWindow(hwnd, info["originalFrame"])
+        this._unstashWindow(hwnd, true)
+      } else if (lastDistance <= 3) {
+        this._moveWindow(hwnd, info["hiddenFrame"])
+        this._unstashWindow(hwnd, true)
+      } else {
+        this._moveWindow(hwnd, info["hiddenFrame"])
+        this._showHandle(hwnd, info)
+      }
+    } finally {
+      this._destroyOverlay()
+      this._draggingHandle := false
+    }
+  }
+
+  _getInwardDragDistance(edge, startX, startY, mouseX, mouseY) {
+    switch edge {
+      case "left":
+        return mouseX - startX
+      case "right":
+        return startX - mouseX
+      case "bottom":
+        return startY - mouseY
+    }
+    return 0
+  }
+
+  _setWindowBorderColor(hwnd, color) {
+    if (!WinExist("ahk_id " hwnd))
+      return
+
+    dwmColor := 0xFFFFFFFF
+    if (color != -1) {
+      rgb := Integer("0x" this._normalizeColor(color))
+      red := (rgb & 0xFF0000) >> 16
+      green := (rgb & 0xFF00) >> 8
+      blue := rgb & 0xFF
+      dwmColor := (blue << 16) | (green << 8) | red
+    }
+    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", 34, "UInt*", dwmColor, "UInt", 4)
+  }
+
+  _normalizeColor(color) {
+    return RegExReplace("" color, "i)^0x", "")
   }
 
   _moveWindow(hwnd, frame) {
@@ -770,9 +1071,12 @@ class WindowStash extends AKPlugin {
     SetTimer(this._displayChangeTimerFn, 0)
     OnMessage(0x007E, this._displayChangeFn, 0)
     OnMessage(0x001A, this._displayChangeFn, 0)
+    OnMessage(0x0201, this._handleMouseDownFn, 0)
     for hwnd, info in this.StashedWindows {
+      this._destroyHandle(info)
       if (!WinExist("ahk_id " hwnd))
         continue
+      this._setWindowBorderColor(hwnd, -1)
       this._moveWindow(hwnd, info["originalFrame"])
       if (info["wasMaximized"])
         try WinMaximize("ahk_id " hwnd)
