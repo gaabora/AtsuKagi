@@ -232,7 +232,7 @@ class RDPWindowHandler extends AKPlugin { ; FIXME: UNTESTED
     POINT := Buffer(8, 0) ; V1toV2: if 'POINT' is a UTF-16 string, use 'VarSetStrCapacity(&POINT, 8)'
     NumPut("int", px, POINT, 0), NumPut("int", py, POINT, 4)
     HWND := DllCall("WindowFromPoint", "Int64", NumGet(POINT, 0, "Int64"))
-    HWND := DllCall("GetAncestor", "UInt", HWND, "UInt", GA_ROOT := 2)
+    HWND := DllCall("GetAncestor", "UInt", HWND, "UInt", WindowFlags.GA_ROOT)
     WinExist("ahk_id" . HWND)
     title := WinGetTitle()
     className := WinGetClass()

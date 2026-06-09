@@ -161,9 +161,6 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
   }
 
   SwitchKeyboardLayout(layoutNameOrId:='') { ;;;
-    static WM_INPUTLANGCHANGEREQUEST := 0x50
-    static INPUTLANGCHANGE_SYSCHARSET := 1
-
     layoutId := (IsNumber(layoutNameOrId)) ? layoutNameOrId : INPUT_LOCALES.GetLayoutCodeNumber(layoutNameOrId)
     layoutName := INPUT_LOCALES.GetKeyboardLayoutName(layoutId)
     if (layoutId != INPUT_LOCALES._NEXT && !this._isLayoutValid(layoutId))
@@ -171,7 +168,7 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
 
     hwnd := ControlGetFocus("A") || WinExist("A")
 
-    SendMessage(WM_INPUTLANGCHANGEREQUEST, INPUTLANGCHANGE_SYSCHARSET, layoutId,, hwnd)
+    SendMessage(KeyboardInputFlags.WM_INPUTLANGCHANGEREQUEST, KeyboardInputFlags.INPUTLANGCHANGE_SYSCHARSET, layoutId,, hwnd)
 
     this.ShowCurrentKeyboardLayout()
   }

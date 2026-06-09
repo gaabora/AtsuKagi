@@ -232,10 +232,9 @@ class VirtualDesktopManager extends AKPlugin {
     this.GoWithWindowToDesktop(this.GetNextDesktopNumber(), hwnd)
   }
   addDesktopChangedHook() {
-    CHANGE_DESKTOP_MESSAGE := 0x1400 + 30
-    DllCall(this.RegisterPostMessageHookProc, "Ptr", A_ScriptHwnd, "Int", CHANGE_DESKTOP_MESSAGE, "Int")
+    DllCall(this.RegisterPostMessageHookProc, "Ptr", A_ScriptHwnd, "Int", VirtualDesktopMessages.CHANGE_DESKTOP, "Int")
     onChangeDesktopFn := this.onChangeDesktop.bind(this)
-    OnMessage(CHANGE_DESKTOP_MESSAGE, onChangeDesktopFn)
+    OnMessage(VirtualDesktopMessages.CHANGE_DESKTOP, onChangeDesktopFn)
   }
   onChangeDesktop(wParam, lParam, msg, hwnd) {
     Critical(100)

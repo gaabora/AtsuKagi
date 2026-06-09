@@ -1,41 +1,5 @@
 class TouchGesturesSimulator extends AKPlugin {
-  ; TODO: static consts to separate class?
   ; TODO: add settings gui for https://learn.microsoft.com/en-us/windows-hardware/design/component-guidelines/touchpad-tuning-guidelines
-  static TOUCH_FEEDBACK_DEFAULT         := 0x1
-  static TOUCH_FEEDBACK_INDIRECT        := 0x2
-  static TOUCH_FEEDBACK_NONE            := 0x3
-  static TOUCH_MASK_NONE                := 0x00000000 ; Default - none of the optional fields are valid
-  static TOUCH_MASK_CONTACTAREA         := 0x00000001 ; The rcContact field is valid
-  static TOUCH_MASK_ORIENTATION         := 0x00000002 ; The orientation field is valid
-  static TOUCH_MASK_PRESSURE            := 0x00000004 ; The pressure field is valid
-  static TOUCH_MASK_ALL                 := 0x00000007
-  static POINTER_FLAG_NONE              := 0x00000000 ; Default
-  static POINTER_FLAG_NEW               := 0x00000001 ; New pointer
-  static POINTER_FLAG_INRANGE           := 0x00000002 ; Pointer has not departed
-  static POINTER_FLAG_INCONTACT         := 0x00000004 ; Pointer is in contact
-  static POINTER_FLAG_FIRSTBUTTON       := 0x00000010 ; Primary action
-  static POINTER_FLAG_SECONDBUTTON      := 0x00000020 ; Secondary action
-  static POINTER_FLAG_THIRDBUTTON       := 0x00000040 ; Third button
-  static POINTER_FLAG_FOURTHBUTTON      := 0x00000080 ; Fourth button
-  static POINTER_FLAG_FIFTHBUTTON       := 0x00000100 ; Fifth button
-  static POINTER_FLAG_PRIMARY           := 0x00002000 ; Pointer is primary
-  static POINTER_FLAG_CONFIDENCE        := 0x00004000 ; Pointer is considered unlikely to be accidental
-  static POINTER_FLAG_CANCELED          := 0x00008000 ; Pointer is departing in an abnormal manner
-  static POINTER_FLAG_DOWN              := 0x00010000 ; Pointer transitioned to down state (made contact)
-  static POINTER_FLAG_UPDATE            := 0x00020000 ; Pointer update
-  static POINTER_FLAG_UP                := 0x00040000 ; Pointer transitioned from down state (broke contact)
-  static POINTER_FLAG_WHEEL             := 0x00080000 ; Vertical wheel
-  static POINTER_FLAG_HWHEEL            := 0x00100000 ; Horizontal wheel
-  static POINTER_FLAG_CAPTURECHANGED    := 0x00200000 ; Lost capture
-  static POINTER_FLAG_HASTRANSFORM      := 0x00400000 ; Input has a transform associated with it
-  static POINTER_INPUT_TYPE_PT_POINTER  := 1 ; Generic pointer
-  static POINTER_INPUT_TYPE_PT_TOUCH    := 2 ; Touch
-  static POINTER_INPUT_TYPE_PT_PEN      := 3 ; Pen
-  static POINTER_INPUT_TYPE_PT_MOUSE    := 4 ; Mouse
-  static POINTER_INPUT_TYPE_PT_TOUCHPAD := 5 ; Touchpad if(WINVER >= 0x0603)
-
-  static TOUCH_FLAG_NONE := 0x00000000
-
   static REG_PATH := "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\PrecisionTouchPad"
   static CONFIG_SLIDE_ACTIONS := { 0: "NOTHING", 1: "SWITCH_APPS_AND_SHOW_DESKTOP", 2: "SWITCH_DESKTOPS_AND_SHOW_DESKTOP", 3: "CHANGE_AUDIO_AND_VOLUME" }
   static CONFIG_TAP_ACTIONS := { 0: "NOTHING", 1: "OPEN_SEARCH", 2: "NOTIFICATION_CENTER", 3: "PLAY_PAUSE", 4: "MIDDLE_MOUSE_BUTTON" }
@@ -237,7 +201,7 @@ class TouchGesturesSimulator extends AKPlugin {
     if (!this._ensureTouchInjectionSupported())
       return false
 
-    feedbackType := TouchGesturesSimulator.TOUCH_FEEDBACK_DEFAULT
+    feedbackType := TouchInputFlags.TOUCH_FEEDBACK_DEFAULT
 
     if (!this._injected) {
       loop {
@@ -270,14 +234,14 @@ class TouchGesturesSimulator extends AKPlugin {
     xMouDst := xMouSrc
     yMouDst := yMouSrc
 
-    flags := TouchGesturesSimulator.POINTER_FLAG_DOWN | TouchGesturesSimulator.POINTER_FLAG_INRANGE | TouchGesturesSimulator.POINTER_FLAG_INCONTACT
+    flags := TouchInputFlags.POINTER_FLAG_DOWN | TouchInputFlags.POINTER_FLAG_INRANGE | TouchInputFlags.POINTER_FLAG_INCONTACT
     Loop fingers {
       this.modifyTouchPointsBuffer(contactPoints, A_Index - 1, flags, xMouDst, yMouDst)
     }
     ok := DllCall("InjectTouchInput", "UInt", fingers, "Ptr", contactPoints)
     ; this.outputDebugLine(AKApp.LOG_TRACE, "  DOWN " xMouDst "x" yMouDst " " FormatBuffer(contactPoints, 4))
     if (ok) {
-      flags := TouchGesturesSimulator.POINTER_FLAG_UPDATE | TouchGesturesSimulator.POINTER_FLAG_INRANGE | TouchGesturesSimulator.POINTER_FLAG_INCONTACT
+      flags := TouchInputFlags.POINTER_FLAG_UPDATE | TouchInputFlags.POINTER_FLAG_INRANGE | TouchInputFlags.POINTER_FLAG_INCONTACT
       Loop {
         MouseGetPos(&xMouDst, &yMouDst)
 
@@ -299,7 +263,7 @@ class TouchGesturesSimulator extends AKPlugin {
         Sleep(17)
       }
       
-      flags := TouchGesturesSimulator.POINTER_FLAG_UP
+      flags := TouchInputFlags.POINTER_FLAG_UP
       Loop fingers {
         this.modifyTouchPointsBuffer(contactPoints, A_Index - 1, flags, xMouDst, yMouDst)
       }
@@ -325,9 +289,9 @@ class TouchGesturesSimulator extends AKPlugin {
 
   modifyTouchPointsBuffer(buf, idx, pFlags, x, y) {
     offset := idx * this.pointerTouchInfoSize
-    pType := TouchGesturesSimulator.POINTER_INPUT_TYPE_PT_TOUCH
-    tMask := TouchGesturesSimulator.TOUCH_MASK_CONTACTAREA | TouchGesturesSimulator.TOUCH_MASK_ORIENTATION | TouchGesturesSimulator.TOUCH_MASK_PRESSURE
-    tFlags := TouchGesturesSimulator.TOUCH_FLAG_NONE
+    pType := TouchInputFlags.POINTER_INPUT_TYPE_PT_TOUCH
+    tMask := TouchInputFlags.TOUCH_MASK_CONTACTAREA | TouchInputFlags.TOUCH_MASK_ORIENTATION | TouchInputFlags.TOUCH_MASK_PRESSURE
+    tFlags := TouchInputFlags.TOUCH_FLAG_NONE
     r := this.TouchPointRadius
     orientation := 90
     pressure := 250

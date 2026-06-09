@@ -1,27 +1,4 @@
 class WindowManager extends AKPlugin {
-  static WS_BORDER           := 0x800000   ; 	+/-Border. Creates a window that has a thin-line border.
-  static WS_POPUP            := 0x80000000 ; 	Creates a pop-up window. This style cannot be used with the WS_CHILD style.
-  static WS_CAPTION          := 0xC00000   ; 	+/-Caption. Creates a window that has a title bar. This style is a numerical combination of WS_BORDER and WS_DLGFRAME.
-  static WS_CLIPSIBLINGS     := 0x4000000  ; 	Clips child windows relative to each other; that is, when a particular child window receives a WM_PAINT message, the WS_CLIPSIBLINGS style clips all other overlapping child windows out of the region of the child window to be updated. If WS_CLIPSIBLINGS is not specified and child windows overlap, it is possible, when drawing within the client area of a child window, to draw within the client area of a neighboring child window.
-  static WS_DISABLED         := 0x8000000  ; 	+/-Disabled. Creates a window that is initially disabled.
-  static WS_DLGFRAME         := 0x400000   ; 	Creates a window that has a border of a style typically used with dialog boxes.
-  static WS_GROUP            := 0x20000    ; 	+/-Group. Indicates that this control is the first one in a group of controls. This style is automatically applied to manage the "only one at a time" behavior of radio buttons. In the rare case where two groups of radio buttons are added consecutively (with no other control types in between them), this style may be applied manually to the first control of the second radio group, which splits it off from the first.
-  static WS_HSCROLL          := 0x100000   ; 	Creates a window that has a horizontal scroll bar.
-  static WS_MAXIMIZE         := 0x1000000  ; 	Creates a window that is initially maximized.
-  static WS_MAXIMIZEBOX      := 0x10000    ; 	+/-MaximizeBox. Creates a window that has a maximize button. Cannot be combined with the WS_EX_CONTEXTHELP style. The WS_SYSMENU style must also be specified.
-  static WS_MINIMIZE         := 0x20000000 ; 	Creates a window that is initially minimized.
-  static WS_MINIMIZEBOX      := 0x20000    ; 	+/-MinimizeBox. Creates a window that has a minimize button. Cannot be combined with the WS_EX_CONTEXTHELP style. The WS_SYSMENU style must also be specified.
-  static WS_OVERLAPPED       := 0x0        ; 	Creates an overlapped window. An overlapped window has a title bar and a border. Same as the WS_TILED style.
-  static WS_OVERLAPPEDWINDOW := 0xCF0000   ; 	Creates an overlapped window with the WS_OVERLAPPED, WS_CAPTION, WS_SYSMENU, WS_THICKFRAME, WS_MINIMIZEBOX, and WS_MAXIMIZEBOX styles. Same as the WS_TILEDWINDOW style.
-  static WS_POPUPWINDOW      := 0x80880000 ; 	Creates a pop-up window with WS_BORDER, WS_POPUP, and WS_SYSMENU styles. The WS_CAPTION and WS_POPUPWINDOW styles must be combined to make the window menu visible.
-  static WS_SIZEBOX          := 0x40000    ; 	+/-Resize. Creates a window that has a sizing border. Same as the WS_THICKFRAME style.
-  static WS_SYSMENU          := 0x80000    ; 	+/-SysMenu. Creates a window that has a window menu on its title bar. The WS_CAPTION style must also be specified.
-  static WS_TABSTOP          := 0x10000    ; 	+/-Tabstop. Specifies a control that can receive the keyboard focus when the user presses Tab. Pressing Tab changes the keyboard focus to the next control with the WS_TABSTOP style.
-  static WS_THICKFRAME       := 0x40000    ; 	Creates a window that has a sizing border. Same as the WS_SIZEBOX style.
-  static WS_VSCROLL          := 0x200000   ; 	Creates a window that has a vertical scroll bar.
-  static WS_VISIBLE          := 0x10000000 ; 	Creates a window that is initially visible.
-  static WS_CHILD            := 0x40000000 ; 	Creates a child window. A window with this style cannot have a menu bar. This style cannot be used with the WS_POPUP style.
-  
   __DescribePlugin() {
     return Map(
       "plugin", Map(
@@ -276,15 +253,15 @@ class WindowManager extends AKPlugin {
     if (WinGetMinMax("ahk_id " hwnd)) {
       WinRestore("ahk_id " hwnd)
     }
-    if (this._hasWindowStyle(hwnd, WindowManager.WS_CAPTION)) {
-      this._setWindowStyleState(hwnd, WindowManager.WS_CAPTION, false)
-      this._setWindowStyleState(hwnd, WindowManager.WS_SIZEBOX, false)
+    if (this._hasWindowStyle(hwnd, WindowFlags.WS_CAPTION)) {
+      this._setWindowStyleState(hwnd, WindowFlags.WS_CAPTION, false)
+      this._setWindowStyleState(hwnd, WindowFlags.WS_SIZEBOX, false)
       WinMaximize("ahk_id " hwnd)
 
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "ON"))
     } else {
-      this._setWindowStyleState(hwnd, WindowManager.WS_CAPTION, true)
-      this._setWindowStyleState(hwnd, WindowManager.WS_SIZEBOX, true)
+      this._setWindowStyleState(hwnd, WindowFlags.WS_CAPTION, true)
+      this._setWindowStyleState(hwnd, WindowFlags.WS_SIZEBOX, true)
       
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "OFF"))
     }
@@ -302,14 +279,14 @@ class WindowManager extends AKPlugin {
 
     WinGetPos(&Xpos, &Ypos, &Width, &Height, "ahk_id " hwnd)
 
-    if (this._hasWindowStyle(hwnd, WindowManager.WS_CAPTION)) {
-      this._setWindowStyleState(hwnd, WindowManager.WS_CAPTION, false)
-      ; this._setWindowStyleState(hwnd, WindowManager.WS_SIZEBOX, false)
+    if (this._hasWindowStyle(hwnd, WindowFlags.WS_CAPTION)) {
+      this._setWindowStyleState(hwnd, WindowFlags.WS_CAPTION, false)
+      ; this._setWindowStyleState(hwnd, WindowFlags.WS_SIZEBOX, false)
       
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "ON"))
     } else {
-      this._setWindowStyleState(hwnd, WindowManager.WS_CAPTION, true)
-      ; this._setWindowStyleState(hwnd, WindowManager.WS_SIZEBOX, true)
+      this._setWindowStyleState(hwnd, WindowFlags.WS_CAPTION, true)
+      ; this._setWindowStyleState(hwnd, WindowFlags.WS_SIZEBOX, true)
       
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "OFF"))
     }
@@ -386,12 +363,11 @@ class WindowManager extends AKPlugin {
   SetWindowBorderColor(color:=-1, hwnd:=0) { ;;;
     if (hwnd=0)
       hwnd := WinGetID("A")
-    DWMWA_BORDER_COLOR := 34
     R := (color & 0xFF0000) >> 16
     G := (color & 0xFF00) >> 8
     B := (color & 0xFF)
     newColor := (B << 16) | (G << 8) | R
-    DllCall("dwmapi\DwmSetWindowAttribute", "ptr", hwnd, "int", DWMWA_BORDER_COLOR, "int*", (color = -1) ? 0xFFFFFFFF : newColor, "int", 4)
+    DllCall("dwmapi\DwmSetWindowAttribute", "ptr", hwnd, "int", WindowFlags.DWMWA_BORDER_COLOR, "int*", (color = -1) ? WindowFlags.DWM_COLOR_DEFAULT : newColor, "int", Win32Sizes.DWORD)
   }
 
   ; builtin in win10+ todo if ever need win 7 support
@@ -511,9 +487,8 @@ class WindowManager extends AKPlugin {
   _getHoveredWindowAreaCode() {
     CoordMode("Mouse", "Screen")
     MouseGetPos(&x, &y, &hwnd)
-    WM_NCHITTEST := 0x84
     try {
-      ErrorLevel := SendMessage(WM_NCHITTEST, 0, (x & 0xFFFF) | (y & 0xFFFF) << 16, , "ahk_id " hwnd)
+      ErrorLevel := SendMessage(WindowFlags.WM_NCHITTEST, 0, (x & 0xFFFF) | (y & 0xFFFF) << 16, , "ahk_id " hwnd)
       return 1 * ErrorLevel
     } catch {
       return -2
@@ -542,7 +517,7 @@ class WindowManager extends AKPlugin {
 
   _hasWindowStyle(hwnd, style) {
     Style := WinGetStyle("ahk_id " hwnd)
-    if (style & WindowManager.WS_CAPTION) {
+    if (style & WindowFlags.WS_CAPTION) {
       return true
     } else {
       return false
@@ -562,9 +537,9 @@ class WindowManager extends AKPlugin {
     try DllCall(
       "dwmapi\DwmSetWindowAttribute",
       "Ptr", hwnd,
-      "UInt", 13,
+      "UInt", WindowFlags.DWMWA_CLOAK,
       "Int*", cloakValue,
-      "UInt", 4
+      "UInt", Win32Sizes.DWORD
     )
   }
 }

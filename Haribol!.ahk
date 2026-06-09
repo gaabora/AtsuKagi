@@ -13,6 +13,7 @@ SetControlDelay(-1)
 #Include lib/IniFile.ahk
 #Include lib/WebViewToo-main/Lib/WebViewToo.ahk
 ; #Include lib/ShinsOverlayClass.ahk
+#Include includes/WindowsConstants.ahk
 #Include includes/HotkeyRecorder.ahk
 #Include includes/defaultConfig.ahk
 #Include includes/AKBase.ahk

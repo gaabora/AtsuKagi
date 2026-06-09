@@ -788,7 +788,7 @@ class WindowStash extends AKPlugin {
       "Ptr", info["handleGui"].Hwnd,
       "Ptr", 0,
       "Ptr", 0,
-      "UInt", 0x185
+      "UInt", RedrawWindowFlags.INVALIDATE | RedrawWindowFlags.ERASE | RedrawWindowFlags.ALLCHILDREN | RedrawWindowFlags.UPDATENOW
     )
   }
 
@@ -1067,20 +1067,15 @@ class WindowStash extends AKPlugin {
   }
 
   _forceTopmost(hwnd) {
-    static HWND_TOPMOST := -1
-    static SWP_NOSIZE := 0x0001
-    static SWP_NOMOVE := 0x0002
-    static SWP_NOACTIVATE := 0x0010
-    static SWP_SHOWWINDOW := 0x0040
     try DllCall(
       "SetWindowPos",
       "Ptr", hwnd,
-      "Ptr", HWND_TOPMOST,
+      "Ptr", WindowFlags.HWND_TOPMOST,
       "Int", 0,
       "Int", 0,
       "Int", 0,
       "Int", 0,
-      "UInt", SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+      "UInt", WindowFlags.SWP_NOSIZE | WindowFlags.SWP_NOMOVE | WindowFlags.SWP_NOACTIVATE | WindowFlags.SWP_SHOWWINDOW
     )
   }
 
@@ -1168,7 +1163,7 @@ class WindowStash extends AKPlugin {
     this._overlayGui.BackColor := this.Config.OverlayColor
     this._overlayGui.Show("Hide NoActivate")
     WinSetTransparent(Number(this.Config.OverlayOpacity), "ahk_id " this._overlayGui.Hwnd)
-    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._overlayGui.Hwnd, "UInt", 33, "Int*", 2, "UInt", 4)
+    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", this._overlayGui.Hwnd, "UInt", WindowFlags.DWMWA_WINDOW_CORNER_PREFERENCE, "Int*", WindowFlags.DWMWCP_ROUND, "UInt", Win32Sizes.DWORD)
   }
 
   _showOverlay(frame) {

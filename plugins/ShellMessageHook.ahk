@@ -1,41 +1,4 @@
 class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully tested
-  static HSHELL_WINDOWCREATED       := 1
-  static HSHELL_WINDOWDESTROYED     := 2
-  static HSHELL_ACTIVATESHELLWINDOW := 3
-  static HSHELL_WINDOWACTIVATED     := 4
-  static HSHELL_GETMINRECT          := 5
-  static HSHELL_REDRAW              := 6
-  static HSHELL_TASKMAN             := 7
-  static HSHELL_LANGUAGE            := 8
-  static HSHELL_SYSMENU             := 9
-  static HSHELL_ENDTASK             := 10
-  static HSHELL_ACCESSIBILITYSTATE  := 11
-  static HSHELL_APPCOMMAND          := 12
-  static HSHELL_WINDOWREPLACED      := 13
-  static HSHELL_WINDOWREPLACING     := 14
-  static HSHELL_HIGHBIT             := 15
-  static HSHELL_FLASH               := 16
-  static HSHELL_RUDEAPPACTIVATED    := 17
-  static messageNames := Map(
-    1, "WINDOW_CREATED",
-    2, "WINDOW_DESTROYED",
-    3, "ACTIVATE_SHELL_WINDOW",
-    4, "WINDOW_ACTIVATED",
-    5, "GET_MIN_RECT",
-    6, "REDRAW",
-    7, "TASK_MAN",
-    8, "LANGUAGE",
-    9, "SYS_MENU",
-    10, "END_TASK",
-    11, "ACCESSIBILITY_STATE",
-    12, "APP_COMMAND",
-    13, "WINDOW_REPLACED",
-    14, "WINDOW_REPLACING",
-    15, "HIGH_BIT",
-    16, "FLASH",
-    17, "RUDE_APP_ACTIVATED"
-  )
-
   eventListeners := Map("WindowCreated", [], "WindowActivated", [], "WindowDestroyed", [])
 
   ; ── Descriptor API (Phase 1+) ─────────────────────────────────────────────────
@@ -100,8 +63,8 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
   }
 
   formatShellEventDebug(msgId, hwnd) {
-    eventName := ShellMessageHook.messageNames.Has(msgId)
-      ? ShellMessageHook.messageNames[msgId]
+    eventName := ShellHookCodes.Names.Has(msgId)
+      ? ShellHookCodes.Names[msgId]
       : "UNKNOWN"
     return "shell event=" eventName " (" msgId ") " this.formatWindowDebugInfo(hwnd)
   }
@@ -142,27 +105,27 @@ class ShellMessageHook extends AKPlugin { ; FIXME: not used yet. not fully teste
 
   processMessage(msgId, hwnd) {
     switch (msgId) {
-      case ShellMessageHook.HSHELL_WINDOWCREATED:
+      case ShellHookCodes.WINDOWCREATED:
         return this.runMessageCallbacks("WindowCreated", hwnd)
-      case ShellMessageHook.HSHELL_WINDOWDESTROYED:
+      case ShellHookCodes.WINDOWDESTROYED:
         return this.runMessageCallbacks("WindowDestroyed", hwnd)
-      case ShellMessageHook.HSHELL_WINDOWACTIVATED:
+      case ShellHookCodes.WINDOWACTIVATED:
         return this.runMessageCallbacks("WindowActivated", hwnd)
-      case ShellMessageHook.HSHELL_ACTIVATESHELLWINDOW:
-      case ShellMessageHook.HSHELL_GETMINRECT:
-      case ShellMessageHook.HSHELL_REDRAW:
-      case ShellMessageHook.HSHELL_TASKMAN:
-      case ShellMessageHook.HSHELL_LANGUAGE:
-      case ShellMessageHook.HSHELL_SYSMENU:
-      case ShellMessageHook.HSHELL_ENDTASK:
-      case ShellMessageHook.HSHELL_ACCESSIBILITYSTATE:
-      case ShellMessageHook.HSHELL_APPCOMMAND:
-      case ShellMessageHook.HSHELL_WINDOWREPLACED:
-      case ShellMessageHook.HSHELL_WINDOWREPLACING:
-      case ShellMessageHook.HSHELL_HIGHBIT:
-      case ShellMessageHook.HSHELL_FLASH:
-      case ShellMessageHook.HSHELL_RUDEAPPACTIVATED:
-        return this.outputDebugLine(AKApp.LOG_NOTICE, "skip " ShellMessageHook.messageNames[msgId] " from hwnd=" hwnd)
+      case ShellHookCodes.ACTIVATESHELLWINDOW:
+      case ShellHookCodes.GETMINRECT:
+      case ShellHookCodes.REDRAW:
+      case ShellHookCodes.TASKMAN:
+      case ShellHookCodes.LANGUAGE:
+      case ShellHookCodes.SYSMENU:
+      case ShellHookCodes.ENDTASK:
+      case ShellHookCodes.ACCESSIBILITYSTATE:
+      case ShellHookCodes.APPCOMMAND:
+      case ShellHookCodes.WINDOWREPLACED:
+      case ShellHookCodes.WINDOWREPLACING:
+      case ShellHookCodes.HIGHBIT:
+      case ShellHookCodes.FLASH:
+      case ShellHookCodes.RUDEAPPACTIVATED:
+        return this.outputDebugLine(AKApp.LOG_NOTICE, "skip " ShellHookCodes.Names[msgId] " from hwnd=" hwnd)
       Default:
         return this.outputDebugLine(AKApp.LOG_NOTICE, "skip unknown msgId=" msgId " from hwnd=" hwnd)
     }

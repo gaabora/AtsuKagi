@@ -867,7 +867,7 @@ class WinDrag extends AKPlugin {
       return true
 
     isWindowInvisible := 0
-    if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_CLOAKED, "UInt*", &isWindowInvisible, "UInt", 4) = 0) {
+    if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_CLOAKED, "UInt*", &isWindowInvisible, "UInt", Win32Sizes.DWORD) = 0) {
       if (isWindowInvisible)
         return true
     }
@@ -963,7 +963,7 @@ class WinDrag extends AKPlugin {
   }
 
   _setCornerRounding(hwnd, mode) {
-    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_WINDOW_CORNER_PREFERENCE, "Int*", mode, "UInt", 4)
+    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_WINDOW_CORNER_PREFERENCE, "Int*", mode, "UInt", Win32Sizes.DWORD)
   }
 
   _createOverlay() {
@@ -1468,48 +1468,4 @@ class WinDrag extends AKPlugin {
   doNothing(*) {
     return
   }
-}
-
-class WindowFlags {
-  ; SetWindowPos flags (SWP_*)
-  static SWP_ASYNCWINDOWPOS := 0x4000 ; If the calling thread and the thread that owns the window are attached to different input queues, the system posts the request to the thread that owns the window. This prevents the calling thread from blocking its execution while other threads process the request.
-  static SWP_DEFERERASE := 0x2000 ; Prevents generation of the WM_SYNCPAINT message.
-  static SWP_DRAWFRAME := 0x0020 ; Draws a frame (defined in the window's class description) around the window.
-  static SWP_FRAMECHANGED := 0x0020 ; Applies new frame styles set using the SetWindowLong function. Sends a WM_NCCALCSIZE message to the window, even if the window's size is not being changed. If this flag is not specified, WM_NCCALCSIZE is sent only when the window's size is being changed.
-  static SWP_HIDEWINDOW := 0x0080 ; Hides the window.
-  static SWP_NOACTIVATE := 0x0010 ; Does not activate the window. If this flag is not set, the window is activated and moved to the top of either the topmost or non-topmost group (depending on the setting of the hWndInsertAfter parameter).
-  static SWP_NOCOPYBITS := 0x0100 ; Discards the entire contents of the client area. If this flag is not specified, the valid contents of the client area are saved and copied back into the client area after the window is sized or repositioned.
-  static SWP_NOMOVE := 0x0002 ; Retains the current position (ignores X and Y parameters).
-  static SWP_NOOWNERZORDER := 0x0200 ; Does not change the owner window's position in the Z order.
-  static SWP_NOREDRAW := 0x0008 ; Does not redraw changes. If this flag is set, no repainting of any kind occurs. This applies to the client area, the nonclient area (including the title bar and scroll bars), and any part of the parent window uncovered as a result of the window being moved. When this flag is set, the application must explicitly invalidate or redraw any parts of the window and parent window that need redrawing.
-  static SWP_NOREPOSITION := 0x0200 ; Same as the SWP_NOOWNERZORDER flag.
-  static SWP_NOSENDCHANGING := 0x0400 ; Prevents the window from receiving the WM_WINDOWPOSCHANGING message.
-  static SWP_NOSIZE := 0x0001 ; Retains the current size (ignores the cx and cy parameters).
-  static SWP_NOZORDER := 0x0004 ; Retains the current Z order (ignores the hWndInsertAfter parameter).
-  static SWP_SHOWWINDOW := 0x0040 ; Displays the window. 
-
-  ; Window Styles (WS_*)
-  static WS_SIZEBOX := 0x40000 ; Window has a sizing border
-
-  ; Window Messages (WM_*)
-  static WM_GETMINMAXINFO := 0x0024
-
-  ; GetSystemMetrics indices
-  static SM_CXMINTRACK := 34
-  static SM_CYMINTRACK := 35
-
-  ; Extended Window Styles (WS_EX_*)
-  static WS_EX_TOOLWINDOW := 0x80
-  static WS_EX_LAYERED := 0x08000000
-
-  ; DWM Window Attributes
-  static DWMWA_CLOAKED := 14
-  static DWMWA_EXTENDED_FRAME_BOUNDS := 9
-  static DWMWA_WINDOW_CORNER_PREFERENCE := 33
-
-  ; DWM Window Corner Preference (DWMWCP_*)
-  static DWMWCP_DEFAULT := 0
-  static DWMWCP_DONOTROUND := 1
-  static DWMWCP_ROUND := 2
-  static DWMWCP_ROUNDSMALL := 3
 }
