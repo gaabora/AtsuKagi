@@ -512,10 +512,11 @@ class WindowStash extends AKPlugin {
         }
       }
 
-      if (activeChanged && this.StashedWindows.Has(activeHwnd) && !this.StashedWindows[activeHwnd]["revealed"]) {
+      if (this.StashedWindows.Has(activeHwnd) && !this.StashedWindows[activeHwnd]["revealed"]) {
         activeInfo := this.StashedWindows[activeHwnd]
         if (activeInfo["suppressActivationReveal"] || this._isWindowMinimized(activeHwnd)) {
-          this._logState("activation reveal suppressed", activeHwnd, activeInfo)
+          if (activeChanged)
+            this._logState("activation reveal suppressed", activeHwnd, activeInfo)
         } else {
           this._revealWindow(activeHwnd, "activation")
           return
