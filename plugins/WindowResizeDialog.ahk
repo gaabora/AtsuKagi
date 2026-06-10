@@ -79,6 +79,20 @@ class WindowResizeDialog extends AKPlugin {
           "description", "Pixels changed in normal mode",
           "type", "integer", "control", "number", "default", 10, "section", "Steps",
           "validation", Map("min", 1, "max", 1000)
+        ),
+        Map(
+          "key", "RepeatDelayMs",
+          "label", "Repeat delay",
+          "description", "Milliseconds to hold a direction before continuous movement begins",
+          "type", "integer", "control", "number", "default", 250, "section", "Timing",
+          "validation", Map("min", 0, "max", 2000)
+        ),
+        Map(
+          "key", "PollingIntervalMs",
+          "label", "Polling interval",
+          "description", "Milliseconds between repeated movement steps while directions are held",
+          "type", "integer", "control", "number", "default", 30, "section", "Timing",
+          "validation", Map("min", 10, "max", 1000)
         )
       ],
       "actions", [
@@ -216,11 +230,9 @@ class WindowResizeDialog extends AKPlugin {
       if (this._pressedDirectionKeys.Has(keyName))
         return
       this._pressedDirectionKeys[keyName] := true
-      this._processDirectionalInput()
-      if (!this._inputTimerRunning) {
-        this._inputTimerRunning := true
-        SetTimer(this._inputTimerFn, 30)
-      }
+      this._processDirectionalInput(false)
+      if (!this._inputTimerRunning)
+        this._startDirectionalRepeat()
     } else {
       if (this._pressedDirectionKeys.Has(keyName))
         this._pressedDirectionKeys.Delete(keyName)
@@ -229,7 +241,17 @@ class WindowResizeDialog extends AKPlugin {
     }
   }
 
-  _processDirectionalInput() {
+  _startDirectionalRepeat() {
+    this._inputTimerRunning := true
+    repeatDelay := Max(0, Integer(this.Config.RepeatDelayMs))
+    if (repeatDelay = 0) {
+      SetTimer(this._inputTimerFn, Max(10, Integer(this.Config.PollingIntervalMs)))
+    } else {
+      SetTimer(this._inputTimerFn, -repeatDelay)
+    }
+  }
+
+  _processDirectionalInput(scheduleNext:=true) {
     if (!this._dialog || !this._targetExists()) {
       this._stopDirectionalInput()
       return
@@ -254,6 +276,9 @@ class WindowResizeDialog extends AKPlugin {
       this._moveWindow(deltaX * step, deltaY * step)
     else
       this._resizeWindow(deltaX * step, deltaY * step)
+
+    if (scheduleNext && this._inputTimerRunning)
+      SetTimer(this._inputTimerFn, Max(10, Integer(this.Config.PollingIntervalMs)))
   }
 
   _stopDirectionalInput() {
