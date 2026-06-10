@@ -53,6 +53,7 @@ class WindowFlags {
   static SM_CYMINTRACK := 35
 
   ; DWM window attributes (DWMWA_*)
+  static DWMWA_TRANSITIONS_FORCEDISABLED := 3
   static DWMWA_EXTENDED_FRAME_BOUNDS := 9
   static DWMWA_CLOAK := 13
   static DWMWA_CLOAKED := 14

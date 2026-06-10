@@ -76,6 +76,13 @@ class WindowStash extends AKPlugin {
           "validation", Map("min", 50, "max", 500, "step", 10)
         ),
         Map(
+          "key", "RestoreSettleDelay",
+          "label", "Window settle delay",
+          "description", "Wait before showing or minimizing a stashed window to reduce blinking",
+          "type", "integer", "control", "range", "default", 200, "section", "Visuals",
+          "validation", Map("min", 0, "max", 1000, "step", 10)
+        ),
+        Map(
           "key", "ShowWindowContent",
           "label", "Show window content",
           "description", "Animate the live window; when disabled, animate a colored rectangle and move the window at the end",
@@ -133,6 +140,12 @@ class WindowStash extends AKPlugin {
           "description", "How far the handle must be pulled inward to unstash the window",
           "type", "integer", "control", "range", "default", 120, "section", "Handle",
           "validation", Map("min", 40, "max", 400, "step", 10)
+        ),
+        Map(
+          "key", "LockHandleDragAxis",
+          "label", "Lock handle drag axis",
+          "description", "Choose either repositioning or inward pulling for each handle drag",
+          "type", "boolean", "control", "switch", "default", false, "section", "Handle"
         )
       ],
       "actions", [
@@ -333,9 +346,13 @@ class WindowStash extends AKPlugin {
       "revealed", true,
       "revealMode", "",
       "activationRevealUntil", 0,
+      "restoreRevealUntil", 0,
       "suppressHandleHover", false,
       "suppressActivationReveal", false,
       "parkedMinimized", false,
+      "transitionsDisabledByStash", false,
+      "restoreTransparency", "",
+      "transparencySuppressedByStash", false,
       "borderColor", this._getWindowBorderColor(hwnd),
       "stashBorderColor", "",
       "handleGui", "",
@@ -360,10 +377,11 @@ class WindowStash extends AKPlugin {
     this._destroyHandle(info)
     this._restoreWindowBorderColor(hwnd, info)
     if (restoreFrame && WinExist("ahk_id " hwnd)) {
-      this._restoreParkedWindow(hwnd, info)
+      this._prepareRestoredWindow(hwnd, info, info["hiddenFrame"])
       this._transitionWindow(hwnd, this._getUnstashFrame(info, info["revealedFrame"]))
       if (info["wasMaximized"])
         try WinMaximize("ahk_id " hwnd)
+      this._restoreWindowTransitions(hwnd, info)
     }
 
     this.StashedWindows.Delete(hwnd)
@@ -380,15 +398,25 @@ class WindowStash extends AKPlugin {
       return false
     }
 
+    info := this.StashedWindows[hwnd]
     if (this.RevealedHwnd && this.RevealedHwnd != hwnd)
       this._hideWindow(this.RevealedHwnd, false)
 
-    info := this.StashedWindows[hwnd]
     this._logState("reveal", hwnd, info, "mode=" revealMode)
-    this._prepareHiddenWindowForReveal(hwnd, info)
-    this._transitionWindow(hwnd, info["revealedFrame"])
+    wasParked := info["parkedMinimized"] || this._isWindowMinimized(hwnd)
+    directExternalRestore := revealMode = "activation" && wasParked
+    if (directExternalRestore) {
+      restored := 1
+      ; restored := this._prepareRestoredWindow(hwnd, info, info["revealedFrame"], true)
+      this._restoreWindowTransparency(hwnd, info)
+    } else {
+      restored := this._prepareRestoredWindow(hwnd, info, info["hiddenFrame"])
+      this._transitionWindow(hwnd, info["revealedFrame"])
+    }
+    this._restoreWindowTransitions(hwnd, info)
     info["revealed"] := true
     info["revealMode"] := revealMode
+    info["restoreRevealUntil"] := restored ? A_TickCount + 300 : 0
     info["activationRevealUntil"] := revealMode = "activation"
       ? A_TickCount + Max(500, Integer(this.Config.AnimationDuration) + 250)
       : 0
@@ -416,6 +444,7 @@ class WindowStash extends AKPlugin {
     info["revealed"] := false
     info["revealMode"] := ""
     info["activationRevealUntil"] := 0
+    info["restoreRevealUntil"] := 0
     this._parkHiddenWindow(hwnd, info)
     this._showHandle(hwnd, info)
     if (this.RevealedHwnd = hwnd)
@@ -477,7 +506,7 @@ class WindowStash extends AKPlugin {
       for hwnd, info in this.StashedWindows {
         if (info["suppressHandleHover"] && (!IsObject(info["handleFrame"]) || !this._pointInFrame(mouseX, mouseY, info["handleFrame"])))
           info["suppressHandleHover"] := false
-        if (info["suppressActivationReveal"] && activeHwnd != hwnd) {
+        if (info["suppressActivationReveal"] && activeHwnd && activeHwnd != hwnd) {
           info["suppressActivationReveal"] := false
           this._logState("activation suppression cleared", hwnd, info, "active=" activeHwnd)
         }
@@ -515,12 +544,13 @@ class WindowStash extends AKPlugin {
 
       if (revealedInfo["revealMode"] = "activation") {
         activationSettled := A_TickCount >= revealedInfo["activationRevealUntil"]
-        if (activeHwnd != this.RevealedHwnd && pointerOutside && activationSettled && (activeChanged || mouseMoved))
+        if (activeHwnd && activeHwnd != this.RevealedHwnd && pointerOutside && activationSettled && (activeChanged || mouseMoved))
           this._hideWindow(this.RevealedHwnd, false)
         return
       }
 
-      if (pointerOutside && (mouseMoved || activeChanged))
+      restoreSettled := A_TickCount >= revealedInfo["restoreRevealUntil"]
+      if (pointerOutside && restoreSettled && (mouseMoved || activeChanged))
         this._hideWindow(this.RevealedHwnd, activeHwnd = this.RevealedHwnd)
     } finally {
       this._polling := false
@@ -554,12 +584,14 @@ class WindowStash extends AKPlugin {
       return
 
     if (this._isWindowMinimized(hwnd)) {
-      this._logState("external minimize detected", hwnd, info)
       info["revealed"] := false
       info["revealMode"] := ""
       info["activationRevealUntil"] := 0
+      info["restoreRevealUntil"] := 0
       info["suppressActivationReveal"] := true
       info["parkedMinimized"] := true
+      info["transitionsDisabledByStash"] := this._setWindowTransitionsDisabled(hwnd, true)
+      this._logState("external minimize detected", hwnd, info, "transitionsDisabled=" info["transitionsDisabledByStash"])
       if (this.RevealedHwnd = hwnd)
         this.RevealedHwnd := 0
       this._showHandle(hwnd, info)
@@ -956,6 +988,7 @@ class WindowStash extends AKPlugin {
       info["revealed"] := false
       info["revealMode"] := ""
       info["activationRevealUntil"] := 0
+      info["restoreRevealUntil"] := 0
       info["parkedMinimized"] := true
       if (this.RevealedHwnd = hwnd)
         this.RevealedHwnd := 0
@@ -975,20 +1008,22 @@ class WindowStash extends AKPlugin {
         maxMovement := Max(maxMovement, Abs(mouseX - startX), Abs(mouseY - startY))
         rawAlongDistance := this._getAlongEdgeDragDistance(info["edge"], startX, startY, mouseX, mouseY)
         rawInwardDistance := Max(0, this._getInwardDragDistance(info["edge"], startX, startY, mouseX, mouseY))
-        if (dragDirection = "" && maxMovement > clickTolerance)
+        if (!this.Config.LockHandleDragAxis)
+          dragDirection := "free"
+        else if (dragDirection = "" && maxMovement > clickTolerance)
           dragDirection := rawInwardDistance > Abs(rawAlongDistance) * 1.15 ? "inward" : "along"
 
-        alongDistance := dragDirection = "along" ? rawAlongDistance : 0
+        alongDistance := dragDirection = "along" || dragDirection = "free" ? rawAlongDistance : 0
         movedRevealedFrame := this._moveFrameAlongEdge(baseRevealedFrame, info["monitor"], info["edge"], alongDistance)
         movedHiddenFrame := this._getHiddenFrame(movedRevealedFrame, info["monitor"], info["edge"])
         info["revealedFrame"] := movedRevealedFrame
         info["hiddenFrame"] := movedHiddenFrame
 
-        inwardDistance := dragDirection = "inward" ? rawInwardDistance : 0
+        inwardDistance := dragDirection = "inward" || dragDirection = "free" ? rawInwardDistance : 0
         lastDistance := this._clamp(inwardDistance, 0, targetDistance)
         edgeFrame := info["revealed"] ? movedRevealedFrame : movedHiddenFrame
 
-        if (dragDirection = "along") {
+        if (dragDirection = "along" || dragDirection = "free") {
           if (startedRevealed && this.Config.ShowWindowContent)
             this._moveWindow(hwnd, edgeFrame)
           else if (startedRevealed && !this.Config.ShowWindowContent)
@@ -1012,7 +1047,7 @@ class WindowStash extends AKPlugin {
         }
       } else {
         edgeFrame := info["revealed"] ? movedRevealedFrame : movedHiddenFrame
-        if (dragDirection = "along") {
+        if (dragDirection = "along" || dragDirection = "free") {
           if (startedRevealed)
             this._moveWindow(hwnd, edgeFrame)
           else
@@ -1064,33 +1099,114 @@ class WindowStash extends AKPlugin {
     return revealedFrame
   }
 
-  _restoreParkedWindow(hwnd, info) {
+  _restoreParkedWindow(hwnd, info, restoreFrame:="") {
     if (!WinExist("ahk_id " hwnd))
-      return
+      return false
 
     windowState := 0
+    restored := false
     try windowState := WinGetMinMax("ahk_id " hwnd)
-    if (info["parkedMinimized"] || windowState = -1) {
+    wasParked := info["parkedMinimized"]
+    if (wasParked || windowState = -1) {
       this._logState("restore parked", hwnd, info, "windowState=" windowState)
-      try WinRestore("ahk_id " hwnd)
+      if (IsObject(restoreFrame))
+        this._moveWindow(hwnd, restoreFrame)
+      if (windowState = -1) {
+        try {
+          WinRestore("ahk_id " hwnd)
+          restored := true
+        }
+      }
+      if (IsObject(restoreFrame))
+        this._moveWindow(hwnd, restoreFrame)
     }
     info["parkedMinimized"] := false
+    return restored || wasParked
   }
 
-  _prepareHiddenWindowForReveal(hwnd, info) {
-    this._restoreParkedWindow(hwnd, info)
-    this._moveWindow(hwnd, info["hiddenFrame"])
+  _prepareRestoredWindow(hwnd, info, startFrame, keepTransparent:=false) {
+    shouldRestore := info["parkedMinimized"] || this._isWindowMinimized(hwnd)
+    if (shouldRestore) {
+      this._suppressWindowTransparency(hwnd, info)
+      this._logState("restore suppression", hwnd, info, "transparent=" info["transparencySuppressedByStash"])
+    }
+
+    restored := this._restoreParkedWindow(hwnd, info, startFrame)
+    if (restored && info["transparencySuppressedByStash"])
+      try WinSetTransparent(0, "ahk_id " hwnd)
+    this._moveWindow(hwnd, startFrame)
+    if (restored && Integer(this.Config.RestoreSettleDelay) > 0)
+      Sleep(Integer(this.Config.RestoreSettleDelay))
+    if (!keepTransparent)
+      this._restoreWindowTransparency(hwnd, info)
+    return restored
   }
 
   _parkHiddenWindow(hwnd, info) {
     if (!WinExist("ahk_id " hwnd))
       return
 
-    this._restoreParkedWindow(hwnd, info)
+    this._suppressWindowTransparency(hwnd, info)
+    this._restoreParkedWindow(hwnd, info, info["revealedFrame"])
     this._moveWindow(hwnd, info["revealedFrame"])
+    if (Integer(this.Config.RestoreSettleDelay) > 0)
+      Sleep(Integer(this.Config.RestoreSettleDelay))
+    info["transitionsDisabledByStash"] := this._setWindowTransitionsDisabled(hwnd, true)
     try WinMinimize("ahk_id " hwnd)
     info["parkedMinimized"] := true
+    this._restoreWindowTransparency(hwnd, info)
     this._logState("park minimized", hwnd, info)
+  }
+
+  _setWindowTransitionsDisabled(hwnd, disabled) {
+    if (!WinExist("ahk_id " hwnd))
+      return false
+
+    value := disabled ? 1 : 0
+    try {
+      return DllCall(
+        "dwmapi\DwmSetWindowAttribute",
+        "Ptr", hwnd,
+        "UInt", WindowFlags.DWMWA_TRANSITIONS_FORCEDISABLED,
+        "Int*", value,
+        "UInt", Win32Sizes.DWORD
+      ) = 0
+    }
+    return false
+  }
+
+  _restoreWindowTransitions(hwnd, info) {
+    if (!info["transitionsDisabledByStash"])
+      return
+
+    this._setWindowTransitionsDisabled(hwnd, false)
+    info["transitionsDisabledByStash"] := false
+  }
+
+  _restoreWindowTransparency(hwnd, info) {
+    if (!info["transparencySuppressedByStash"])
+      return
+
+    try {
+      if (info["restoreTransparency"] = "")
+        WinSetTransparent("OFF", "ahk_id " hwnd)
+      else
+        WinSetTransparent(info["restoreTransparency"], "ahk_id " hwnd)
+    }
+    info["restoreTransparency"] := ""
+    info["transparencySuppressedByStash"] := false
+  }
+
+  _suppressWindowTransparency(hwnd, info) {
+    if (info["transparencySuppressedByStash"] || !WinExist("ahk_id " hwnd))
+      return
+
+    info["restoreTransparency"] := ""
+    try info["restoreTransparency"] := WinGetTransparent("ahk_id " hwnd)
+    try {
+      WinSetTransparent(0, "ahk_id " hwnd)
+      info["transparencySuppressedByStash"] := true
+    }
   }
 
   _logState(event, hwnd, info, details:="") {
@@ -1099,6 +1215,7 @@ class WindowStash extends AKPlugin {
     message := event " hwnd=" hwnd " active=" WinExist("A") " windowState=" windowState
     message .= " revealed=" info["revealed"] " revealMode=" info["revealMode"]
     message .= " parkedMinimized=" info["parkedMinimized"] " suppressActivationReveal=" info["suppressActivationReveal"]
+    message .= " transparencySuppressed=" info["transparencySuppressedByStash"]
     if (info["activationRevealUntil"])
       message .= " activationGraceRemaining=" Max(0, info["activationRevealUntil"] - A_TickCount)
     if (details != "")
@@ -1331,6 +1448,8 @@ class WindowStash extends AKPlugin {
       this._moveWindow(hwnd, info["originalFrame"])
       if (info["wasMaximized"])
         try WinMaximize("ahk_id " hwnd)
+      this._restoreWindowTransparency(hwnd, info)
+      this._restoreWindowTransitions(hwnd, info)
     }
     this._destroyOverlay()
   }
