@@ -1154,7 +1154,11 @@ class WindowStash extends AKPlugin {
       Sleep(Integer(this.Config.RestoreSettleDelay))
     info["transitionsDisabledByStash"] := this._setWindowTransitionsDisabled(hwnd, true)
     try WinMinimize("ahk_id " hwnd)
-    info["parkedMinimized"] := true
+    info["parkedMinimized"] := this._isWindowMinimized(hwnd)
+    if (!info["parkedMinimized"]) {
+      this._moveWindow(hwnd, info["hiddenFrame"])
+      this._restoreWindowTransitions(hwnd, info)
+    }
     this._restoreWindowTransparency(hwnd, info)
     this._logState("park minimized", hwnd, info)
   }
