@@ -205,13 +205,9 @@ class WindowStash extends AKPlugin {
 
     if (key = "WindowEdgeOffset") {
       for hwnd, info in this.StashedWindows {
-        info["revealedFrame"] := this._getEdgeRevealedFrame(info["revealedFrame"], info["monitor"], info["edge"], info["frameInsets"])
-        info["hiddenFrame"] := this._getHiddenFrame(info["revealedFrame"], info["monitor"], info["edge"])
-        if (info["revealed"])
-          this._moveWindow(hwnd, info["revealedFrame"])
-        else
-          this._parkHiddenWindow(hwnd, info)
-        this._showHandle(hwnd, info)
+        revealedFrame := this._getEdgeRevealedFrame(info["revealedFrame"], info["monitor"], info["edge"], info["frameInsets"])
+        this._setRevealedFrame(info, revealedFrame)
+        this._applyStashedWindowState(hwnd, info)
       }
       return
     }
@@ -292,16 +288,13 @@ class WindowStash extends AKPlugin {
       currentMonitor := this._getMonitorForRect(currentFrame["x"], currentFrame["y"], currentFrame["w"], currentFrame["h"])
       targetMonitor := this._getMonitorForEdge(currentMonitor, edge)
       info["edge"] := edge
-      info["monitor"] := targetMonitor
-      info["revealedFrame"] := this._getEdgeRevealedFrame(currentFrame, targetMonitor, edge, info["frameInsets"])
-      info["hiddenFrame"] := this._getHiddenFrame(info["revealedFrame"], info["monitor"], edge)
+      revealedFrame := this._getEdgeRevealedFrame(currentFrame, targetMonitor, edge, info["frameInsets"])
+      this._setRevealedFrame(info, revealedFrame, targetMonitor)
       this._restoreOverlappingWindows(hwnd, edge, info["monitor"], info["hiddenFrame"])
       if (info["revealed"])
         this._hideWindow(hwnd)
-      else {
-        this._parkHiddenWindow(hwnd, info)
-        this._showHandle(hwnd, info)
-      }
+      else
+        this._applyStashedWindowState(hwnd, info)
       return true
     }
 
@@ -442,15 +435,26 @@ class WindowStash extends AKPlugin {
       this._focusAnotherWindow(hwnd)
 
     this._transitionWindow(hwnd, info["hiddenFrame"])
+    this._markWindowHidden(hwnd, info)
+    this._applyStashedWindowState(hwnd, info)
+    return true
+  }
+
+  _markWindowHidden(hwnd, info) {
     info["revealed"] := false
     info["revealMode"] := ""
     info["activationRevealUntil"] := 0
     info["restoreRevealUntil"] := 0
-    this._parkHiddenWindow(hwnd, info)
-    this._showHandle(hwnd, info)
     if (this.RevealedHwnd = hwnd)
       this.RevealedHwnd := 0
-    return true
+  }
+
+  _applyStashedWindowState(hwnd, info) {
+    if (info["revealed"])
+      this._moveWindow(hwnd, info["revealedFrame"])
+    else
+      this._parkHiddenWindow(hwnd, info)
+    this._showHandle(hwnd, info)
   }
 
   _startPolling() {
@@ -586,16 +590,11 @@ class WindowStash extends AKPlugin {
       return
 
     if (this._isWindowMinimized(hwnd)) {
-      info["revealed"] := false
-      info["revealMode"] := ""
-      info["activationRevealUntil"] := 0
-      info["restoreRevealUntil"] := 0
+      this._markWindowHidden(hwnd, info)
       info["suppressActivationReveal"] := true
       info["parkedMinimized"] := true
       this._suppressWindowTransitions(hwnd, info)
       this._logState("external minimize detected", hwnd, info, "transitionsDisabled=" info["transitionsDisabledByStash"])
-      if (this.RevealedHwnd = hwnd)
-        this.RevealedHwnd := 0
       this._showHandle(hwnd, info)
       return
     }
@@ -605,10 +604,8 @@ class WindowStash extends AKPlugin {
       return
 
     monitor := this._getMonitorForRect(currentFrame["x"], currentFrame["y"], currentFrame["w"], currentFrame["h"])
-    info["monitor"] := monitor
     info["frameInsets"] := this._getInvisibleBorderOffsets(hwnd, currentFrame)
-    info["revealedFrame"] := currentFrame
-    info["hiddenFrame"] := this._getHiddenFrame(currentFrame, monitor, info["edge"])
+    this._setRevealedFrame(info, currentFrame, monitor)
     this._showHandle(hwnd, info)
   }
 
@@ -639,15 +636,9 @@ class WindowStash extends AKPlugin {
 
       currentMonitor := this._getMonitorForRect(info["revealedFrame"]["x"], info["revealedFrame"]["y"], info["revealedFrame"]["w"], info["revealedFrame"]["h"])
       targetMonitor := this._getMonitorForEdge(currentMonitor, info["edge"])
-      info["monitor"] := targetMonitor
-      info["revealedFrame"] := this._getEdgeRevealedFrame(info["revealedFrame"], targetMonitor, info["edge"], info["frameInsets"])
-      info["hiddenFrame"] := this._getHiddenFrame(info["revealedFrame"], targetMonitor, info["edge"])
-
-      if (info["revealed"])
-        this._moveWindow(hwnd, info["revealedFrame"])
-      else
-        this._parkHiddenWindow(hwnd, info)
-      this._showHandle(hwnd, info)
+      revealedFrame := this._getEdgeRevealedFrame(info["revealedFrame"], targetMonitor, info["edge"], info["frameInsets"])
+      this._setRevealedFrame(info, revealedFrame, targetMonitor)
+      this._applyStashedWindowState(hwnd, info)
     }
 
     for hwnd in hwnds {
@@ -833,6 +824,14 @@ class WindowStash extends AKPlugin {
     return Map("x", x, "y", y, "w", frame["w"], "h", frame["h"])
   }
 
+  _setRevealedFrame(info, frame, monitor:="") {
+    if (IsObject(monitor))
+      info["monitor"] := monitor
+    info["revealedFrame"] := frame
+    info["hiddenFrame"] := this._getHiddenFrame(frame, info["monitor"], info["edge"])
+    return info["hiddenFrame"]
+  }
+
   _showHandle(hwnd, info, inwardOffset:=0) {
     created := false
     if (!IsObject(info["handleGui"])) {
@@ -991,21 +990,14 @@ class WindowStash extends AKPlugin {
     startedRevealed := info["revealed"]
     if (startedRevealed && this._isWindowMinimized(hwnd)) {
       startedRevealed := false
-      info["revealed"] := false
-      info["revealMode"] := ""
-      info["activationRevealUntil"] := 0
-      info["restoreRevealUntil"] := 0
+      this._markWindowHidden(hwnd, info)
       info["parkedMinimized"] := true
-      if (this.RevealedHwnd = hwnd)
-        this.RevealedHwnd := 0
     }
     baseRevealedFrame := startedRevealed ? this._getWindowFrame(hwnd) : info["revealedFrame"]
     if (!baseRevealedFrame)
       return
     movedRevealedFrame := baseRevealedFrame
-    movedHiddenFrame := this._getHiddenFrame(baseRevealedFrame, info["monitor"], info["edge"])
-    info["revealedFrame"] := movedRevealedFrame
-    info["hiddenFrame"] := movedHiddenFrame
+    movedHiddenFrame := this._setRevealedFrame(info, movedRevealedFrame)
     this._draggingHandle := true
 
     try {
@@ -1021,9 +1013,7 @@ class WindowStash extends AKPlugin {
 
         alongDistance := dragDirection = "along" || dragDirection = "free" ? rawAlongDistance : 0
         movedRevealedFrame := this._moveFrameAlongEdge(baseRevealedFrame, info["monitor"], info["edge"], alongDistance)
-        movedHiddenFrame := this._getHiddenFrame(movedRevealedFrame, info["monitor"], info["edge"])
-        info["revealedFrame"] := movedRevealedFrame
-        info["hiddenFrame"] := movedHiddenFrame
+        movedHiddenFrame := this._setRevealedFrame(info, movedRevealedFrame)
 
         inwardDistance := dragDirection = "inward" || dragDirection = "free" ? rawInwardDistance : 0
         lastDistance := this._clamp(inwardDistance, 0, targetDistance)
@@ -1042,8 +1032,7 @@ class WindowStash extends AKPlugin {
       if (lastDistance >= targetDistance) {
         this._unstashWindow(hwnd, true)
       } else if (maxMovement <= clickTolerance) {
-        info["revealedFrame"] := baseRevealedFrame
-        info["hiddenFrame"] := this._getHiddenFrame(baseRevealedFrame, info["monitor"], info["edge"])
+        this._setRevealedFrame(info, baseRevealedFrame)
         if (startedRevealed) {
           info["suppressHandleHover"] := true
           this._hideWindow(hwnd)
@@ -1247,6 +1236,8 @@ class WindowStash extends AKPlugin {
   }
 
   _logState(event, hwnd, info, details:="") {
+    if (this.debugLevel < AKApp.LOG_TRACE)
+      return
     windowState := ""
     try windowState := WinGetMinMax("ahk_id " hwnd)
     message := event " hwnd=" hwnd " active=" WinExist("A") " windowState=" windowState
@@ -1257,7 +1248,7 @@ class WindowStash extends AKPlugin {
       message .= " activationGraceRemaining=" Max(0, info["activationRevealUntil"] - A_TickCount)
     if (details != "")
       message .= " " details
-    this.outputDebugLine(AKApp.LOG_DEBUG, message)
+    this.outputDebugLine(AKApp.LOG_TRACE, message)
   }
 
   _setWindowBorderColor(hwnd, color) {
