@@ -30,7 +30,7 @@ Notes:
 
 - [ACTION_CATALOG.md](ACTION_CATALOG.md): action reference.
 - [PLUGIN_API.md](PLUGIN_API.md): plugin authoring guide.
-- [BLACKLIST_GUIDE.md](BLACKLIST_GUIDE.md): how to exclude certain windows from actions.
+- [BLOCKLIST_GUIDE.md](BLOCKLIST_GUIDE.md): how to exclude certain windows from actions.
 
 ## Plugin Overview
 
@@ -83,7 +83,7 @@ If something does not work:
 1. Open the `Problems` tab in Settings and fix invalid hotkeys or action names.
 2. Open the `Logs` tab and check which plugins and actions were loaded.
 3. Verify the target plugin is not listed in `GENERAL.DisabledPlugins`.
-4. Check [BLACKLIST_GUIDE.md](BLACKLIST_GUIDE.md) if an action appears to do nothing in a specific app.
+4. Check [BLOCKLIST_GUIDE.md](BLOCKLIST_GUIDE.md) if an action appears to do nothing in a specific app.
 5. For virtual desktop actions, confirm [VirtualDesktopAccessor.dll](VirtualDesktopAccessor.dll) is present.
 
 Useful built-in controls:
@@ -96,5 +96,5 @@ Useful built-in controls:
 
 - [ACTION_CATALOG.md](ACTION_CATALOG.md)
 - [PLUGIN_API.md](PLUGIN_API.md)
-- [BLACKLIST_GUIDE.md](BLACKLIST_GUIDE.md)
+- [BLOCKLIST_GUIDE.md](BLOCKLIST_GUIDE.md)
 - [ROADMAP.md](ROADMAP.md)
