@@ -10,6 +10,10 @@ class WindowResizeDialog extends AKPlugin {
   _heightControl := 0
   _dialogHotkeys := Map()
   _dialogHotkeyContext := 0
+  _directionKeys := Map()
+  _pressedDirectionKeys := Map()
+  _inputTimerFn := 0
+  _inputTimerRunning := false
 
   __DescribePlugin() {
     modifierOptions := [
@@ -174,25 +178,16 @@ class WindowResizeDialog extends AKPlugin {
   }
 
   _enableDialogHotkeys() {
-    movePrefix := this._getModifierPrefix(this.Config.MoveModifier)
-    stepPrefix := this._getModifierPrefix(this.Config.StepModifier)
-    if (movePrefix = stepPrefix) {
-      this.ShowWarning("Move modifier and step modifier must be different.")
-      return
-    }
-
-    keys := this._getDirectionKeys()
-    preciseStep := Max(1, Integer(this.Config.PreciseStepSize))
-    normalStep := Max(1, Integer(this.Config.NormalStepSize))
-    preciseByDefault := !!this.Config.UsePreciseModeByDefault
-    defaultStep := preciseByDefault ? preciseStep : normalStep
-    alternateStep := preciseByDefault ? normalStep : preciseStep
-
+    this._directionKeys := this._getDirectionKeys()
+    this._pressedDirectionKeys := Map()
+    this._inputTimerFn := this._processDirectionalInput.Bind(this)
     this._dialogHotkeys := Map()
-    this._addDirectionalBindings(this._dialogHotkeys, keys, "", this._resizeWindow.Bind(this), defaultStep)
-    this._addDirectionalBindings(this._dialogHotkeys, keys, stepPrefix, this._resizeWindow.Bind(this), alternateStep)
-    this._addDirectionalBindings(this._dialogHotkeys, keys, movePrefix, this._moveWindow.Bind(this), defaultStep)
-    this._addDirectionalBindings(this._dialogHotkeys, keys, movePrefix stepPrefix, this._moveWindow.Bind(this), alternateStep)
+    for direction, keyName in this._directionKeys {
+      downHotkey := "*" keyName
+      upHotkey := "*" keyName " up"
+      this._dialogHotkeys[downHotkey] := this._setDirectionalKeyState.Bind(this, keyName, true)
+      this._dialogHotkeys[upHotkey] := this._setDirectionalKeyState.Bind(this, keyName, false)
+    }
 
     this._dialogHotkeyContext := (*) => this._dialog && WinActive("ahk_id " this._dialog.Hwnd)
     HotIf(this._dialogHotkeyContext)
@@ -202,6 +197,7 @@ class WindowResizeDialog extends AKPlugin {
   }
 
   _disableDialogHotkeys() {
+    this._stopDirectionalInput()
     if (!IsObject(this._dialogHotkeyContext))
       return
     HotIf(this._dialogHotkeyContext)
@@ -210,13 +206,69 @@ class WindowResizeDialog extends AKPlugin {
     HotIf()
     this._dialogHotkeys := Map()
     this._dialogHotkeyContext := 0
+    this._directionKeys := Map()
+    this._pressedDirectionKeys := Map()
+    this._inputTimerFn := 0
   }
 
-  _addDirectionalBindings(bindings, keys, prefix, callback, step) {
-    bindings[prefix keys["up"]] := callback.Bind(0, -step)
-    bindings[prefix keys["left"]] := callback.Bind(-step, 0)
-    bindings[prefix keys["down"]] := callback.Bind(0, step)
-    bindings[prefix keys["right"]] := callback.Bind(step, 0)
+  _setDirectionalKeyState(keyName, pressed, *) {
+    if (pressed) {
+      if (this._pressedDirectionKeys.Has(keyName))
+        return
+      this._pressedDirectionKeys[keyName] := true
+      this._processDirectionalInput()
+      if (!this._inputTimerRunning) {
+        this._inputTimerRunning := true
+        SetTimer(this._inputTimerFn, 30)
+      }
+    } else {
+      if (this._pressedDirectionKeys.Has(keyName))
+        this._pressedDirectionKeys.Delete(keyName)
+      if (this._pressedDirectionKeys.Count = 0)
+        this._stopDirectionalInput()
+    }
+  }
+
+  _processDirectionalInput() {
+    if (!this._dialog || !this._targetExists()) {
+      this._stopDirectionalInput()
+      return
+    }
+
+    leftPressed := GetKeyState(this._directionKeys["left"], "P")
+    rightPressed := GetKeyState(this._directionKeys["right"], "P")
+    upPressed := GetKeyState(this._directionKeys["up"], "P")
+    downPressed := GetKeyState(this._directionKeys["down"], "P")
+    if (!leftPressed && !rightPressed && !upPressed && !downPressed) {
+      this._stopDirectionalInput()
+      return
+    }
+
+    deltaX := (rightPressed ? 1 : 0) - (leftPressed ? 1 : 0)
+    deltaY := (downPressed ? 1 : 0) - (upPressed ? 1 : 0)
+    if (deltaX = 0 && deltaY = 0)
+      return
+
+    step := this._getCurrentStep()
+    if (this._isModifierPressed(this.Config.MoveModifier))
+      this._moveWindow(deltaX * step, deltaY * step)
+    else
+      this._resizeWindow(deltaX * step, deltaY * step)
+  }
+
+  _stopDirectionalInput() {
+    if (IsObject(this._inputTimerFn))
+      SetTimer(this._inputTimerFn, 0)
+    this._inputTimerRunning := false
+  }
+
+  _getCurrentStep() {
+    preciseStep := Max(1, Integer(this.Config.PreciseStepSize))
+    normalStep := Max(1, Integer(this.Config.NormalStepSize))
+    preciseByDefault := !!this.Config.UsePreciseModeByDefault
+    alternateMode := this._isModifierPressed(this.Config.StepModifier)
+    usePreciseStep := alternateMode ? !preciseByDefault : preciseByDefault
+    return usePreciseStep ? preciseStep : normalStep
   }
 
   _resizeWindow(deltaW, deltaH, *) {
@@ -248,13 +300,13 @@ class WindowResizeDialog extends AKPlugin {
     }
   }
 
-  _getModifierPrefix(modifier) {
+  _isModifierPressed(modifier) {
     switch StrLower("" modifier) {
-      case "alt": return "!"
-      case "ctrl": return "^"
-      case "shift": return "+"
-      case "win": return "#"
-      default: return ""
+      case "alt": return GetKeyState("Alt", "P")
+      case "ctrl": return GetKeyState("Ctrl", "P")
+      case "shift": return GetKeyState("Shift", "P")
+      case "win": return GetKeyState("LWin", "P") || GetKeyState("RWin", "P")
+      default: return false
     }
   }
 
@@ -267,7 +319,7 @@ class WindowResizeDialog extends AKPlugin {
     preciseByDefault := !!this.Config.UsePreciseModeByDefault
     defaultStep := preciseByDefault ? preciseStep : normalStep
     alternateStep := preciseByDefault ? normalStep : preciseStep
-    return keys ": resize " defaultStep " px | " stepModifier ": " alternateStep " px | " moveModifier ": move"
+    return keys ": resize " defaultStep " px | " stepModifier ": " alternateStep " px | " moveModifier ": move | combine keys for diagonals"
   }
 
   _targetExists() {
