@@ -351,6 +351,7 @@ class WindowStash extends AKPlugin {
       "suppressActivationReveal", false,
       "parkedMinimized", false,
       "transitionsDisabledByStash", false,
+      "restoreTransitionsDisabled", "",
       "restoreTransparency", "",
       "transparencySuppressedByStash", false,
       "borderColor", this._getWindowBorderColor(hwnd),
@@ -591,7 +592,7 @@ class WindowStash extends AKPlugin {
       info["restoreRevealUntil"] := 0
       info["suppressActivationReveal"] := true
       info["parkedMinimized"] := true
-      info["transitionsDisabledByStash"] := this._setWindowTransitionsDisabled(hwnd, true)
+      this._suppressWindowTransitions(hwnd, info)
       this._logState("external minimize detected", hwnd, info, "transitionsDisabled=" info["transitionsDisabledByStash"])
       if (this.RevealedHwnd = hwnd)
         this.RevealedHwnd := 0
@@ -627,9 +628,11 @@ class WindowStash extends AKPlugin {
     }
     this._displaySignature := signature
 
+    hwnds := []
     for hwnd, info in this.StashedWindows {
       if (!WinExist("ahk_id " hwnd))
         continue
+      hwnds.Push(hwnd)
 
       originalMonitor := this._getMonitorForRect(info["originalFrame"]["x"], info["originalFrame"]["y"], info["originalFrame"]["w"], info["originalFrame"]["h"])
       info["originalFrame"] := this._getClampedFrame(info["originalFrame"], originalMonitor)
@@ -645,6 +648,13 @@ class WindowStash extends AKPlugin {
       else
         this._parkHiddenWindow(hwnd, info)
       this._showHandle(hwnd, info)
+    }
+
+    for hwnd in hwnds {
+      if (!this.StashedWindows.Has(hwnd))
+        continue
+      info := this.StashedWindows[hwnd]
+      this._restoreOverlappingWindows(hwnd, info["edge"], info["monitor"], info["hiddenFrame"])
     }
   }
 
@@ -792,12 +802,7 @@ class WindowStash extends AKPlugin {
     }
 
     visibleRect := Buffer(16, 0)
-    if (DllCall("dwmapi\DwmGetWindowAttribute",
-      "Ptr", hwnd,
-      "UInt", WindowFlags.DWMWA_EXTENDED_FRAME_BOUNDS,
-      "Ptr", visibleRect.Ptr,
-      "UInt", visibleRect.Size,
-      "Int") != 0)
+    if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_EXTENDED_FRAME_BOUNDS, "Ptr", visibleRect.Ptr, "UInt", visibleRect.Size, "Int") != 0)
       return insets
 
     visibleLeft := NumGet(visibleRect, 0, "Int")
@@ -1049,6 +1054,7 @@ class WindowStash extends AKPlugin {
       } else {
         edgeFrame := info["revealed"] ? movedRevealedFrame : movedHiddenFrame
         if (dragDirection = "along" || dragDirection = "free") {
+          this._restoreOverlappingWindows(hwnd, info["edge"], info["monitor"], movedHiddenFrame)
           if (startedRevealed)
             this._moveWindow(hwnd, edgeFrame)
           else
@@ -1152,7 +1158,7 @@ class WindowStash extends AKPlugin {
     this._moveWindow(hwnd, info["revealedFrame"])
     if (Integer(this.Config.RestoreSettleDelay) > 0)
       Sleep(Integer(this.Config.RestoreSettleDelay))
-    info["transitionsDisabledByStash"] := this._setWindowTransitionsDisabled(hwnd, true)
+    this._suppressWindowTransitions(hwnd, info)
     try WinMinimize("ahk_id " hwnd)
     info["parkedMinimized"] := this._isWindowMinimized(hwnd)
     if (!info["parkedMinimized"]) {
@@ -1169,22 +1175,43 @@ class WindowStash extends AKPlugin {
 
     value := disabled ? 1 : 0
     try {
-      return DllCall(
-        "dwmapi\DwmSetWindowAttribute",
-        "Ptr", hwnd,
-        "UInt", WindowFlags.DWMWA_TRANSITIONS_FORCEDISABLED,
-        "Int*", value,
-        "UInt", Win32Sizes.DWORD
-      ) = 0
+      return DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_TRANSITIONS_FORCEDISABLED, "Int*", value, "UInt", Win32Sizes.DWORD) = 0
     }
     return false
+  }
+
+  _getWindowTransitionsDisabled(hwnd) {
+    if (!WinExist("ahk_id " hwnd))
+      return ""
+
+    value := 0
+    try {
+      if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_TRANSITIONS_FORCEDISABLED, "Int*", &value, "UInt", Win32Sizes.DWORD) = 0)
+        return value
+    }
+    return ""
+  }
+
+  _suppressWindowTransitions(hwnd, info) {
+    if (info["transitionsDisabledByStash"])
+      return
+
+    originalValue := this._getWindowTransitionsDisabled(hwnd)
+    if (originalValue = "" || !this._setWindowTransitionsDisabled(hwnd, true))
+      return
+
+    info["restoreTransitionsDisabled"] := originalValue
+    info["transitionsDisabledByStash"] := true
   }
 
   _restoreWindowTransitions(hwnd, info) {
     if (!info["transitionsDisabledByStash"])
       return
 
-    this._setWindowTransitionsDisabled(hwnd, false)
+    if (!this._setWindowTransitionsDisabled(hwnd, info["restoreTransitionsDisabled"]))
+      return
+
+    info["restoreTransitionsDisabled"] := ""
     info["transitionsDisabledByStash"] := false
   }
 
@@ -1192,12 +1219,17 @@ class WindowStash extends AKPlugin {
     if (!info["transparencySuppressedByStash"])
       return
 
+    restored := false
     try {
       if (info["restoreTransparency"] = "")
         WinSetTransparent("OFF", "ahk_id " hwnd)
       else
         WinSetTransparent(info["restoreTransparency"], "ahk_id " hwnd)
+      restored := true
     }
+    if (!restored)
+      return
+
     info["restoreTransparency"] := ""
     info["transparencySuppressedByStash"] := false
   }
