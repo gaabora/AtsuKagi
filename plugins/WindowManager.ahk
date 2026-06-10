@@ -1,10 +1,12 @@
 class WindowManager extends AKPlugin {
+  _fullScreenWindowStates := Map()
+
   __DescribePlugin() {
     return Map(
       "plugin", Map(
         "id", "WindowManager",
         "title", "Window Manager",
-        "description", "Manage windows: move, resize, minimize, transparency, maximize, fullscreen, and top-most behavior",
+        "description", "Manage windows: minimize, transparency, maximize, fullscreen, frames, and top-most behavior",
         "category", "Window Management"
       ),
       "page", Map(
@@ -35,7 +37,6 @@ class WindowManager extends AKPlugin {
         Map("action", "ShowWindowList", "label", "Show window list", "description", "List current windows with class and state", "category", "Info"),
         Map("action", "ShowHoveredWindowInfo", "label", "Show hovered window info", "description", "Show diagnostics for the window under cursor", "category", "Info"),
         Map("action", "ShowWindowInfo", "label", "Show active window info", "description", "Show diagnostics for a specific or active window", "category", "Info", "params", [Map("name", "hwnd", "default", 0)]),
-        Map("action", "ShowResizeWindowDialog", "label", "Open resize dialog", "description", "Open interactive resize dialog for a specific or active window", "category", "Resize", "params", [Map("name", "hwnd", "default", 0)]),
         Map("action", "MinimizeWindow", "label", "Minimize window", "description", "Minimize a specific or active window", "category", "State", "params", [Map("name", "hwnd", "default", 0)]),
         Map("action", "MinimizeHoveredWindow", "label", "Minimize hovered window", "description", "Minimize the window currently under cursor", "category", "State"),
         Map("action", "CloseWindow", "label", "Close window", "description", "Close a specific or active window", "category", "State", "params", [Map("name", "hwnd", "default", 0)]),
@@ -77,7 +78,6 @@ class WindowManager extends AKPlugin {
   ShowWindowInfo(hwnd:=0) { ;;;
     if (hwnd=0)
       hwnd := WinGetID("A")
-    MouseGetPos(,, &hwnd)
     vPName := WinGetProcessName("ahk_id " hwnd)
     vPPath := WinGetProcessPath("ahk_id " hwnd)
     vPID := WinGetPID("ahk_id " hwnd)
@@ -100,82 +100,6 @@ class WindowManager extends AKPlugin {
       text .= fileName " class=" className ", minMax=" minMaxState "`n"
     }
     this.ShowNotice(text, 'Windows list', 0) 
-  }
-
-  ShowResizeWindowDialog(hwnd:=0) { ;;;
-    static SelectedWindowhwnd := 0
-    static OldW := 0
-    static OldH := 0
-    static NewW := 0
-    static NewH := 0
-    static ResizeDialog := ''
-    static OldMax := 0
-
-    if (ResizeDialog) {
-      ResizeDialog.Destroy()
-      ResizeDialog := ''
-      return
-    }
-
-    if (!this._checkHwnd(&hwnd, A_ThisFunc)) ; TODO ignore start menu
-      return
-
-    SelectedWindowhwnd := hwnd
-
-    OldMax := WinGetMinMax("ahk_id " SelectedWindowhwnd)
-    if (OldMax) {
-      WinRestore("ahk_id " SelectedWindowhwnd)
-    }
-
-    WinGetPos(&OldX, &OldY, &OldW, &OldH, "ahk_id " SelectedWindowhwnd)
-    
-    ResizeDialog := Gui()
-    ResizeDialog.Title := "Window size: " WinGetProcessName("ahk_id " SelectedWindowhwnd)
-    ResizeDialog.Opt("+ToolWindow +AlwaysOnTop")
-  
-    ResizeDialog.Add("Edit", "w50 number right")
-
-    ResizeDialog.Add("UpDown", "vNewW Range24-9999", OldW)
-      .OnEvent("Change", Apply.Bind("Change"))
-    
-    ResizeDialog.Add("Edit", "ys w50 number right")
-
-    ResizeDialog.Add("UpDown", "vNewH Range24-9999", OldH)
-      .OnEvent("Change", Apply.Bind("Change"))
-
-    ResizeDialog.Add("Button", "ys Default", "Apply")
-      .OnEvent("Click", Apply.Bind("Change"))
-    ResizeDialog.Add("Button", "ys", "OK")
-      .OnEvent("Click", OK.Bind("Change"))
-    ResizeDialog.Add("Button", "ys", "Revert")
-      .OnEvent("Click", Revert.Bind("Change"))
-
-    ResizeDialog.OnEvent('Escape', (*) => Revert())
-
-
-    ResizeDialog.Show()
-
-    Return
-
-    OK(*) {
-      Apply()
-      ResizeDialog.Destroy()
-      ResizeDialog := ''
-    }
-    Apply(*) {
-      oSaved := ResizeDialog.Submit("0")
-      NewW := oSaved.NewW
-      NewH := oSaved.NewH
-      WinMove(,,NewW, NewH, "ahk_id " SelectedWindowhwnd)
-    }
-    Revert(*) {
-        if (OldMax) {
-          WinMaximize("ahk_id " SelectedWindowhwnd)
-        }
-        WinMove(,,OldW, OldH, "ahk_id " SelectedWindowhwnd)
-        ResizeDialog.Destroy()
-        ResizeDialog := ''
-    }
   }
 
   MinimizeWindow(hwnd:=0) { ;;;
@@ -209,8 +133,8 @@ class WindowManager extends AKPlugin {
     if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
 
-    maximized := WinGetMinMax("ahk_id " hwnd)
-    if (maximized) {
+    windowState := WinGetMinMax("ahk_id " hwnd)
+    if (windowState = 1) {
       WinRestore("ahk_id " hwnd)
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "OFF"))
     } else {
@@ -250,21 +174,38 @@ class WindowManager extends AKPlugin {
     if (!this._checkHwnd(&hwnd, A_ThisFunc))
       return
 
-    if (WinGetMinMax("ahk_id " hwnd)) {
+    if (this._fullScreenWindowStates.Has(hwnd)) {
+      originalState := this._fullScreenWindowStates[hwnd]
       WinRestore("ahk_id " hwnd)
-    }
-    if (this._hasWindowStyle(hwnd, WindowFlags.WS_CAPTION)) {
-      this._setWindowStyleState(hwnd, WindowFlags.WS_CAPTION, false)
-      this._setWindowStyleState(hwnd, WindowFlags.WS_SIZEBOX, false)
-      WinMaximize("ahk_id " hwnd)
-
-      this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "ON"))
-    } else {
-      this._setWindowStyleState(hwnd, WindowFlags.WS_CAPTION, true)
-      this._setWindowStyleState(hwnd, WindowFlags.WS_SIZEBOX, true)
-      
+      WinSetStyle(originalState.style, "ahk_id " hwnd)
+      WinMove(originalState.x, originalState.y, originalState.w, originalState.h, "ahk_id " hwnd)
+      if (originalState.minMax = 1)
+        WinMaximize("ahk_id " hwnd)
+      else if (originalState.minMax = -1)
+        WinMinimize("ahk_id " hwnd)
+      this._fullScreenWindowStates.Delete(hwnd)
       this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "OFF"))
+      return
     }
+
+    minMaxState := WinGetMinMax("ahk_id " hwnd)
+    originalStyle := WinGetStyle("ahk_id " hwnd)
+    if (minMaxState != 0)
+      WinRestore("ahk_id " hwnd)
+    WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
+    this._fullScreenWindowStates[hwnd] := {
+      style: originalStyle,
+      minMax: minMaxState,
+      x: x,
+      y: y,
+      w: w,
+      h: h
+    }
+
+    this._setWindowStyleState(hwnd, WindowFlags.WS_CAPTION, false)
+    this._setWindowStyleState(hwnd, WindowFlags.WS_SIZEBOX, false)
+    WinMaximize("ahk_id " hwnd)
+    this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "ON"))
   }
 
   ToggleHoveredWindowFullScreen() { ;;;
@@ -516,12 +457,8 @@ class WindowManager extends AKPlugin {
   }
 
   _hasWindowStyle(hwnd, style) {
-    Style := WinGetStyle("ahk_id " hwnd)
-    if (style & WindowFlags.WS_CAPTION) {
-      return true
-    } else {
-      return false
-    }
+    windowStyle := WinGetStyle("ahk_id " hwnd)
+    return !!(windowStyle & style)
   }
 
   _setWindowStyleState(hwnd, style, enable) {

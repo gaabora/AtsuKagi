@@ -1,0 +1,32 @@
+# Application Core
+
+## Purpose
+
+- Own application startup support, configuration defaults, plugin registration, action dispatch, GUI hosting, and Windows constants.
+
+## Ownership
+
+- `AKApp.ahk` owns application orchestration and public action/plugin registries.
+- `AKPlugin.ahk` owns plugin metadata and the plugin-to-app bridge.
+- `AKGui.ahk` owns the AHK side of the settings WebView.
+- `defaultConfig.ahk` owns shipped configuration defaults.
+- `ui/` owns the settings frontend.
+
+## Local Contracts
+
+- Keep AutoHotkey v2 syntax and the existing public PascalCase/private `_camelCase` convention.
+- Changes to plugin descriptors, action dispatch, or settings payloads must remain compatible across `AKApp.ahk`, `AKPlugin.ahk`, and `ui/`.
+- Windows constants should be named and centralized instead of repeated as unexplained literals when broadly reused.
+
+## Work Guidance
+
+- Keep application orchestration in the core and feature-specific behavior in `plugins/`.
+- Preserve script-mode and compiled-build resource paths.
+
+## Verification
+
+- Do not run automated tests under the current repository-wide user preference.
+
+## Child DOX Index
+
+- [`ui/AGENTS.md`](ui/AGENTS.md): settings WebView frontend and bundled frontend dependencies.
