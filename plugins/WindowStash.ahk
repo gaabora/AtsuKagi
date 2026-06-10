@@ -363,7 +363,7 @@ class WindowStash extends AKPlugin {
     return true
   }
 
-  _unstashWindow(hwnd, restoreFrame) {
+  _unstashWindow(hwnd, restoreFrame, alreadyRevealed:=false) {
     if (!this.StashedWindows.Has(hwnd))
       return false
 
@@ -371,7 +371,10 @@ class WindowStash extends AKPlugin {
     this._destroyHandle(info)
     this._restoreWindowBorderColor(hwnd, info)
     if (restoreFrame && WinExist("ahk_id " hwnd)) {
-      this._prepareRestoredWindow(hwnd, info, info["hiddenFrame"])
+      if (alreadyRevealed)
+        this._restoreWindowTransparency(hwnd, info)
+      else
+        this._prepareRestoredWindow(hwnd, info, info["hiddenFrame"])
       this._transitionWindow(hwnd, this._getUnstashFrame(info, info["revealedFrame"]))
       if (info["wasMaximized"])
         try WinMaximize("ahk_id " hwnd)
@@ -1030,7 +1033,7 @@ class WindowStash extends AKPlugin {
       }
 
       if (lastDistance >= targetDistance) {
-        this._unstashWindow(hwnd, true)
+        this._unstashWindow(hwnd, true, startedRevealed)
       } else if (maxMovement <= clickTolerance) {
         this._setRevealedFrame(info, baseRevealedFrame)
         if (startedRevealed) {
