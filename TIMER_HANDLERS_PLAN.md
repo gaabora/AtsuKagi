@@ -2,32 +2,25 @@
 
 ## Status
 
-- Planning document for `plugins/TimerHandlers.ahk`.
+- Planning document for `plugins/TimerHandlers.ahk` - file to be renamed to Automations.ahk
 - The plugin is currently experimental and incomplete.
 - This plan is intended to be edited before implementation.
 
 ## Goal
 
-Build a configurable scheduler for AtsuiKagi actions based on time, intervals,
-physical idle state, and optional window conditions.
+Build a configurable scheduler for App actions based on time, intervals, physical idle state, and other optional window conditions.
 
-Keep the existing `TimerHandlers` class and plugin ID for compatibility. Present
-the feature in the settings UI as **Schedules & Idle Automation**. Avoid using
-"cron" in user-facing names because these schedules combine triggers and
-conditions rather than implementing standard cron expressions.
+No need to keep the existing `TimerHandlers` class and plugin ID for compatibility. Present the feature in the settings UI as **Schedules & Idle Automation**. Avoid using "cron" in user-facing names because these schedules combine triggers and conditions rather than implementing standard cron expressions.
 
 ## Source Ideas
 
 The existing comments and unfinished code suggest these initial use cases:
 
-1. Keep the computer awake during working hours when the user is physically
-   idle.
-2. Dismiss a recurring RAD Studio license dialog by sending Escape to
-   `ahk_class TRegCheckDlg`.
-3. Run any registered AtsuiKagi action when time and idle conditions match.
+1. Keep the computer awake during working hours even when the user is physically idle.
+2. Dismiss a recurring dialogs by sending Escape or Alt+F4 to some window class like `ahk_class TRegCheckDlg`.
+3. Run any registered App action when some conditions match (time/idle/other...).
 
-These should become optional schedule templates, disabled by default. They
-should not remain hard-coded behavior.
+These should become optional schedule templates, disabled by default. They should not remain hard-coded behavior.
 
 ## Scope
 
@@ -47,7 +40,7 @@ should not remain hard-coded behavior.
   - Optional target window selector.
 - Execute actions through the existing `RunAction(ActionString)` dispatcher.
 - Persist schedules as structured data.
-- Prevent duplicate execution while a condition remains true.
+- Option to prevent duplicate execution while a condition remains true.
 - Log schedule execution and errors.
 - Provide starter templates for the two use cases found in comments.
 
@@ -57,7 +50,7 @@ should not remain hard-coded behavior.
 - Calendar dates, months, and holidays.
 - Wake-from-sleep scheduling.
 - Catching up missed schedules after the application was closed.
-- Remote synchronization.
+- Remote synchronization?
 - Complex boolean condition groups.
 - Multi-action visual workflows.
 
@@ -65,47 +58,40 @@ should not remain hard-coded behavior.
 
 Edit these before implementation:
 
-- [ ] Confirm the settings-page title: `Schedules & Idle Automation`.
-- [ ] Confirm whether schedules should be stored in `config.ini` as JSON or in
-      a separate data file.
-- [ ] Confirm whether window matching belongs in the first release.
-- [ ] Confirm whether `Run now` should ignore all conditions.
-- [ ] Confirm whether action failures should generate a visible notification or
-      only a log entry.
-- [ ] Confirm the preferred keep-awake implementation:
-  - Windows execution-state API.
-  - Key pulse such as Right Shift.
-- [ ] Confirm whether disabled example templates should be created
-      automatically or offered through an `Add example` menu.
+- [x] Confirm the settings-page title: `Automations`.
+- [x] schedules(automations) should be stored in a separate data file
+- [x] matching belongs in the first release
+- [x] `Run now` should ignore time conditions, `Test action` ignores all conditions.
+- [x] action failures should generate a visible notification is such option is checked and log entry if corresponding option was checked.
+- [x] Confirm the preferred keep-awake implementation: Key pulse such as Right Shift. (defer option Windows execution-state API.)
+- [x] disabled example templates should be offered through an `Add example` menu.
 
 ## Proposed Data Contract
 
 Each schedule has a stable ID and normalized fields:
 
 ```json
-{
+{ // must be reconsidered, simplyfied
   "id": "work-hours-keep-awake",
   "name": "Keep awake during work hours",
   "enabled": false,
   "trigger": {
-    "type": "interval",
+    "type": "interval", // what are other options?
     "intervalSeconds": 30
   },
   "conditions": {
-    "idleSecondsAtLeast": 10,
+    "idleSeconds": 10,
     "timeFrom": "08:00",
     "timeUntil": "17:00",
     "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
     "windowSelector": ""
   },
-  "action": "PreventSleepPulse()",
-  "cooldownSeconds": 30
+  "action": "PreventSleep()",
+  "cooldownSeconds": 30 //what does it mean?
 }
 ```
 
-Runtime-only state such as `lastRun`, current idle transition state, and the
-last matched time slot should not be persisted unless the final missed-run
-policy requires it.
+Runtime-only state such as `lastRun`, current idle transition state, and the last matched time slot should not be persisted unless the final missed-run policy requires it.
 
 ## Trigger Semantics
 
@@ -114,14 +100,13 @@ policy requires it.
 - Eligible every configured number of seconds.
 - Conditions are evaluated when the interval becomes due.
 - The next due time is calculated from the last attempt or last successful run;
-  choose one policy and document it before implementation.
+  choose one policy and document it before implementation.?
 
 ### Daily Time
 
 - Matches a local `HH:MM` time.
-- Runs no more than once for that date and minute.
-- A scheduler polling several times during the matching minute must not execute
-  the action repeatedly.
+- Runs no more than once for that date and minute. need a setting to run if was skipped for that day (like computer was off/sleep) 
+- A scheduler polling several times during the matching minute must not execute the action repeatedly.
 
 ### Becoming Idle
 
@@ -137,7 +122,7 @@ policy requires it.
 - A time window where `timeFrom` is later than `timeUntil` crosses midnight.
 - Day filtering needs a documented policy for after-midnight portions of a
   crossing window.
-- Physical idle uses `A_TimeIdlePhysical`.
+- Physical idle uses `A_TimeIdlePhysical` wrapped in a helper function for future language change and crossplatform support
 - A window selector should use existing AHK window selector syntax where
   possible.
 
@@ -158,7 +143,7 @@ Only expose actions that are useful outside the settings page:
 - `EnableSchedule(ScheduleId)` enables one schedule.
 - `DisableSchedule(ScheduleId)` disables one schedule.
 - `ToggleSchedule(ScheduleId)` toggles one schedule.
-- `PreventSleepPulse()` performs the selected keep-awake behavior.
+- `PreventSleep()` performs the selected keep-awake behavior.
 
 `RunSchedule` should have clearly documented behavior about whether it ignores
 the schedule trigger and conditions.
@@ -191,7 +176,7 @@ Row actions:
 
 - Edit.
 - Duplicate.
-- Run now.
+- Run.
 - Delete.
 
 Toolbar actions:
@@ -233,26 +218,21 @@ Footer:
 - Save.
 - Cancel.
 
-Example preview:
+Example generated preview format:
 
-> Every 30 seconds, Monday-Friday, between 08:00 and 17:00, when physically
-> idle for at least 10 seconds.
+> Every 30s Mond-Fri 08:00-17:00 if idle > 10s
 
 ## UI Integration
 
-The current descriptor renderer supports scalar controls but not repeatable,
-structured schedule rows. Do not encode all schedules into a comma-separated
-text field.
+The current descriptor renderer supports scalar controls but not repeatable, structured schedule rows. Do not encode all schedules into a comma-separated text field.
 
 Preferred integration:
 
 1. Keep ordinary scheduler settings in the plugin descriptor.
 2. Add a focused custom schedules component to the plugin settings page.
-3. Add WebView bridge methods to load and save the complete schedule
-   collection atomically.
+3. Add WebView bridge methods to load and save the complete schedule collection atomically.
 4. Reuse existing settings styles and controls.
-5. Keep scheduler-specific UI code separate from generic field rendering where
-   practical.
+5. Keep scheduler-specific UI code separate from generic field rendering where practical.
 
 Potential bridge operations:
 
@@ -320,7 +300,7 @@ plugin initialization.
     "timeUntil": "17:00",
     "days": ["Mon", "Tue", "Wed", "Thu", "Fri"]
   },
-  "action": "PreventSleepPulse()",
+  "action": "PreventSleep()",
   "cooldownSeconds": 30
 }
 ```
@@ -372,8 +352,7 @@ compatibility requirement appears.
 - [ ] Finalize trigger, condition, action, and persistence semantics.
 - [ ] Define normalized schedule objects.
 - [ ] Add schedule validation.
-- [ ] Replace `CronJobs` and `ScheduledTasks` with one consistently named
-      collection.
+- [ ] Replace `CronJobs` and `ScheduledTasks` with one consistently named collection.
 - [ ] Add runtime state for edge triggering and cooldowns.
 
 Success criteria:
@@ -450,8 +429,6 @@ Use static review to verify:
 
 ## Out of Scope Notes
 
-- This plan does not require renaming `TimerHandlers.ahk` or its plugin ID.
-- This plan does not require changing generic plugin settings into a universal
-  repeatable-form framework.
+- This plan does not require changing generic plugin settings into a universal repeatable-form framework.
 - This plan does not make the RAD Studio behavior active by default.
-- This plan does not run tests.
+

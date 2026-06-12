@@ -25,38 +25,18 @@ return
 TODO:
 
 need to plan:
-- plugin-specific pages on ui: 
+- low battery alert - some half transparent animation-osd that watches trend of battery discharge and alert at some percent or time remaining (consider also windows thresholds for sleep/hibernate, so it can say LOW BATTERY! sleep after 5 min) update interval 15 s
 
--
-
-- how is better to store/display help/usage info in ui (currently each plugin can have something like   __UsageHelp() {
-    return "Simulates touchpad input with mouse, make touchpad gestures using mouse"
-  }
-
-  __ActionsHelp() {
-    texts := Map()
-    texts["EnterGestureMode"] := "EnterGestureMode(fingers:=1)"
-    texts["SetPrecisionTouchpadRegistryConfig"] := "SetPrecisionTouchpadRegistryConfig(key, value) set current user's PrecisionTouchPad settings for ThreeFingerSlideEnabled, ThreeFingerTapEnabled, FourFingerSlideEnabled, FourFingerTapEnabled"
-    return texts
-  }
-  maybe it is already good enough or maybe need some inrovements
+- "bedtime routine" get somehow and show how long (h:mm:ss) until auto sleep
 
 
 
-low battery alert - some half transparent animation-osd that watches trend of battery discharge and alert at some percent or time remaining (consider also windows thresholds for sleep/hibernate, so it can say LOW BATTERY! sleep after 5 min) update interval 15
-s
+- StartFakeScreensaver(hotkeyToExit:=Escape,hotkeyToKeepAwake:=Shift,sendHotkeyIntervalSec=10) create black fullscreen windows on top unfocused and send shift each interval
 
-"bedtime routine" get somehow and show how long (h:mm:ss) until auto sleep
-
-
-write readme on wtf is this app
+- KillAnnoyingPopups() to make some annoying window not on top and remove other forced attributes?
 
 
-
-StartFakeScreensaver(hotkeyToExit:=Escape,hotkeyToKeepAwake:=Shift,sendHotkeyIntervalSec=10) create black fullscreen windows on top unfocused and send shift 
-
-DisgracePopupWindow() to make some annoying window not on top and remove other forced attributes?
-
+- ability to define hotkeys when in some mode, for example EnterWindowMovingMode - so we can define and run some custom actions like press Q to close app or T or space to make it always on top etc
 UIA UI automation? https://github.com/Descolada/UIA-v2/tree/main/Examples
 OSD
 
@@ -93,13 +73,128 @@ all values can be reseted to default with some reset button/link next to each in
 value can be related to some action(s) or entire plugin, in KDEMoverSizer config values are plugin related, but for example in WindowManager some config values can be related to specific actions, like "WindowOnTopBorderColor" can be related only to both ToggleHoveredWindowOnTop and ToggleWindowOnTop actions at the same time, maybe there will be some actions that can have their own specific config values, idk, so we need to plan how this relation between config values and actions should be defined in code and represented on ui, etc.
 
 
+
+; Disables Microsoft Office key conflicting with Hyper key
++!^LWin::
+#^!Shift::
+#^+Alt::
+#!+Ctrl::
+{
+	Send "{Blind}{vkE8}"
+	Return
+}
+
+
 ; kdemoversizer is well working functional plugin, windrag is untested machine port from ahk v1 to v2. they do similar stuff, but windrag has new featers need plan new WinDrag plugin based on them in md file, considering also changes on how plugin should operate: idea is to have something like
 ; EnterWindowDragMovingMode
 ; EnterWindowDragResizingMode
 ; actions from the new plugin, and probably have some new plugin config params.
 
+TODO: add ability to assing custom combinations (using ahk '&' hotkey modifier symbol)
+Normally shortcut key combinations consist of optional prefix/modifier keys (Ctrl, Alt, Shift and LWin/RWin) and a single suffix key. The standard modifier keys are designed to be used in this manner, so normally have no immediate effect when pressed down.
+
+A custom combination of two keys (including mouse but not controller buttons) can be defined by using " & " between them. Because they are intended for use with prefix keys that are not normally used as such, custom combinations have the following special behavior:
+
+    The prefix key loses its native function, unless it is a standard modifier key or toggleable key such as CapsLock.
+    If a hotkey would be activated by pressing the prefix key on its own, by default the hotkey is fired upon release, and is not fired at all if another key is pressed. For example, F1 & F2:: causes *F1:: or F1::1 (a remapping) to fire upon release, except when activated by a combination like Ctrl+F1. If there is both a key-down hotkey and a key-up hotkey, both hotkeys are fired at once. The fire-on-release effect is disabled if the tilde prefix is applied to the prefix key in at least one active custom combination or the suffix hotkey itself.
+
+Note: For combinations with standard modifier keys, it is usually better to use the standard syntax. For example, use <+s:: rather than LShift & s::.
+
+In the below example, you would hold down Numpad0 then press the second key to trigger the hotkey:
+
+Numpad0 & Numpad1::MsgBox "You pressed Numpad1 while holding down Numpad0."
+Numpad0 & Numpad2::Run "Notepad"
+
+The prefix key loses its native function: In the above example, Numpad0 becomes a prefix key; but this also causes Numpad0 to lose its original/native function when it is pressed by itself. To avoid this, a script may configure Numpad0 to perform a new action such as one of the following:
+
+Numpad0::WinMaximize "A"   ; Maximize the active/foreground window.
+Numpad0::Send "{Numpad0}"  ; Make the release of Numpad0 produce a Numpad0 keystroke. See comment below.
+
+Fire on release: The presence of one of the above custom combination hotkeys causes the release of Numpad0 to perform the indicated action, but only if you did not press any other keys while Numpad0 was being held down. This behaviour can be avoided by applying the tilde prefix to either hotkey.
+
+Modifiers: Unlike a normal hotkey, custom combinations act as though they have the wildcard (*) modifier by default. For example, 1 & 2:: will activate even if Ctrl or Alt is held down when 1 and 2 are pressed, whereas ^1:: would be activated only by Ctrl+1 and not Ctrl+Alt+1.
+
+Combinations of three or more keys are not supported. Combinations which your keyboard hardware supports can usually be detected by using #HotIf and GetKeyState, but the results may be inconsistent. For example:
+
+; Press AppsKey and Alt in any order, then slash (/).
+#HotIf GetKeyState("AppsKey", "P")
+Alt & /::MsgBox "Hotkey activated."
+
+; If the keys are swapped, Alt must be pressed first (use one at a time):
+#HotIf GetKeyState("Alt", "P")
+AppsKey & /::MsgBox "Hotkey activated."
+
+; [ & ] & \::
+#HotIf GetKeyState("[") && GetKeyState("]")
+\::MsgBox
+
+Keyboard hook: Custom combinations involving keyboard keys always use the keyboard hook, as do any hotkeys which use the prefix key as a suffix. For example, a & b:: causes ^a:: to always use the hook.
 
 
+TODO:
+'*'  hotkey modifier symbol:
+Wildcard: Fire the hotkey even if extra modifiers are being held down. This is often used in conjunction with remapping keys or buttons. For example:
+
+*#c::Run "calc.exe"  ; Win+C, Shift+Win+C, Ctrl+Win+C, etc. will all trigger this hotkey.
+*ScrollLock::Run "notepad"  ; Pressing ScrollLock will trigger this hotkey even when modifier key(s) are down.
+
+Wildcard hotkeys always use the keyboard hook, as do any hotkeys eclipsed by a wildcard hotkey. For example, the presence of *a:: would cause ^a:: to always use the hook.
+
+'~'  hotkey modifier symbol:
+When the hotkey fires, its key's native function will not be blocked (hidden from the system). In both of the below examples, the user's click of the mouse button will be sent to the active window:
+
+~RButton::MsgBox "You clicked the right mouse button."
+~RButton & C::MsgBox "You pressed C while holding down the right mouse button."
+
+Unlike the other prefix symbols, the tilde prefix is allowed to be present on some of a hotkey's variants but absent on others. However, if a tilde is applied to the prefix key of any custom combination which has not been turned off or suspended, it affects the behavior of that prefix key for all combinations.
+Special hotkeys that are substitutes for alt-tab always ignore the tilde prefix.
+If the tilde prefix is applied to a hotkey consisting only of a named modifier key without an L or R prefix (Control/Ctrl, Alt, or Shift), that hotkey will fire when the key is pressed instead of being delayed until the key is released. For example, ~Alt::, ~LAlt::, and LAlt:: are fired as soon as the key is pressed, while Alt:: is fired upon release of the key. Hotkeys consisting of any other key are fired as soon as the key is pressed, regardless of whether the tilde prefix is used.
+If the tilde prefix is applied to a custom modifier key (prefix key) which is also used as its own hotkey, that hotkey will fire when the key is pressed instead of being delayed until the key is released. For example, the ~RButton:: hotkey above is fired as soon as the button is pressed.
+If the tilde prefix is applied only to the custom combination and not the non-combination hotkey, the key's native function will still be blocked. For example, in the script below, holding AppsKey will show the tooltip and will not trigger a context menu:
+
+AppsKey::ToolTip "Press < or > to cycle through windows."
+AppsKey Up::ToolTip
+~AppsKey & <::Send "!+{Esc}"
+~AppsKey & >::Send "!{Esc}"
+
+If at least one variant of a keyboard hotkey has the tilde modifier, that hotkey always uses the keyboard hook.
+
+
+
+TODO: '$' hotkey modifier symbol:
+This is usually only necessary if the script uses the Send function to send the keys that comprise the hotkey itself, which might otherwise cause it to trigger itself. The $ prefix forces the keyboard hook to be used to implement this hotkey, which as a side-effect prevents the Send function from triggering it. The $ prefix is equivalent to having specified #UseHook somewhere above the definition of this hotkey.
+The $ prefix has no effect for mouse hotkeys, since they always use the mouse hook. It also has no effect for hotkeys which already require the keyboard hook, including any keyboard hotkeys with the tilde (~) or wildcard (*) modifiers, key-up hotkeys and custom combinations. To determine whether a particular hotkey uses the keyboard hook, use ListHotkeys.
+#InputLevel and SendLevel provide additional control over which hotkeys and hotstrings are triggered by the Send function.
+
+
+
+TODO: fix RemapKeyTo, analyze current implementation and improve it to support next option:
+make some logic with implicit extra hotkey definition like normal and with "UP" modifier
+The word UP may follow the name of a hotkey to cause the hotkey to fire upon release of the key rather than when the key is pressed down. The following example remaps the left Win to become the left Ctrl:
+
+*LWin::Send "{LControl down}"
+*LWin Up::Send "{LControl up}"
+
+"Up" can also be used with normal hotkeys as in this example: ^!r Up::MsgBox "You pressed and released Ctrl+Alt+R". It also works with combination hotkeys (e.g. F1 & e Up::)
+
+Limitations: 1) "Up" does not work with controller buttons; and 2) An "Up" hotkey without a normal/down counterpart hotkey will completely take over that key to prevent it from getting stuck down. One way to prevent this is to add a tilde prefix (e.g. ~LControl up::)
+
+"Up" hotkeys and their key-down counterparts (if any) always use the keyboard hook.
+
+On a related note, a technique similar to the above is to make a hotkey into a prefix key. The advantage is that although the hotkey will fire upon release, it will do so only if you did not press any other key while it was held down. For example:
+
+LControl & F1::return  ; Make left-control a prefix by using it in front of "&" at least once.
+LControl::MsgBox "You released LControl without having used it to modify any other key."
+
+
+stash feature from loop app https://github.com/MrKai77/Loop
+
+
+reminder https://apps.apple.com/us/app/deskminder-reminders-tasks/id6740942938?mt=12
+
+clean my keyboard https://apps.apple.com/us/app/cleanmykeyboard/id6468120888?mt=12
+
+ drag-n-drop and clipboard docker https://hachipoo.gumroad.com/l/dockside
 
 https://www.autohotkey.com/docs/v2/FAQ.htm#uac
 
