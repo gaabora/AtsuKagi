@@ -118,8 +118,8 @@ _checkCronConditions(jobDetails, currTime, idleTime) {
 
   ; SetTimer, CheckIdle, 5000
   ; CheckIdle:
-  ; ControlSend, , {Escape},  ahk_class TRegCheckDlg ; fuck rad studio license manager popups
-  ; if (A_TimeIdlePhysical > 10000) {
+  ; ControlSend, , {Escape},  ahk_class TRegCheckDlg ; screw rad studio license manager popups
+  ; if (A_TimeIdlePhysical > 10000) { // make  caffeine function for sending RShift to prevent sleep, make scheduler/timer for convenient control of what run in what condition when etc
   ;   If ((A_Hour>8) && (A_Hour<17)) {
   ;     Send {Shift}
   ;   }

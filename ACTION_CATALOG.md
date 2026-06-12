@@ -1,4 +1,4 @@
-# Action Catalog
+# Action Catalog //FIXME: outdated, need to make it autogenerate by script
 
 This document lists all available actions by plugin. Actions are user-callable functions triggered by hotkeys or conditionally by other actions.
 
@@ -12,12 +12,11 @@ Built-in general-purpose actions available in all plugins.
 - **ShowInfo(text, title='', timeout=2000)** - Display info popup with message, title, and optional timeout (ms).
 
 ## WindowManager
-Manage windows: move, resize, minimize, toggle transparency (alpha), maximize, fullscreen. Detect mouse position over titlebar/borders for quick drag operations.
+Manage windows: minimize, toggle transparency (alpha), maximize, fullscreen, frames, and top-most state. Detect mouse position over titlebar/borders.
 
 - **ShowWindowList()** - Display list of all open windows with their HWNDs.
 - **ShowHoveredWindowInfo()** - Show info (title, HWND, class, process) of window under mouse cursor.
 - **ShowWindowInfo(hwnd=0)** - Show info of specific window; default is active window.
-- **ShowResizeWindowDialog(hwnd=0)** - Interactive dialog to resize window by entering width/height.
 - **MinimizeWindow(hwnd=0)** - Minimize window; default is active window.
 - **MinimizeHoveredWindow()** - Minimize window under mouse cursor.
 - **CloseWindow(hwnd=0)** - Close window; default is active window.
@@ -42,6 +41,11 @@ Manage windows: move, resize, minimize, toggle transparency (alpha), maximize, f
 - **IsMouseOverWindowTitlebar()** - Check if mouse is over window title bar.
 - **IsMouseOverWindowAnyBorder()** - Check if mouse is over any window border.
 - **IsMouseOverWindowResizableBorder()** - Check if mouse is over resizable window border (for resize detection).
+
+## WindowResizeDialog
+Resize and position a specific or active window with numeric inputs and configurable directional-key controls.
+
+- **ShowResizeWindowDialog(hwnd=0)** - Open the interactive resize and position dialog. Directional layout, modifiers, precision mode, and step sizes are configurable in plugin settings.
 
 ## VirtualDesktopManager
 Switch between virtual desktops, move windows to desktops, create/remove desktops, rename desktops. Uses native Windows 10+ Virtual Desktop API via DLL.

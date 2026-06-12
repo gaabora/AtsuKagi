@@ -37,6 +37,7 @@ Notes:
 | Plugin | Purpose | Status |
 |---|---|---|
 | `WindowManager` | Minimize, maximize, fullscreen, on-top, transparency, window info | Stable |
+| `WindowResizeDialog` | Numeric and keyboard-driven window resizing and positioning | Stable |
 | `KDEMoverSizer` | Drag-based moving/resizing with snapping and axis lock | Stable |
 | `VirtualDesktopManager` | Switch desktops, move windows between desktops, rename desktops | Stable |
 | `TouchGesturesSimulator` | Mouse-driven touch gesture simulation | Stable |

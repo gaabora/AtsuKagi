@@ -381,6 +381,7 @@ Haribol!/
 ├── plugins/
 │   ├── MyPlugin.ahk              ← Your new plugin
 │   ├── WindowManager.ahk
+│   ├── WindowResizeDialog.ahk
 │   ├── VirtualDesktopManager.ahk
 │   └── ...
 ├── includes/

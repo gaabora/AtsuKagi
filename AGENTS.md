@@ -80,7 +80,13 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-This project is not yet indexed. Before continuing you must scan the project, build the DOX tree and replace this message with the actual index. Go deep and scan files recursively to properly evaluate complexity and create nested DOX files where needed.
+- [`.github/AGENTS.md`](.github/AGENTS.md): repository prompts and automation guidance.
+- [`.vscode/AGENTS.md`](.vscode/AGENTS.md): local editor, launch, and build-task configuration.
+- [`assets/AGENTS.md`](assets/AGENTS.md): packaged application icons and other static assets.
+- [`includes/AGENTS.md`](includes/AGENTS.md): application core, configuration, GUI bridge, and settings UI.
+- [`lib/AGENTS.md`](lib/AGENTS.md): shared AHK libraries and vendored runtime dependencies.
+- [`plugins/AGENTS.md`](plugins/AGENTS.md): dynamically loaded feature plugins and action contracts.
+- [`tests/AGENTS.md`](tests/AGENTS.md): legacy test sources and test support code.
 
 # AGENTS.md
 
