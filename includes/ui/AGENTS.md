@@ -16,6 +16,7 @@
 
 - Host calls must remain compatible with callbacks registered in `includes/AKGui.ahk`.
 - Dynamic control IDs and `data-*` attributes are contracts shared by renderers, controllers, and page logic.
+- The Plugins page exposes enable state and per-plugin log levels; enable changes require reload, while log-level changes apply immediately.
 - New runtime-loaded frontend files must be represented in compiled-build resource directives in `Haribol!.ahk`.
 
 ## Work Guidance

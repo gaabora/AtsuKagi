@@ -25,7 +25,7 @@ APP := AKApp()
 APP.Debug(APP.Config.GENERAL.DebugLevel)
 
 #Include includes/GeneralHandlers.ahk
-APP.AddPlugin('GeneralHandlers', 0)
+APP.AddPlugin('GeneralHandlers')
 
 #Include dynamicPlugins.ahk
 

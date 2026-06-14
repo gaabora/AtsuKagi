@@ -287,11 +287,21 @@ class SettingsForm {
 
     let html = '';
     const disabled = plugins.disabled || [];
+    const debugLevels = plugins.debugLevels || {};
+    const globalDebugLevel = Number(plugins.globalDebugLevel ?? 0);
+    const levelLabels = ['Error', 'Warning', 'Notice', 'Info', 'Debug', 'Trace'];
 
     plugins.available?.forEach(pluginName => {
       const isChecked = !disabled.includes(pluginName);
       const checked = isChecked ? ' checked' : '';
-      html += `<div class="plugin-item"><input class="app-checkbox" type="checkbox" id="plugin_${pluginName}"${checked} /><label for="plugin_${pluginName}">${this._escapeHtml(pluginName)}</label></div>`;
+      const hasOverride = Object.prototype.hasOwnProperty.call(debugLevels, pluginName);
+      const selectedLevel = hasOverride ? Number(debugLevels[pluginName]) : -1;
+      const safePluginName = this._escapeHtml(pluginName);
+      const options = [
+        `<option value="-1"${selectedLevel === -1 ? ' selected' : ''}>Use global (${globalDebugLevel} - ${levelLabels[globalDebugLevel] || 'Unknown'})</option>`,
+        ...levelLabels.map((label, level) => `<option value="${level}"${selectedLevel === level ? ' selected' : ''}>${level} - ${label}</option>`)
+      ].join('');
+      html += `<div class="plugin-item"><div class="plugin-enable-control"><input class="app-checkbox" type="checkbox" id="plugin_${safePluginName}"${checked} /><label for="plugin_${safePluginName}">${safePluginName}</label><span class="plugin-state">${isChecked ? 'Enabled' : 'Disabled'}</span></div><label class="plugin-debug-control"><span>Log level</span><span class="app-select-menu"><select class="plugin-debug-level" data-plugin-id="${safePluginName}">${options}</select></span></label></div>`;
     });
 
     pluginsEl.innerHTML = html;

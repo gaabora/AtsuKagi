@@ -33,7 +33,9 @@ class SettingsFormSerializer {
       generalValues: SettingsFormSerializer.signature(SettingsFormSerializer.extractGeneralValues(state.generalPage)),
       pluginList: SettingsFormSerializer.signature({
         available: state?.plugins?.available || [],
-        disabled: state?.plugins?.disabled || []
+        disabled: state?.plugins?.disabled || [],
+        debugLevels: state?.plugins?.debugLevels || {},
+        globalDebugLevel: state?.plugins?.globalDebugLevel ?? 0
       }),
       pluginPagesSchema: SettingsFormSerializer.signature(SettingsFormSerializer.stripPluginPageValues(state?.plugins?.pages || [])),
       pluginFieldValues: SettingsFormSerializer.signature(SettingsFormSerializer.extractPluginFieldValues(state?.plugins?.pages || [])),

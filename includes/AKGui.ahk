@@ -75,6 +75,7 @@ class AKGui extends AKBase {
     nw.AddCallbackToScript("StartHotkeyRecording", (wv, optionsJson:="") => this._startHotkeyRecording(nw, optionsJson))
     nw.AddCallbackToScript("StopHotkeyRecording", (wv, *) => this._stopHotkeyRecording())
     nw.AddCallbackToScript("TogglePlugin", (wv, pluginId:="", enabled:=1) => this._togglePlugin(pluginId, enabled))
+    nw.AddCallbackToScript("SetPluginDebugLevel", (wv, pluginId:="", level:="") => this._setPluginDebugLevel(pluginId, level))
     nw.AddCallbackToScript("SetLogPageActive", (wv, active:=0) => this._setLogPageActive(active))
     nw.AddCallbackToScript("GetLogsSince", (wv, lastId:=0) => jsongo.Stringify(AKBase.GetUiLogsSince(Integer(lastId))))
     nw.AddCallbackToScript("ClearLogs", (wv, *) => AKBase.ClearLogs())
@@ -137,6 +138,8 @@ class AKGui extends AKBase {
       "plugins", Map(
         "available", availablePlugins,
         "disabled", disabledPlugins,
+        "debugLevels", this.App._getPluginDebugOverrides(),
+        "globalDebugLevel", Integer(cfg.GENERAL.DebugLevel),
         "pages", this.App.GetPluginSettingsPages()
       ),
       "defaultActionHotkeys", this.App.GetDefaultActionHotkeys(),
@@ -258,6 +261,10 @@ class AKGui extends AKBase {
 
   _togglePlugin(pluginId, enabled) {
     return this.App.TogglePlugin(pluginId, enabled)
+  }
+
+  _setPluginDebugLevel(pluginId, level) {
+    return this.App.SetPluginDebugLevel(pluginId, level)
   }
 
   _setLogPageActive(active) {

@@ -84,6 +84,11 @@ class SettingsPage {
         return;
       }
 
+      if (target.classList.contains('plugin-debug-level')) {
+        this._schedulePluginDebugLevelSave(target);
+        return;
+      }
+
       if (target.classList.contains('general-field')) {
         this._scheduleGeneralFieldSave(target);
         return;
@@ -150,6 +155,16 @@ class SettingsPage {
         return;
       }
       this._writeFieldValue(target, value);
+      if (key === 'DebugLevel') this._refreshPluginGlobalDebugLabels(value);
+    });
+  }
+
+  _refreshPluginGlobalDebugLabels(value) {
+    const level = Number(value);
+    const labels = ['Error', 'Warning', 'Notice', 'Info', 'Debug', 'Trace'];
+    const label = labels[level] || 'Unknown';
+    document.querySelectorAll('.plugin-debug-level option[value="-1"]').forEach((option) => {
+      option.textContent = `Use global (${level} - ${label})`;
     });
   }
 
@@ -188,6 +203,26 @@ class SettingsPage {
         return;
       }
       this._writeFieldValue(target, enabled);
+      const state = target.closest('.plugin-item')?.querySelector('.plugin-state');
+      if (state) state.textContent = enabled ? 'Enabled' : 'Disabled';
+    });
+  }
+
+  _schedulePluginDebugLevelSave(target) {
+    const pluginId = `${target.getAttribute('data-plugin-id') || ''}`.trim();
+    if (!pluginId) return;
+
+    const level = Number(target.value);
+    const previousValue = this._readPreviousFieldValue(target);
+
+    this._scheduleFieldSave(`plugin-debug:${pluginId}`, () => {
+      const result = this.hostBridge.setPluginDebugLevel(pluginId, level);
+      if (!result?.ok) {
+        this._writeFieldValue(target, previousValue);
+        console.error('Failed to save plugin debug level', { pluginId, error: result?.error || 'Unknown error' });
+        return;
+      }
+      this._writeFieldValue(target, level);
     });
   }
 

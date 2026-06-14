@@ -91,8 +91,9 @@ class AKBase {
     }
   }
   outputDebugLine(level, line, meta:=0) {
-    if (level <= this.debugLevel)
-      OutputDebug(AKBase._logLevelToString(level) ": " line) ;  "`n"
+    if (level > this.debugLevel)
+      return
+    OutputDebug(AKBase._logLevelToString(level) ": " line) ;  "`n"
     AKBase._bufferLogMessage(line, level, meta)
   }
   static SetLogPushHandler(handler := 0) {

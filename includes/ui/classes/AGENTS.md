@@ -14,6 +14,7 @@
 
 - Preserve public methods called by `SettingsPage.js` and global bridge code.
 - Host return values must be normalized before page code relies on them.
+- Plugin list state includes `debugLevels` overrides and `globalDebugLevel`; `-1` in the selector means inherit the global level.
 
 ## Work Guidance
 

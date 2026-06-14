@@ -14,6 +14,7 @@
 
 - Shared helpers must remain compatible with all callers and AutoHotkey v2.
 - Avoid adding application state to general-purpose library modules.
+- `GetWindowsRelease()` centralizes the Windows release distinction used by version-specific runtime assets.
 
 ## Work Guidance
 

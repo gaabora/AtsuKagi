@@ -12,6 +12,7 @@
 
 - Preserve compatibility with `SettingsDom`, renderer output, and `AhkHostBridge`.
 - State application must not trigger unintended persistence callbacks.
+- Plugin enable and debug-level controls must restore their prior values when an atomic host save fails.
 
 ## Work Guidance
 

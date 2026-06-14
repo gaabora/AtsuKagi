@@ -65,6 +65,11 @@ class AhkHostBridge {
     return this._parseHostResult(this.host.TogglePlugin(`${pluginId || ''}`, enabled ? 1 : 0));
   }
 
+  setPluginDebugLevel(pluginId, level) {
+    this._checkHostFunction('SetPluginDebugLevel');
+    return this._parseHostResult(this.host.SetPluginDebugLevel(`${pluginId || ''}`, JSON.stringify(Number(level))));
+  }
+
   clearLogs() {
     this._checkHostFunction('ClearLogs');
     this.host.ClearLogs();
