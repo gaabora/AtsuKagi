@@ -22,6 +22,12 @@ ArrayContains(Haystack, Needle) {
   return false
 }
 
+GetWindowsRelease() {
+  if (VerCompare(A_OSVersion, "10.0.22000") >= 0)
+    return 11
+  return Integer(StrSplit(A_OSVersion, ".")[1])
+}
+
 ; Split a string by commas, but respect nested parentheses.
 ; e.g. "A, B(1, 2), C" => ["A", "B(1, 2)", "C"]
 SplitRespectingParens(str) {

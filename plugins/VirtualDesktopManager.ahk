@@ -1,7 +1,7 @@
 class VirtualDesktopManager extends AKPlugin {
-  dllPathDefault := "\VirtualDesktopAccessor.dll"
+  dllPathDefault := "\lib"
   recentDesktopNumber := 1
-  loopFirtAndLast := 0
+  loopFirstAndLast := false
   _isReady := false
   _initError := ""
   
@@ -18,7 +18,14 @@ class VirtualDesktopManager extends AKPlugin {
         "description", "Configure virtual desktop management and navigation",
         "icon", "icons10-grid-2"
       ),
-      "config", [],
+      "config", [
+        Map(
+          "key", "LoopFirstAndLast",
+          "label", "Loop first and last desktops",
+          "description", "Wrap navigation from the last desktop to the first and from the first desktop to the last",
+          "type", "boolean", "control", "switch", "default", true, "section", "Navigation"
+        )
+      ],
       "actions", [
         Map("action", "GetDesktopName", "label", "Get desktop name", "description", "Get the name of a specified desktop", "params", ["desktopNumber"], "category", "Desktop Info"),
         Map("action", "SetDesktopName", "label", "Set desktop name", "description", "Set the name of a specified desktop", "params", ["desktopNumber", "name"], "category", "Desktop Management"),
@@ -53,17 +60,25 @@ class VirtualDesktopManager extends AKPlugin {
     ; Apply descriptor defaults, then any additional processing if needed
     this.__ApplyDefaultConfig()
   }
+
+  OnConfigChanged(key, value) {
+    if (key = "LoopFirstAndLast")
+      this.loopFirstAndLast := !!value
+  }
   
-  _init(dllPath:=0, loopFirtAndLast:=0) {
-    this.dllPath := (dllPath) ? dllPath : A_ScriptDir . this.dllPathDefault
+  _init(dllPath:=0) {
+    dllName := "VirtualDesktopAccessor.win" GetWindowsRelease() ".dll"
+    this.dllPath := dllPath ? dllPath : A_ScriptDir . this.dllPathDefault . "\" dllName
 
     if (!FileExist(this.dllPath)) {
-      this._initError := "VirtualDesktopAccessor.dll not found at " this.dllPath
+      this._initError := dllName " not found at " this.dllPath
       this.ShowWarning(this._initError)
       return
     }
     try {
       this.hVirtualDesktopAccessor             := DllCall("LoadLibrary", "Str", this.dllPath, "Ptr")
+      if (!this.hVirtualDesktopAccessor)
+        throw OSError(A_LastError, "LoadLibrary", this.dllPath)
       this.GetDesktopCountProc                 := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")
       this.GoToDesktopNumberProc               := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GoToDesktopNumber", "Ptr")
       this.GetCurrentDesktopNumberProc         := DllCall("GetProcAddress", "Ptr", this.hVirtualDesktopAccessor, "AStr", "GetCurrentDesktopNumber", "Ptr")
@@ -85,80 +100,128 @@ class VirtualDesktopManager extends AKPlugin {
       return
     }
 
-    if (!this.GetDesktopCountProc || !this.GoToDesktopNumberProc || !this.GetCurrentDesktopNumberProc || !this.MoveWindowToDesktopNumberProc || !this.GetDesktopNameProc || !this.SetDesktopNameProc || !this.CreateDesktopProc || !this.RemoveDesktopProc || !this.RegisterPostMessageHookProc) {
-      this._initError := "VirtualDesktopAccessor.dll is loaded but required procedures are missing"
-      this.ShowWarning(this._initError)
+    if (!this.GetDesktopCountProc || !this.GoToDesktopNumberProc || !this.GetCurrentDesktopNumberProc) {
+      this._initError := "VirtualDesktopAccessor.dll is loaded but required desktop navigation procedures are missing"
+      this.outputDebugLine(AKApp.LOG_ERROR, this._initError)
       return
     }
 
-    this.loopFirtAndLast := loopFirtAndLast
+    desktopCount := DllCall(this.GetDesktopCountProc, "Int")
+    currentDesktopIndex := DllCall(this.GetCurrentDesktopNumberProc, "Int")
+    if (desktopCount < 1 || currentDesktopIndex < 0 || currentDesktopIndex >= desktopCount) {
+      this._initError := "VirtualDesktopAccessor.dll is incompatible with this Windows build: GetDesktopCount=" desktopCount ", GetCurrentDesktopNumber=" currentDesktopIndex
+      this.outputDebugLine(AKApp.LOG_ERROR, this._initError)
+      return
+    }
+
+    this.loopFirstAndLast := !!this.Config.LoopFirstAndLast
     this._isReady := true
-    ; TODO hook
-    this.addDesktopChangedHook()
+    this.outputDebugLine(AKApp.LOG_INFO, "VirtualDesktopAccessor initialized: dll=" this.dllPath ", Windows=" A_OSVersion ", desktops=" desktopCount ", current=" (currentDesktopIndex + 1))
+    if (this.RegisterPostMessageHookProc)
+      this.addDesktopChangedHook()
+    else
+      this.outputDebugLine(AKApp.LOG_WARNING, "RegisterPostMessageHook is unavailable; recent-desktop tracking is disabled")
   }
 
   __Delete() {
     ; TODO UnregisterPostMessageHookProc somehow
+    if (this.HasOwnProp("hVirtualDesktopAccessor") && this.hVirtualDesktopAccessor)
       DllCall("FreeLibrary", "Ptr", this.hVirtualDesktopAccessor)
   }
 
+  _requireReady() {
+    if (!this._isReady)
+      throw Error(this._initError != "" ? this._initError : "VirtualDesktopManager is not initialized")
+  }
+
+  _requireProcedure(proc, procedureName) {
+    this._requireReady()
+    if (!proc)
+      throw Error("VirtualDesktopAccessor.dll does not export " procedureName)
+  }
+
   GetDesktopName(desktopNumber) { ;;;
+    this._requireProcedure(this.GetDesktopNameProc, "GetDesktopName")
     utf8_buffer := ""
     utf8_buffer_len := VarSetStrCapacity(utf8_buffer, 1024)
     ran := DllCall(this.GetDesktopNameProc, "Int", desktopNumber, "Ptr", &utf8_buffer, "Ptr", utf8_buffer_len, "Int")
+    if (ran = -1)
+      throw Error("GetDesktopName failed for desktop " desktopNumber)
     name := StrGet(&utf8_buffer, 1024, "UTF-8")
     return name
   }
 
   SetDesktopName(desktopNumber, name) { ;;;
+    this._requireProcedure(this.SetDesktopNameProc, "SetDesktopName")
     ; NOTICE! For UTF-8 to work AHK file must be saved with UTF-8 with BOM
     VarSetStrCapacity(name_utf8, 1024)
     StrPut(name, &name_utf8, "UTF-8")
     ran := DllCall(this.SetDesktopNameProc, "Int", desktopNumber, "Ptr", &name_utf8, "Int")
+    if (ran = -1)
+      throw Error("SetDesktopName failed for desktop " desktopNumber)
     return ran
   }
 
   CreateDesktop() { ;;;
+    this._requireProcedure(this.CreateDesktopProc, "CreateDesktop")
     ran := DllCall(this.CreateDesktopProc)
+    if (ran = -1)
+      throw Error("CreateDesktop failed")
     return ran
   }
 
   RemoveDesktop(desktopNumber, fallbackNumber:=0) { ;;;
+    this._requireProcedure(this.RemoveDesktopProc, "RemoveDesktop")
     ran := DllCall(this.RemoveDesktopProc, "Int", desktopNumber, "Int", fallbackNumber, "Int")
+    if (ran = -1)
+      throw Error("RemoveDesktop failed for desktop " desktopNumber)
     return ran
   }
 
   GetCurrentDesktopNumber() { ;;;
+    this._requireReady()
     idx := DllCall(this.GetCurrentDesktopNumberProc, "Int")
+    if (idx < 0)
+      throw Error("GetCurrentDesktopNumber failed with result " idx)
     return 1 + idx
   }
 
   GetDesktopCount() { ;;;
+    this._requireReady()
     count := DllCall(this.GetDesktopCountProc, "Int")
+    if (count < 1)
+      throw Error("GetDesktopCount failed with result " count)
     return count
   }
 
   GetPrevDesktopNumber() { ;;;
     curr := this.GetCurrentDesktopNumber()
-    if (this.loopFirtAndLast) {
-      return (curr = 1) ? 1 : curr - 1
-    } else {
+    if (this.loopFirstAndLast) {
       return (curr = 1) ? this.GetDesktopCount() : curr - 1
+    } else {
+      return (curr = 1) ? 1 : curr - 1
     }
   }
 
   GetNextDesktopNumber() { ;;;
     curr := this.GetCurrentDesktopNumber()
     last := this.GetDesktopCount()
-    if (this.loopFirtAndLast) {
-      return (curr = last) ? last : curr + 1
-    } else {
+    if (this.loopFirstAndLast) {
       return (curr = last) ? 1 : curr + 1
+    } else {
+      return (curr = last) ? last : curr + 1
     }
   }
 
   GoToDesktop(desktopNumber) { ;;;
-    DllCall(this.GoToDesktopNumberProc, "Int", desktopNumber - 1, "Int")
+    this._requireReady()
+    desktopCount := this.GetDesktopCount()
+    if (desktopNumber < 1 || desktopNumber > desktopCount)
+      throw ValueError("Desktop number must be between 1 and " desktopCount, -1, desktopNumber)
+    result := DllCall(this.GoToDesktopNumberProc, "Int", desktopNumber - 1, "Int")
+    if (result = -1)
+      throw Error("GoToDesktopNumber failed for desktop " desktopNumber)
+    return result
   }
 
   GoToRecentDesktop() { ;;;
@@ -174,9 +237,13 @@ class VirtualDesktopManager extends AKPlugin {
   }
 
   MoveWindowToDesktop(desktopNumber, hwnd:=0) { ;;;
+    this._requireProcedure(this.MoveWindowToDesktopNumberProc, "MoveWindowToDesktopNumber")
     if (hwnd=0)
       hwnd := WinGetID("A")
-    DllCall(this.MoveWindowToDesktopNumberProc, "Ptr", hwnd, "Int", desktopNumber - 1, "Int")
+    result := DllCall(this.MoveWindowToDesktopNumberProc, "Ptr", hwnd, "Int", desktopNumber - 1, "Int")
+    if (result = -1)
+      throw Error("MoveWindowToDesktopNumber failed for hwnd=" hwnd " desktop=" desktopNumber)
+    return result
   }
 
   MoveWindowToPrevDesktop(hwnd:=0) { ;;;
@@ -242,5 +309,7 @@ class VirtualDesktopManager extends AKPlugin {
     NewDesktop := lParam + 1
     this.outputDebugLine(AKApp.LOG_DEBUG, "Desktop changed from " OldDesktop " to " NewDesktop)
     this.recentDesktopNumber := OldDesktop
+    if (GetWindowsRelease() = 10)
+      this.ShowInfo("Desktop " NewDesktop)
   }
 }

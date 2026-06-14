@@ -23,6 +23,9 @@
 - Any plugin that applies a temporary border through `SetWindowBorderColor` must reset it through the same action so the Windows 10 fallback is cleaned up.
 - `WindowManager.ToggleWindowOnTop` must refuse enabling top-most state for maximized or fullscreen windows, while still allowing an existing top-most state to be disabled.
 - Mouse-driven plugins must extract the base key from `A_ThisHotkey` before calling key-state APIs.
+- `VirtualDesktopManager` selects its versioned accessor DLL through shared `GetWindowsRelease()` detection.
+- `VirtualDesktopManager.LoopFirstAndLast` is a descriptor-backed setting that controls whether previous/next navigation wraps at the desktop boundaries.
+- `VirtualDesktopManager` shows `Desktop N` after desktop-change events on Windows 10, where native desktop-name feedback is absent.
 - Use AutoHotkey v2 syntax and existing plugin naming conventions.
 
 ## Work Guidance
