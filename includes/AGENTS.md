@@ -20,6 +20,7 @@
 - Central action dispatch catches runtime failures, logs full technical details, and shows a user-readable styled notification instead of allowing an AutoHotkey error window.
 - `AKBase.ShowInfo` supports `info`, `success`, `warning`, and `error` notification styles through its fourth parameter.
 - `AKApp.ToolTip` owns the shared custom tooltip GUI behavior while preserving the existing text, position, timeout, and forced-ID API.
+- `SkipIfBlocklisted` passthrough must preserve held mouse-button input so blocked applications can keep native drag behavior.
 - Windows constants should be named and centralized instead of repeated as unexplained literals when broadly reused.
 
 ## Work Guidance

@@ -56,7 +56,13 @@ class GeneralHandlers extends AKPlugin {
         ; Pass through the original key
         try {
           hotkeyInfo := ExtractHotkeyInfo(A_ThisHotkey)
-          SendInput("{Blind}{" hotkeyInfo.key "}")
+          if (RegExMatch(hotkeyInfo.key, "i)^(LButton|RButton|MButton|XButton1|XButton2)$")) {
+            SendEvent("{Blind}{" hotkeyInfo.key " down}")
+            KeyWait(hotkeyInfo.key, "U")
+            SendEvent("{Blind}{" hotkeyInfo.key " up}")
+          } else {
+            SendInput("{Blind}{" hotkeyInfo.key "}")
+          }
         }
       }
       return

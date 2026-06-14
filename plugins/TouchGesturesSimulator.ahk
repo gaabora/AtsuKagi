@@ -132,21 +132,22 @@ class TouchGesturesSimulator extends AKPlugin {
   EnterGestureMode(fingers:=1, movingThreshold:=0, runIfNoMove:="") { ;;;
     MouseGetPos(&xMouSrc, &yMouSrc)
     thisHotkey := A_ThisHotkey
+    hotkeyInfo := ExtractHotkeyInfo(thisHotkey)
+    mouseButton := hotkeyInfo.key
 
-    if (movingThreshold > 0 ; && ArrayContains(this.BypassMouseButtonsWhenNotMoved, thisHotkey)
-        && this.shouldBypassMouseButton(thisHotkey, movingThreshold, xMouSrc, yMouSrc)) {
+    if (movingThreshold > 0 && this.shouldBypassMouseButton(mouseButton, movingThreshold, xMouSrc, yMouSrc)) {
       if (runIfNoMove = "") {
         this.outputDebugLine(AKApp.LOG_TRACE, "BYPASS")
-        Send("{Blind}{" thisHotkey "}")
+        if (!ArrayContains(hotkeyInfo.special, "~"))
+          Send("{Blind}{" mouseButton "}")
         return
       } else {
         this.RunAction(runIfNoMove)
       }
     }
     this.outputDebugLine(AKApp.LOG_TRACE, "EnterGestureMode " thisHotkey)
-    hotkeyInfo := ExtractHotkeyInfo(thisHotkey)
     Critical(16)
-    this.runGesture(hotkeyInfo.key, fingers, xMouSrc, yMouSrc)
+    this.runGesture(mouseButton, fingers, xMouSrc, yMouSrc)
     Critical(0)
   }
 

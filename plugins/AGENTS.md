@@ -22,6 +22,7 @@
 - `WindowManager.SetWindowBorderColor` uses the native DWM border attribute when supported and an event-driven, click-through owned border overlay when the native call is unavailable.
 - Any plugin that applies a temporary border through `SetWindowBorderColor` must reset it through the same action so the Windows 10 fallback is cleaned up.
 - `WindowManager.ToggleWindowOnTop` must refuse enabling top-most state for maximized or fullscreen windows, while still allowing an existing top-most state to be disabled.
+- Mouse-driven plugins must extract the base key from `A_ThisHotkey` before calling key-state APIs.
 - Use AutoHotkey v2 syntax and existing plugin naming conventions.
 
 ## Work Guidance
