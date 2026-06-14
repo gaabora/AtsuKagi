@@ -15,6 +15,7 @@
 - Shared helpers must remain compatible with all callers and AutoHotkey v2.
 - Avoid adding application state to general-purpose library modules.
 - `GetWindowsRelease()` centralizes the Windows release distinction used by version-specific runtime assets.
+- `Notify.Show` supports configurable content padding, maximum width, rounded radius, and rounded-card borders; rounded regions target HWNDs directly, and borderless cards must not apply the DWM frame shadow.
 
 ## Work Guidance
 

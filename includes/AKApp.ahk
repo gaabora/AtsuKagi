@@ -244,6 +244,24 @@ class AKApp extends AKBase {
         Map("key", "ToolTipTimeoutMs", "label", "Tooltip Timeout (ms)", "description", "Timeout for tooltip auto-hide", "type", "integer", "control", "range", "default", 1000, "section", "General", "validation", Map("min", 100, "max", 10000, "step", 100)),
         Map("key", "StartupSound", "label", "Startup Sound", "description", "Sound file played when app starts", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
         Map("key", "NotificationSound", "label", "Notification Sound", "description", "Sound file used for notifications", "type", "path", "control", "path", "default", "Assets/mixkit-light-button-2580.wav", "section", "Sounds"),
+        Map("key", "NotificationPosition", "label", "Position", "description", "Screen corner or edge used for notifications", "type", "string", "control", "select", "default", "br", "section", "Notifications", "options", [
+          Map("value", "br", "label", "Bottom right"),
+          Map("value", "bc", "label", "Bottom center"),
+          Map("value", "bl", "label", "Bottom left"),
+          Map("value", "tr", "label", "Top right"),
+          Map("value", "tc", "label", "Top center"),
+          Map("value", "tl", "label", "Top left"),
+          Map("value", "ct", "label", "Center")
+        ]),
+        Map("key", "NotificationDurationMs", "label", "Duration (ms)", "description", "Default time before a notification closes", "type", "integer", "control", "range", "default", 2500, "section", "Notifications", "validation", Map("min", 500, "max", 10000, "step", 250)),
+        Map("key", "NotificationFontFace", "label", "Font", "description", "Font family used for notification text", "type", "string", "control", "text", "default", "Segoe UI", "section", "Notifications"),
+        Map("key", "NotificationTitleFontSize", "label", "Title size", "description", "Title font size in points", "type", "integer", "control", "range", "default", 11, "section", "Notifications", "validation", Map("min", 8, "max", 24, "step", 1)),
+        Map("key", "NotificationMessageFontSize", "label", "Message size", "description", "Message font size in points", "type", "integer", "control", "range", "default", 10, "section", "Notifications", "validation", Map("min", 8, "max", 24, "step", 1)),
+        Map("key", "NotificationPaddingX", "label", "Horizontal padding (px)", "description", "Space inside the left and right edges", "type", "integer", "control", "range", "default", 18, "section", "Notifications", "validation", Map("min", 4, "max", 40, "step", 1)),
+        Map("key", "NotificationPaddingY", "label", "Vertical padding (px)", "description", "Space inside the top and bottom edges", "type", "integer", "control", "range", "default", 12, "section", "Notifications", "validation", Map("min", 4, "max", 32, "step", 1)),
+        Map("key", "NotificationMaxWidth", "label", "Maximum width (px)", "description", "Long messages wrap at this notification width", "type", "integer", "control", "range", "default", 520, "section", "Notifications", "validation", Map("min", 240, "max", 900, "step", 20)),
+        Map("key", "NotificationCornerRadius", "label", "Corner radius (px)", "description", "Rounded corner radius in pixels", "type", "integer", "control", "range", "default", 10, "section", "Notifications", "validation", Map("min", 0, "max", 24, "step", 1)),
+        Map("key", "NotificationShowBorder", "label", "Border", "description", "Draw a thin border around notification cards", "type", "boolean", "control", "switch", "default", 1, "section", "Notifications"),
         Map("key", "ReloadAppHotkey", "label", "Reload App", "description", "Global hotkey to reload the app", "type", "hotkey", "control", "hotkey", "default", "^#!Backspace", "section", "App Hotkeys"),
         Map("key", "SuspendAppHotkey", "label", "Suspend App", "description", "Global hotkey to suspend the app", "type", "hotkey", "control", "hotkey", "default", "^#!Esc", "section", "App Hotkeys"),
         Map("key", "SwapMouseXButtons", "label", "Swap Mouse XButtons", "description", "Swap XButton1 and XButton2 behavior", "type", "boolean", "control", "switch", "default", 0, "section", "Misc")
@@ -1052,6 +1070,7 @@ class AKApp extends AKBase {
       this.Config.GENERAL := {} 
     ProcessGeneralConfigSection(this.Config.GENERAL)
     this.Debug(Integer(this.Config.GENERAL.DebugLevel))
+    AKBase.ConfigureNotifications(this.Config.GENERAL)
     
     if (!this.Config.Has("THEME"))
       this.Config.THEME := {} 

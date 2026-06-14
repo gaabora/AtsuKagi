@@ -21,6 +21,8 @@
 - Central action dispatch logs each action start at debug level with its hotkey plus active and hovered window context.
 - Central action dispatch catches runtime failures, logs full technical details, and shows a user-readable styled notification instead of allowing an AutoHotkey error window.
 - `AKBase.ShowInfo` supports `info`, `success`, `warning`, and `error` notification styles through its fourth parameter.
+- `AKBase.ShowInfo` uses live `[GENERAL]` notification appearance settings; a timeout of `-1` uses `NotificationDurationMs`.
+- The General settings page owns global notification position, typography, padding, width, corner radius, and border controls.
 - `AKApp.ToolTip` owns the shared custom tooltip GUI behavior while preserving the existing text, position, timeout, and forced-ID API.
 - `SkipIfBlocklisted` passthrough must preserve held mouse-button input so blocked applications can keep native drag behavior.
 - Windows constants should be named and centralized instead of repeated as unexplained literals when broadly reused.

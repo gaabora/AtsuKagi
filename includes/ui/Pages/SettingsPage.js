@@ -161,8 +161,7 @@ class SettingsPage {
 
   _refreshPluginGlobalDebugLabels(value) {
     const level = Number(value);
-    const labels = ['Error', 'Warning', 'Notice', 'Info', 'Debug', 'Trace'];
-    const label = labels[level] || 'Unknown';
+    const label = LogsController.LEVELS[level] || 'Unknown';
     document.querySelectorAll('.plugin-debug-level option[value="-1"]').forEach((option) => {
       option.textContent = `Use global (${level} - ${label})`;
     });

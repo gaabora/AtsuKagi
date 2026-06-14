@@ -22,9 +22,13 @@ class AKBase {
   static _hasBindingProblems := false
   static _logPushHandler := 0
   static _nextNotificationId := 0
+  static _notificationConfig := 0
   Debug(level:=0) {
     this.debugLevel := level
     ; this.initMenu()
+  }
+  static ConfigureNotifications(config) {
+    AKBase._notificationConfig := config
   }
   ShowError(text, title:="") {
     this.outputDebugLine(AKApp.LOG_ERROR, text, 0)
@@ -38,12 +42,24 @@ class AKBase {
     this.outputDebugLine(AKApp.LOG_NOTICE, text, 2)
     return this.msgBox(text, title ? title : "NOTICE", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_INFO)
   }
-  ShowInfo(text, title:="", timeout:=2000, style:="info") {
+  ShowInfo(text, title:="", timeout:=-1, style:="info") {
     style := this._getNotificationStyle(style)
     this.outputDebugLine(style["logLevel"], text, style["logLevel"])
     AKBase._nextNotificationId += 1
     notificationTag := "AKNotification" AKBase._nextNotificationId
-    options := "dur=0 pos=ct style=round show=fade@100 bc=" style["backgroundColor"] " tc=" style["accentColor"] " mc=" style["messageColor"] " tag=" notificationTag
+    config := AKBase._notificationConfig
+    position := this._getNotificationConfigValue(config, "NotificationPosition", "br")
+    fontFace := this._getNotificationConfigValue(config, "NotificationFontFace", "Segoe UI")
+    titleSize := this._getNotificationConfigValue(config, "NotificationTitleFontSize", 11)
+    messageSize := this._getNotificationConfigValue(config, "NotificationMessageFontSize", 10)
+    paddingX := this._getNotificationConfigValue(config, "NotificationPaddingX", 18)
+    paddingY := this._getNotificationConfigValue(config, "NotificationPaddingY", 12)
+    maxWidth := this._getNotificationConfigValue(config, "NotificationMaxWidth", 520)
+    cornerRadius := this._getNotificationConfigValue(config, "NotificationCornerRadius", 10)
+    showBorder := this._getNotificationConfigValue(config, "NotificationShowBorder", 1)
+    if (timeout < 0)
+      timeout := this._getNotificationConfigValue(config, "NotificationDurationMs", 2500)
+    options := "dur=0 pos=" position " style=round show=fade@100 tf=" fontFace " tfo=bold mf=" fontFace " ts=" titleSize " ms=" messageSize " mx=" paddingX " my=" paddingY " mw=" maxWidth " rad=" cornerRadius " bdr=" showBorder " bc=" style["backgroundColor"] " tc=" style["accentColor"] " mc=" style["messageColor"] " tag=" notificationTag
     Notify.Show(title, text,,,, options)
     if (timeout > 0)
       SetTimer(infoNotificationOff, -timeout)
@@ -52,6 +68,11 @@ class AKBase {
     infoNotificationOff() {
       Notify.Destroy(notificationTag)
     }
+  }
+  _getNotificationConfigValue(config, key, defaultValue) {
+    if (IsObject(config) && config.Has(key))
+      return config[key]
+    return defaultValue
   }
   _getNotificationStyle(style) {
     switch StrLower(Trim("" style)) {

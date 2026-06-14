@@ -9,7 +9,7 @@ Built-in general-purpose actions available in all plugins.
 - **SkipIfBlocklisted(BlocklistName, ActionString, FallbackAction='')** - Skip action if active window is in named blocklist; optionally run fallback instead of passthrough. Used to exclude certain windows from plugins.
 - **RemapKeyTo(Hotkey)** - Simulate keyboard input. Same as deprecated RemapTo; kept for backward compatibility.
 - **DoNothing()** - No-op action. Useful for disabling a hotkey without removing config.
-- **ShowInfo(text, title='', timeout=2000, style='info')** - Display a styled notification; style may be `info`, `success`, `warning`, or `error`.
+- **ShowInfo(text, title='', timeout=-1, style='info')** - Display a styled notification; `-1` uses the configured duration and style may be `info`, `success`, `warning`, or `error`.
 
 ## WindowManager
 Manage windows: minimize, toggle transparency (alpha), maximize, fullscreen, frames, and top-most state. Detect mouse position over titlebar/borders.

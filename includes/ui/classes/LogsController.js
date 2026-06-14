@@ -87,6 +87,8 @@ class LogsController {
     return normalized;
   }
 
+  static LEVELS = ['Error', 'Warning', 'Notice', 'Info', 'Debug', 'Trace'];
+  
   static levelLabel(level) {
     switch (level) {
       case 0: return 'ERROR';

@@ -71,7 +71,7 @@ class GeneralHandlers extends AKPlugin {
     this.RunAction(actionString)
   }
 
-  ShowInfo(text, title:="", timeout:=2000, style:="info") {
+  ShowInfo(text, title:="", timeout:=-1, style:="info") {
     this.App.ShowInfo(text, title, timeout, style)
   }
 

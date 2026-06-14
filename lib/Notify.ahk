@@ -150,11 +150,15 @@ Class Notify {
   - `CENTER`
 - `PROG` - Progress bar. For example: `prog=w325`, `prog=w200 h80 cGreen` {@link https://www.autohotkey.com/docs/v2/lib/GuiControls.htm#Progress Progress Options}
 - `BC` - Background color `*1F1F1F`
+- `MX` - Horizontal content padding in pixels. `*18`
+- `MY` - Vertical content padding in pixels. `*12`
+- `MW` - Maximum notification width in pixels. `*520`
+- `RAD` - Rounded corner radius in pixels. `*10`
 - `STYLE` - Notification style
   - `ROUND` - Rounded corners*
   - `EDGE` - Edged corners
 - `TAG` - Marker to identify a GUI. The Destroy method accepts a handle or a tag, it destroys every GUI containing this tag across all scripts.
-- `BDR` - Border. Not compatible with the round style.
+- `BDR` - Border.
   - `0` - No border
   - `1` - Border*
 - `WSTC` - WinSetTransColor. Not compatible with the round style, fade animation. For example: `style=edge bdr=0 bc=black WSTC=black` {@link https://www.autohotkey.com/docs/v2/lib/WinSetTransColor.htm WinSetTransColor}
@@ -217,6 +221,10 @@ Class Notify {
         this.mDefault['mali'] := 'left'        ; Message alignment
         this.mDefault['prog'] := ''            ; Progress bar
         this.mDefault['bc'] := '1F1F1F'        ; Background color
+        this.mDefault['mx'] := 18               ; Horizontal content padding
+        this.mDefault['my'] := 12               ; Vertical content padding
+        this.mDefault['mw'] := 520              ; Maximum notification width
+        this.mDefault['rad'] := 10              ; Rounded corner radius
         this.mDefault['style'] := 'round'      ; Style
         this.mDefault['tag'] := ''             ; GUI window title identifying marker.
         this.mDefault['dg'] := 0               ; Destroy GUIs.
@@ -366,8 +374,10 @@ Class Notify {
        
         g := Gui(m['opt'], 'NotifyGUI_' m['mon'] '_' m['pos'] '_' m['padY'] (m['tag'] ? '_' m['tag'] : ''))
         g.BackColor := m['bc']
-        g.MarginX := 15
-        g.MarginY := 15
+        g.MarginX := Max(0, Integer(m['mx']))
+        g.MarginY := Max(0, Integer(m['my']))
+        if (m['style'] = 'round' && m['bdr'])
+            g.Opt('+Border')
         g.gIndex := ++gIndex
         m['hwnd'] := g.handle := g.hwnd
      
@@ -393,6 +403,8 @@ Class Notify {
         monWAwidth := Abs(monWARight - monWALeft)
         monWAheight := Abs(monWABottom - monWATop)
         visibleScreenWidth := monWAwidth / (A_ScreenDPI / 94) - m['padX']*2
+        if (Integer(m['mw']) > 0)
+            visibleScreenWidth := Min(visibleScreenWidth, Integer(m['mw']))
        
         if m.Has('pic')
             picWidth := this.ControlGetPicWidth(m['pic'], monWALeft, monWATop) + padXpicTxt + g.MarginX*2   
@@ -442,7 +454,7 @@ Class Notify {
             m['msg'] := g.Add('Text', m['mali'] ((!title && !m['prog']) && IsSet(picWidth) ? ' x+' padXpicTxt : '') (IsSet(msgWidth) ? ' w' msgWidth : ''), msg)
         }
 
-        g.MarginY := 15
+        g.MarginY := Max(0, Integer(m['my']))
         g.Show('Hide')
         WinGetPos(,, &gW, &gH, g)
         clickArea := g.Add('Text', 'x0 y0 w' gW ' h' gH ' BackgroundTrans')
@@ -543,7 +555,12 @@ Class Notify {
         this.mNotifyGUIs[gIndex] := g
         
         switch m['style'], 'off' {
-            case 'round': this.FrameShadow(g.hwnd)
+            case 'round':
+            {
+                if (m['bdr'])
+                    this.FrameShadow(g.hwnd)
+                this.RoundCorners(g.hwnd, gW, gH, m['rad'])
+            }
             case 'edge': m['bdr'] ? g.Opt('+Border'): ''
         }
                                      
@@ -884,5 +901,20 @@ Class Notify {
             DllCall("dwmapi.dll\DwmExtendFrameIntoClientArea", "ptr", hwnd, "ptr", margins)
         }
     }   
+
+    static RoundCorners(hwnd, width, height, radius)
+    {
+        width := Round(width)
+        height := Round(height)
+        radius := Max(0, Min(Integer(radius), Floor(Min(width, height) / 2)))
+        if (radius <= 0)
+            return
+
+        region := DllCall('gdi32\CreateRoundRectRgn', 'Int', 0, 'Int', 0, 'Int', width + 1, 'Int', height + 1, 'Int', radius * 2, 'Int', radius * 2, 'Ptr')
+        if (!region)
+            return
+        if (!DllCall('user32\SetWindowRgn', 'Ptr', hwnd, 'Ptr', region, 'Int', true))
+            DllCall('gdi32\DeleteObject', 'Ptr', region)
+    }
     ;============================================================================================              
 }

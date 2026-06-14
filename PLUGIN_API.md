@@ -360,7 +360,7 @@ this.RunAction(actionString)
 this.IsWindowBlocklisted(hwnd, actionName)
 this.IsInBlocklist(blocklistName, hwnd)
 this.ToolTip(text, x, y, duration)
-this.ShowInfo(text, title, timeout)    ; Info popup
+this.ShowInfo(text, title, timeout)    ; Info popup; omit timeout to use the configured duration
 this.ShowWarning(text)                 ; Warning box
 
 ; Output
