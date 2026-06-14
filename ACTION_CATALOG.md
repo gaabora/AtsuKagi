@@ -9,7 +9,7 @@ Built-in general-purpose actions available in all plugins.
 - **SkipIfBlocklisted(BlocklistName, ActionString, FallbackAction='')** - Skip action if active window is in named blocklist; optionally run fallback instead of passthrough. Used to exclude certain windows from plugins.
 - **RemapKeyTo(Hotkey)** - Simulate keyboard input. Same as deprecated RemapTo; kept for backward compatibility.
 - **DoNothing()** - No-op action. Useful for disabling a hotkey without removing config.
-- **ShowInfo(text, title='', timeout=2000)** - Display info popup with message, title, and optional timeout (ms).
+- **ShowInfo(text, title='', timeout=2000, style='info')** - Display a styled notification; style may be `info`, `success`, `warning`, or `error`.
 
 ## WindowManager
 Manage windows: minimize, toggle transparency (alpha), maximize, fullscreen, frames, and top-most state. Detect mouse position over titlebar/borders.
@@ -23,8 +23,8 @@ Manage windows: minimize, toggle transparency (alpha), maximize, fullscreen, fra
 - **CloseHoveredWindow()** - Close window under mouse cursor.
 - **ToggleWindowMaximized(hwnd=0)** - Toggle maximized state of window.
 - **ToggleHoveredWindowMaximized()** - Toggle maximized state of hovered window.
-- **ToggleHoveredWindowOnTop(BorderColor=-1)** - Toggle "always on top" flag of hovered window; optionally draw colored border.
-- **ToggleWindowOnTop(BorderColor=-1, hwnd=0)** - Toggle "always on top" flag of window.
+- **ToggleHoveredWindowOnTop(BorderColor=-1)** - Toggle "always on top" for a hovered non-maximized, non-fullscreen window; optionally draw a colored border.
+- **ToggleWindowOnTop(BorderColor=-1, hwnd=0)** - Toggle "always on top" for a non-maximized, non-fullscreen window.
 - **ToggleWindowFullScreen(hwnd=0)** - Toggle fullscreen mode.
 - **ToggleHoveredWindowFullScreen()** - Toggle fullscreen mode of hovered window.
 - **ToggleWindowFrame(hwnd=0)** - Toggle window frame (titlebar/borders).
@@ -35,7 +35,7 @@ Manage windows: minimize, toggle transparency (alpha), maximize, fullscreen, fra
 - **IncreaseHoveredWindowTransparency(ByValue=32)** - Increase transparency of hovered window.
 - **DecreaseWindowTransparency(ByValue=32, hwnd=0)** - Decrease transparency (increase opacity) by step.
 - **DecreaseHoveredWindowTransparency(ByValue=32)** - Decrease transparency of hovered window.
-- **SetWindowBorderColor(color=-1, hwnd=0)** - Set border color of window (hex color code).
+- **SetWindowBorderColor(color=-1, hwnd=0)** - Set border color of window (hex color code), using a tracked overlay fallback on Windows 10.
 - **ToggleTaskView()** - Toggle Windows Task View (virtual desktops overview).
 - **IsMouseOverTaskbar()** - Check if mouse is over taskbar (condition for IfThenElse).
 - **IsMouseOverWindowTitlebar()** - Check if mouse is over window title bar.

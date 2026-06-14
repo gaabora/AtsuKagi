@@ -13,7 +13,7 @@ class GeneralHandlers extends AKPlugin {
         Map("action", "SkipIfBlocklisted", "label", "Skip if blocklisted", "description", "Skip action when hovered window matches named blocklist; optionally run fallback", "params", [Map("name", "blocklistName"), Map("name", "actionString"), Map("name", "fallbackAction", "default", "")], "category", "Control Flow"),
         Map("action", "RemapKeyTo", "label", "Remap key to", "description", "Send the provided key as input", "params", [Map("name", "Hotkey")], "category", "Input"),
         Map("action", "DoNothing", "label", "Do nothing", "description", "No-op action", "params", [], "category", "Utility"),
-        Map("action", "ShowInfo", "label", "Show info", "description", "Show an info notification", "params", [Map("name", "text"), Map("name", "title", "default", ""), Map("name", "timeout", "default", 2000)], "category", "Utility"),
+        Map("action", "ShowInfo", "label", "Show notification", "description", "Show a styled info, success, warning, or error notification", "params", [Map("name", "text"), Map("name", "title", "default", ""), Map("name", "timeout", "default", 2000), Map("name", "style", "default", "info")], "category", "Utility"),
         Map("action", "Run", "label", "Run command", "description", "Run a command line", "params", [Map("name", "cmdLine")], "category", "Utility")
       ]
     )
@@ -65,8 +65,8 @@ class GeneralHandlers extends AKPlugin {
     this.RunAction(actionString)
   }
 
-  ShowInfo(text, title:="", timeout:=2000) {
-    this.App.ShowInfo(text, title:="", timeout:=2000)
+  ShowInfo(text, title:="", timeout:=2000, style:="info") {
+    this.App.ShowInfo(text, title, timeout, style)
   }
 
   Run(cmdLine) { ;;;

@@ -76,6 +76,16 @@ class RedrawWindowFlags {
   static UPDATENOW := 0x0100
 }
 
+class WinEventFlags {
+  static OUTOFCONTEXT := 0x0000
+}
+
+class WinEventConstants {
+  static EVENT_OBJECT_LOCATIONCHANGE := 0x800B
+  static OBJID_WINDOW := 0
+  static CHILDID_SELF := 0
+}
+
 class ShellHookCodes {
   static WINDOWCREATED := 1
   static WINDOWDESTROYED := 2

@@ -15,6 +15,7 @@ class AKApp extends AKBase {
   _configFileDefault := A_ScriptDir "\config.ini"
   _assignedHotkeys := Map()
   _toolTipIdsArr := Map()
+  _toolTipGuis := Map()
   _warnedDeprecatedActions := Map()
   _warnedActionCollisions := Map()
   _warnedActionNaming := Map()
@@ -616,11 +617,48 @@ class AKApp extends AKBase {
 
   ToolTip(text, x:=-1, y:=-1, msec:=1000, forceIdx:=0) {
     idx := (forceIdx = 0) ? this._getFreeTooltipId() : forceIdx
+
+    if (text = "") {
+      this._hideToolTip(idx)
+      return idx
+    }
+
+    this._normalizeToolTipPosition(&x, &y)
+
+    state := this._toolTipGuis.Has(idx) ? this._toolTipGuis[idx] : false
+    if (!IsObject(state) || state.text != text) {
+      this._destroyToolTip(idx)
+      tipGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20 +E0x08000000")
+      tipGui.BackColor := "1A1A2E"
+      tipGui.MarginX := 12
+      tipGui.MarginY := 8
+      tipGui.SetFont("s10 cE0E0E0", "Segoe UI")
+
+      textOptions := "Center"
+      for line in StrSplit(text, "`n") {
+        if (StrLen(line) > 60) {
+          textOptions .= " w360"
+          break
+        }
+      }
+      tipGui.Add("Text", textOptions, text)
+      tipGui.Show("AutoSize Hide NoActivate")
+      WinSetTransparent(235, "ahk_id " tipGui.Hwnd)
+      tipGui.GetPos(,, &tipWidth, &tipHeight)
+      try WinSetRegion("0-0 W" tipWidth " H" tipHeight " R8-8", "ahk_id " tipGui.Hwnd)
+      state := {
+        gui: tipGui,
+        text: text,
+        width: tipWidth,
+        height: tipHeight
+      }
+      this._toolTipGuis[idx] := state
+    }
+
+    this._clampToolTipPosition(&x, &y, state.width, state.height)
+    state.gui.Show("x" Round(x) " y" Round(y) " NoActivate")
     expireTime := A_TickCount + msec
     this._toolTipIdsArr[idx] := expireTime
-
-    ToolTip(text, x, y, idx) ; , this.themeSettings)
-    
     return idx
   }
 
@@ -667,7 +705,7 @@ class AKApp extends AKBase {
   RunAction(ActionString) {
     actionInfo := this._parseActionInfo(ActionString)
     actionHandler := this._getActionHandler(actionInfo.fnName)
-    return this._callActionHandler(actionHandler, actionInfo.params)
+    return this._callActionHandler(actionHandler, actionInfo.params, ActionString, this._getCurrentHotkeyLabel())
   }
 
   IsWindowBlocklisted(hwnd:=0, method:='') {
@@ -745,11 +783,72 @@ class AKApp extends AKBase {
   _toolTipOff() {
     for idx, val in this._toolTipIdsArr {
       if (val > 0 && A_TickCount >= val) {
-        ToolTip(,,, idx) ; remove tooltip
-        this._toolTipIdsArr[idx] := 0
+        this._hideToolTip(idx)
       }
     }
   }
+
+  _hideToolTip(idx) {
+    if (this._toolTipGuis.Has(idx))
+      try this._toolTipGuis[idx].gui.Hide()
+    this._toolTipIdsArr[idx] := 0
+  }
+
+  _destroyToolTip(idx) {
+    if (this._toolTipGuis.Has(idx)) {
+      try this._toolTipGuis[idx].gui.Destroy()
+      this._toolTipGuis.Delete(idx)
+    }
+    this._toolTipIdsArr[idx] := 0
+  }
+
+  _clampToolTipPosition(&x, &y, width, height) {
+    monitorIndex := MonitorGetPrimary()
+    Loop MonitorGetCount() {
+      MonitorGet(A_Index, &left, &top, &right, &bottom)
+      if (x >= left && x < right && y >= top && y < bottom) {
+        monitorIndex := A_Index
+        break
+      }
+    }
+
+    MonitorGetWorkArea(monitorIndex, &left, &top, &right, &bottom)
+    x := Max(left, Min(x, right - width))
+    y := Max(top, Min(y, bottom - height))
+  }
+
+  _normalizeToolTipPosition(&x, &y) {
+    if (x = -1 || y = -1) {
+      point := Buffer(8, 0)
+      DllCall("GetCursorPos", "Ptr", point.Ptr)
+      if (x = -1)
+        x := NumGet(point, 0, "Int") + 16
+      if (y = -1)
+        y := NumGet(point, 4, "Int") + 16
+      return
+    }
+
+    activeHwnd := WinExist("A")
+    if (!activeHwnd || A_CoordModeToolTip = "Screen")
+      return
+
+    if (A_CoordModeToolTip = "Client") {
+      point := Buffer(8, 0)
+      NumPut("Int", x, "Int", y, point)
+      if (DllCall("ClientToScreen", "Ptr", activeHwnd, "Ptr", point.Ptr)) {
+        x := NumGet(point, 0, "Int")
+        y := NumGet(point, 4, "Int")
+      }
+      return
+    }
+
+    if (A_CoordModeToolTip = "Window") {
+      WinGetPos(&windowX, &windowY,,, "ahk_id " activeHwnd)
+      x += windowX
+      y += windowY
+    }
+  }
+
   _getFreeTooltipId() {
     closestIdx := 1
     closestVal := A_TickCount + 10000
@@ -1749,19 +1848,83 @@ class AKApp extends AKBase {
       this.outputDebugLine(AKApp.LOG_DEBUG, "Hotkey " hkDef['readable'] " throttled")
       return
     }
-    return this._callActionHandler(hkDef['handler'], hkDef['params'])
+    return this._callActionHandler(hkDef['handler'], hkDef['params'], hkDef['action'], hkDef['readable'])
   }
 
-  _callActionHandler(actionHandler, paramsArr) {
-    if (paramsArr.Length > 0) {
-      return (IsObject(actionHandler))
-        ? actionHandler.Call(paramsArr*)
-        : %actionHandler%(paramsArr*)
-    } else {
-      return (IsObject(actionHandler))
-        ? actionHandler.Call()
-        : %actionHandler%()
+  _callActionHandler(actionHandler, paramsArr, actionText, hotkeyLabel:="") {
+    actionInfo := this._parseActionInfo(actionText)
+    source := "core"
+    if (this.AvailableActions.Has(actionInfo.fnName))
+      source := this.AvailableActions[actionInfo.fnName]["className"]
+    this.outputDebugLine(AKApp.LOG_DEBUG, "Action started: hotkey=" (hotkeyLabel != "" ? hotkeyLabel : "none") " action=" actionText " " this._getActionWindowContext(), Map("source", source))
+
+    try {
+      if (paramsArr.Length > 0) {
+        return (IsObject(actionHandler))
+          ? actionHandler.Call(paramsArr*)
+          : %actionHandler%(paramsArr*)
+      } else {
+        return (IsObject(actionHandler))
+          ? actionHandler.Call()
+          : %actionHandler%()
+      }
+    } catch Error as err {
+      this._handleActionError(err, actionText, source)
+      return false
     }
+  }
+
+  _handleActionError(err, actionText, source) {
+    errorDetails := Type(err) ": " err.Message "`nAction: " actionText "`nFile: " err.File "`nLine: " err.Line "`nWhat: " err.What "`nExtra: " err.Extra "`nStack:`n" err.Stack
+    try errorDetails .= "`nNumber: " err.Number
+    this.outputDebugLine(AKApp.LOG_ERROR, errorDetails, Map("source", source))
+
+    if (this._isAccessDeniedError(err)) {
+      message := "Windows blocked running " actionText " because the other app is running as administrator.`nRun " this.ScriptName " as administrator and try again"
+      try this.ShowInfo(message, , 7000, "warning")
+      return
+    }
+
+    try this.ShowInfo("The action could not be completed. Open Logs for technical details.", "Action failed", 6000, "error")
+  }
+
+  _isAccessDeniedError(err) {
+    try {
+      if (err is OSError && err.Number = 5)
+        return true
+    }
+    return InStr(err.Message, "Access is denied", false) > 0
+  }
+
+  _getCurrentHotkeyLabel() {
+    if (A_ThisHotkey = "")
+      return ""
+    if (this._assignedHotkeys.Has(A_ThisHotkey))
+      return this._assignedHotkeys[A_ThisHotkey]["readable"]
+    try return convertToReadableHotkey(A_ThisHotkey)
+    return A_ThisHotkey
+  }
+
+  _getActionWindowContext() {
+    activeHwnd := 0
+    hoveredHwnd := 0
+    try activeHwnd := WinGetID("A")
+    try MouseGetPos(,, &hoveredHwnd)
+    return "active={" this._formatActionWindow(activeHwnd) "} hovered={" this._formatActionWindow(hoveredHwnd) "}"
+  }
+
+  _formatActionWindow(hwnd) {
+    if (!hwnd)
+      return "none"
+
+    processName := ""
+    className := ""
+    title := ""
+    try processName := WinGetProcessName("ahk_id " hwnd)
+    try className := WinGetClass("ahk_id " hwnd)
+    try title := WinGetTitle("ahk_id " hwnd)
+    title := StrReplace(StrReplace(title, "`r", " "), "`n", " ")
+    return "hwnd=" hwnd " exe=" processName " class=" className " title=" title
   }
 
   _parseActionInfo(actionString) {

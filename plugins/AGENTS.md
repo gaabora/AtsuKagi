@@ -19,6 +19,9 @@
 - The resize dialog key layout, move modifier, step modifier, default precision mode, and pixel step sizes are descriptor-backed plugin settings.
 - Resize-dialog directional input must support held horizontal and vertical keys together for diagonal resize and move operations, with modifiers evaluated while the keys are held.
 - Directional input applies one immediate step, then waits for the configured repeat delay before repeating at the configured polling interval.
+- `WindowManager.SetWindowBorderColor` uses the native DWM border attribute when supported and an event-driven, click-through owned border overlay when the native call is unavailable.
+- Any plugin that applies a temporary border through `SetWindowBorderColor` must reset it through the same action so the Windows 10 fallback is cleaned up.
+- `WindowManager.ToggleWindowOnTop` must refuse enabling top-most state for maximized or fullscreen windows, while still allowing an existing top-most state to be disabled.
 - Use AutoHotkey v2 syntax and existing plugin naming conventions.
 
 ## Work Guidance

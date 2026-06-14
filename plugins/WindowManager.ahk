@@ -1,5 +1,11 @@
 class WindowManager extends AKPlugin {
   _fullScreenWindowStates := Map()
+  _fallbackBorders := Map()
+  _fallbackBorderTimer := ""
+  _fallbackBorderEventHandler := ""
+  _fallbackBorderEventCallback := 0
+  _fallbackBorderEventHook := 0
+  _fallbackBorderThickness := 3
 
   __DescribePlugin() {
     return Map(
@@ -43,8 +49,8 @@ class WindowManager extends AKPlugin {
         Map("action", "CloseHoveredWindow", "label", "Close hovered window", "description", "Close the window currently under cursor", "category", "State"),
         Map("action", "ToggleWindowMaximized", "label", "Toggle maximize", "description", "Toggle maximized state for a specific or active window", "category", "State", "params", [Map("name", "hwnd", "default", 0)]),
         Map("action", "ToggleHoveredWindowMaximized", "label", "Toggle maximize (hovered)", "description", "Toggle maximized state for hovered window", "category", "State"),
-        Map("action", "ToggleHoveredWindowOnTop", "label", "Toggle always on top (hovered)", "description", "Toggle top-most state for hovered window", "category", "On Top", "params", [Map("name", "BorderColor", "default", -1)]),
-        Map("action", "ToggleWindowOnTop", "label", "Toggle always on top", "description", "Toggle top-most state for a specific or active window", "category", "On Top", "params", [Map("name", "BorderColor", "default", -1), Map("name", "hwnd", "default", 0)]),
+        Map("action", "ToggleHoveredWindowOnTop", "label", "Toggle always on top (hovered)", "description", "Toggle top-most state for a hovered non-maximized, non-fullscreen window", "category", "On Top", "params", [Map("name", "BorderColor", "default", -1)]),
+        Map("action", "ToggleWindowOnTop", "label", "Toggle always on top", "description", "Toggle top-most state for a non-maximized, non-fullscreen specific or active window", "category", "On Top", "params", [Map("name", "BorderColor", "default", -1), Map("name", "hwnd", "default", 0)]),
         Map("action", "ToggleWindowFullScreen", "label", "Toggle fullscreen", "description", "Toggle fullscreen mode for a specific or active window", "category", "State", "params", [Map("name", "hwnd", "default", 0)]),
         Map("action", "ToggleHoveredWindowFullScreen", "label", "Toggle fullscreen (hovered)", "description", "Toggle fullscreen mode for hovered window", "category", "State"),
         Map("action", "ToggleWindowFrame", "label", "Toggle frame", "description", "Toggle window frame for a specific or active window", "category", "Frame", "params", [Map("name", "hwnd", "default", 0)]),
@@ -164,6 +170,11 @@ class WindowManager extends AKPlugin {
         this.SetWindowBorderColor(,hwnd)
         this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "OFF"))
       } else {
+        if (WinGetMinMax("ahk_id " hwnd) = 1 || this._isWindowFullscreen(hwnd)) {
+          MouseGetPos(&tooltipX, &tooltipY)
+          this.ToolTip("Always on top is unavailable for maximized or fullscreen windows", tooltipX + 16, tooltipY + 16, 2500)
+          return
+        }
         WinSetAlwaysOnTop(True, "ahk_id " . hwnd)
         this.SetWindowBorderColor(HexColor, hwnd)
         this.ShowInfo(this._getFunctionExecutedMessage(A_ThisFunc, hwnd, "ON"))
@@ -302,13 +313,27 @@ class WindowManager extends AKPlugin {
   }
 
   SetWindowBorderColor(color:=-1, hwnd:=0) { ;;;
-    if (hwnd=0)
-      hwnd := WinGetID("A")
-    R := (color & 0xFF0000) >> 16
-    G := (color & 0xFF00) >> 8
-    B := (color & 0xFF)
-    newColor := (B << 16) | (G << 8) | R
-    DllCall("dwmapi\DwmSetWindowAttribute", "ptr", hwnd, "int", WindowFlags.DWMWA_BORDER_COLOR, "int*", (color = -1) ? WindowFlags.DWM_COLOR_DEFAULT : newColor, "int", Win32Sizes.DWORD)
+    if (!this._checkHwnd(&hwnd, A_ThisFunc))
+      return false
+
+    colorRef := WindowFlags.DWM_COLOR_DEFAULT
+    if (color != -1) {
+      R := (color & 0xFF0000) >> 16
+      G := (color & 0xFF00) >> 8
+      B := (color & 0xFF)
+      colorRef := (B << 16) | (G << 8) | R
+    }
+
+    nativeResult := -1
+    try nativeResult := DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_BORDER_COLOR, "UInt*", colorRef, "UInt", Win32Sizes.DWORD)
+
+    if (color = -1 || nativeResult = 0) {
+      this._removeFallbackBorder(hwnd)
+      return nativeResult = 0
+    }
+
+    this._setFallbackBorder(hwnd, color)
+    return true
   }
 
   ; builtin in win10+ todo if ever need win 7 support
@@ -464,6 +489,203 @@ class WindowManager extends AKPlugin {
   _setWindowStyleState(hwnd, style, enable) {
     prefix := (enable) ? '+' : '-'
     WinSetStyle(Format("{2}{1:#x}", style, prefix), "ahk_id " hwnd)
+  }
+
+  _isWindowFullscreen(hwnd) {
+    if (this._fullScreenWindowStates.Has(hwnd))
+      return true
+
+    frame := this._getVisibleWindowFrame(hwnd)
+    if (!IsObject(frame))
+      return false
+
+    Loop MonitorGetCount() {
+      MonitorGet(A_Index, &left, &top, &right, &bottom)
+      if (Abs(frame.x - left) <= 2
+          && Abs(frame.y - top) <= 2
+          && Abs(frame.x + frame.w - right) <= 2
+          && Abs(frame.y + frame.h - bottom) <= 2)
+        return true
+    }
+    return false
+  }
+
+  _setFallbackBorder(hwnd, color) {
+    this._removeFallbackBorder(hwnd)
+
+    borderGui := Gui("-Caption +ToolWindow +E0x20 +E0x08000000 +Owner" hwnd)
+    borderGui.BackColor := Format("{:06X}", color & 0xFFFFFF)
+    borderGui.Show("Hide NoActivate")
+    this._fallbackBorders[hwnd] := {
+      gui: borderGui,
+      frame: "",
+      visible: false
+    }
+
+    this._updateFallbackBorder(hwnd, this._fallbackBorders[hwnd])
+    this._startFallbackBorderTracking()
+    if (!IsObject(this._fallbackBorderTimer))
+      this._fallbackBorderTimer := ObjBindMethod(this, "_updateFallbackBorders")
+    SetTimer(this._fallbackBorderTimer, this._fallbackBorderEventHook ? 250 : 50)
+  }
+
+  _removeFallbackBorder(hwnd) {
+    if (!this._fallbackBorders.Has(hwnd))
+      return
+
+    state := this._fallbackBorders[hwnd]
+    try state.gui.Destroy()
+    this._fallbackBorders.Delete(hwnd)
+    if (this._fallbackBorders.Count = 0) {
+      if (IsObject(this._fallbackBorderTimer))
+        SetTimer(this._fallbackBorderTimer, 0)
+      this._stopFallbackBorderTracking()
+    }
+  }
+
+  _startFallbackBorderTracking() {
+    if (this._fallbackBorderEventHook)
+      return
+
+    this._fallbackBorderEventHandler := ObjBindMethod(this, "_onFallbackBorderWinEvent")
+    this._fallbackBorderEventCallback := CallbackCreate(this._fallbackBorderEventHandler,, 7)
+    this._fallbackBorderEventHook := DllCall("SetWinEventHook",
+      "UInt", WinEventConstants.EVENT_OBJECT_LOCATIONCHANGE,
+      "UInt", WinEventConstants.EVENT_OBJECT_LOCATIONCHANGE,
+      "Ptr", 0,
+      "Ptr", this._fallbackBorderEventCallback,
+      "UInt", 0,
+      "UInt", 0,
+      "UInt", WinEventFlags.OUTOFCONTEXT
+    )
+    if (!this._fallbackBorderEventHook) {
+      CallbackFree(this._fallbackBorderEventCallback)
+      this._fallbackBorderEventCallback := 0
+      this._fallbackBorderEventHandler := ""
+    }
+  }
+
+  _stopFallbackBorderTracking() {
+    if (this._fallbackBorderEventHook)
+      DllCall("UnhookWinEvent", "Ptr", this._fallbackBorderEventHook)
+    if (this._fallbackBorderEventCallback)
+      CallbackFree(this._fallbackBorderEventCallback)
+    this._fallbackBorderEventHook := 0
+    this._fallbackBorderEventCallback := 0
+    this._fallbackBorderEventHandler := ""
+  }
+
+  _onFallbackBorderWinEvent(hook, event, hwnd, idObject, idChild, eventThread, eventTime) {
+    if (idObject != WinEventConstants.OBJID_WINDOW
+        || idChild != WinEventConstants.CHILDID_SELF
+        || !this._fallbackBorders.Has(hwnd))
+      return
+    try this._updateFallbackBorder(hwnd, this._fallbackBorders[hwnd])
+  }
+
+  _updateFallbackBorders() {
+    staleHwnds := []
+    for hwnd, state in this._fallbackBorders {
+      if (!this._updateFallbackBorder(hwnd, state))
+        staleHwnds.Push(hwnd)
+    }
+    for hwnd in staleHwnds
+      this._removeFallbackBorder(hwnd)
+  }
+
+  _updateFallbackBorder(hwnd, state) {
+    if (!DllCall("IsWindow", "Ptr", hwnd, "Int"))
+      return false
+
+    if (!this._isWindowVisibleForBorder(hwnd)) {
+      try state.gui.Hide()
+      state.visible := false
+      return true
+    }
+
+    frame := this._getVisibleWindowFrame(hwnd)
+    if (!IsObject(frame)) {
+      try state.gui.Hide()
+      state.visible := false
+      return true
+    }
+
+    if (!IsObject(state.frame)
+        || state.frame.x != frame.x || state.frame.y != frame.y
+        || state.frame.w != frame.w || state.frame.h != frame.h
+    ) {
+      DllCall(
+        "SetWindowPos",
+        "Ptr", state.gui.Hwnd,
+        "Ptr", 0,
+        "Int", Round(frame.x),
+        "Int", Round(frame.y),
+        "Int", Round(frame.w),
+        "Int", Round(frame.h),
+        "UInt", WindowFlags.SWP_NOZORDER | WindowFlags.SWP_NOACTIVATE
+      )
+      this._setFallbackBorderRegion(state.gui.Hwnd, frame.w, frame.h)
+      state.frame := frame
+    }
+    if (!state.visible) {
+      state.gui.Show("NoActivate")
+      state.visible := true
+    }
+    return true
+  }
+
+  _isWindowVisibleForBorder(hwnd) {
+    try {
+      if (!DllCall("IsWindowVisible", "Ptr", hwnd, "Int") || WinGetMinMax("ahk_id " hwnd) = -1)
+        return false
+    } catch {
+      return false
+    }
+
+    cloaked := 0
+    try {
+      if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_CLOAKED, "UInt*", &cloaked, "UInt", Win32Sizes.DWORD) = 0 && cloaked)
+        return false
+    }
+    return true
+  }
+
+  _getVisibleWindowFrame(hwnd) {
+    rect := Buffer(16, 0)
+    try {
+      if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_EXTENDED_FRAME_BOUNDS, "Ptr", rect.Ptr, "UInt", rect.Size) = 0) {
+        left := NumGet(rect, 0, "Int")
+        top := NumGet(rect, 4, "Int")
+        return {
+          x: left,
+          y: top,
+          w: NumGet(rect, 8, "Int") - left,
+          h: NumGet(rect, 12, "Int") - top
+        }
+      }
+    }
+
+    try {
+      WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
+      return {x: x, y: y, w: w, h: h}
+    }
+    return false
+  }
+
+  _setFallbackBorderRegion(guiHwnd, width, height) {
+    width := Max(1, Round(width))
+    height := Max(1, Round(height))
+    thickness := Min(this._fallbackBorderThickness, Floor(Min(width, height) / 2))
+    outerRegion := DllCall("CreateRectRgn", "Int", 0, "Int", 0, "Int", width, "Int", height, "Ptr")
+
+    if (thickness > 0 && width > thickness * 2 && height > thickness * 2) {
+      innerRegion := DllCall("CreateRectRgn", "Int", thickness, "Int", thickness, "Int", width - thickness, "Int", height - thickness, "Ptr")
+      DllCall("CombineRgn", "Ptr", outerRegion, "Ptr", outerRegion, "Ptr", innerRegion, "Int", 4)
+      DllCall("DeleteObject", "Ptr", innerRegion)
+    }
+
+    if (!DllCall("SetWindowRgn", "Ptr", guiHwnd, "Ptr", outerRegion, "Int", true))
+      DllCall("DeleteObject", "Ptr", outerRegion)
   }
 
   _setWindowCloaked(hwnd, cloaked) {

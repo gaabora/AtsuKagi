@@ -16,6 +16,10 @@
 
 - Keep AutoHotkey v2 syntax and the existing public PascalCase/private `_camelCase` convention.
 - Changes to plugin descriptors, action dispatch, or settings payloads must remain compatible across `AKApp.ahk`, `AKPlugin.ahk`, and `ui/`.
+- Central action dispatch logs each action start at debug level with its hotkey plus active and hovered window context.
+- Central action dispatch catches runtime failures, logs full technical details, and shows a user-readable styled notification instead of allowing an AutoHotkey error window.
+- `AKBase.ShowInfo` supports `info`, `success`, `warning`, and `error` notification styles through its fourth parameter.
+- `AKApp.ToolTip` owns the shared custom tooltip GUI behavior while preserving the existing text, position, timeout, and forced-ID API.
 - Windows constants should be named and centralized instead of repeated as unexplained literals when broadly reused.
 
 ## Work Guidance

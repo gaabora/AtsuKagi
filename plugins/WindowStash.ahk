@@ -104,7 +104,7 @@ class WindowStash extends AKPlugin {
         Map(
           "key", "HandleColor",
           "label", "Handle color",
-          "description", "Color of the stash handle and stashed window border",
+          "description", "Color of the stash handle",
           "type", "color", "control", "color", "default", "FF2D55", "section", "Handle"
         ),
         Map(
@@ -187,10 +187,10 @@ class WindowStash extends AKPlugin {
 
     if (key = "HandleColor" || key = "HandleGripColor") {
       for hwnd, info in this.StashedWindows {
-        if (key = "HandleColor") {
-          this._setWindowBorderColor(hwnd, value)
-          info["stashBorderColor"] := this._getWindowBorderColor(hwnd)
-        }
+        ; if (key = "HandleColor") {
+        ;   this._setWindowBorderColor(hwnd, value)
+        ;   info["stashBorderColor"] := this._getWindowBorderColor(hwnd)
+        ; }
         this._destroyHandle(info)
         this._showHandle(hwnd, info)
       }
@@ -347,8 +347,8 @@ class WindowStash extends AKPlugin {
       "restoreTransitionsDisabled", "",
       "restoreTransparency", "",
       "transparencySuppressedByStash", false,
-      "borderColor", this._getWindowBorderColor(hwnd),
-      "stashBorderColor", "",
+      ; "borderColor", this._getWindowBorderColor(hwnd),
+      ; "stashBorderColor", "",
       "handleGui", "",
       "handleBody", "",
       "handleGrip", "",
@@ -356,8 +356,8 @@ class WindowStash extends AKPlugin {
       "handleOpacity", ""
     )
 
-    this._setWindowBorderColor(hwnd, this.Config.HandleColor)
-    this.StashedWindows[hwnd]["stashBorderColor"] := this._getWindowBorderColor(hwnd)
+    ; this._setWindowBorderColor(hwnd, this.Config.HandleColor)
+    ; this.StashedWindows[hwnd]["stashBorderColor"] := this._getWindowBorderColor(hwnd)
     this._hideWindow(hwnd)
     this._startPolling()
     return true
@@ -369,7 +369,7 @@ class WindowStash extends AKPlugin {
 
     info := this.StashedWindows[hwnd]
     this._destroyHandle(info)
-    this._restoreWindowBorderColor(hwnd, info)
+    ; this._restoreWindowBorderColor(hwnd, info)
     if (restoreFrame && WinExist("ahk_id " hwnd)) {
       if (alreadyRevealed)
         this._restoreWindowTransparency(hwnd, info)
@@ -1254,38 +1254,46 @@ class WindowStash extends AKPlugin {
     this.outputDebugLine(AKApp.LOG_TRACE, message)
   }
 
-  _setWindowBorderColor(hwnd, color) {
-    if (!WinExist("ahk_id " hwnd))
-      return
+  ; _setWindowBorderColor(hwnd, color) {
+  ;   if (!WinExist("ahk_id " hwnd))
+  ;     return
 
-    colorValue := color = -1 ? -1 : "0x" this._normalizeColor(color)
-    try this.RunAction("SetWindowBorderColor(" colorValue ", " hwnd ")")
-  }
+  ;   colorValue := color = -1 ? -1 : "0x" this._normalizeColor(color)
+  ;   try this.RunAction("SetWindowBorderColor(" colorValue ", " hwnd ")")
+  ; }
 
-  _getWindowBorderColor(hwnd) {
-    if (!WinExist("ahk_id " hwnd))
-      return ""
+  ; _getWindowBorderColor(hwnd) {
+  ;   if (!WinExist("ahk_id " hwnd))
+  ;     return ""
 
-    color := 0
-    try {
-      if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_BORDER_COLOR, "UInt*", &color, "UInt", Win32Sizes.DWORD) = 0)
-        return color
-    }
-    return ""
-  }
+  ;   color := 0
+  ;   try {
+  ;     if (DllCall("dwmapi\DwmGetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_BORDER_COLOR, "UInt*", &color, "UInt", Win32Sizes.DWORD) = 0)
+  ;       return color
+  ;   }
+  ;   return ""
+  ; }
 
-  _restoreWindowBorderColor(hwnd, info) {
-    if (!WinExist("ahk_id " hwnd) || !info.Has("borderColor"))
-      return
+  ; _restoreWindowBorderColor(hwnd, info) {
+  ;   if (!WinExist("ahk_id " hwnd) || !info.Has("borderColor"))
+  ;     return
 
-    currentColor := this._getWindowBorderColor(hwnd)
-    if (info.Has("stashBorderColor") && info["stashBorderColor"] != "" && currentColor != info["stashBorderColor"])
-      return
+  ;   currentColor := this._getWindowBorderColor(hwnd)
+  ;   if (info.Has("stashBorderColor") && info["stashBorderColor"] != "" && currentColor != info["stashBorderColor"])
+  ;     return
 
-    borderColor := info["borderColor"]
-    if (borderColor = "")
-      return
-    try DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", hwnd, "UInt", WindowFlags.DWMWA_BORDER_COLOR, "UInt*", borderColor, "UInt", Win32Sizes.DWORD)
+  ;   borderColor := info["borderColor"]
+  ;   if (borderColor = "" || borderColor = WindowFlags.DWM_COLOR_DEFAULT)
+  ;     this._setWindowBorderColor(hwnd, -1)
+  ;   else
+  ;     this._setWindowBorderColor(hwnd, this._colorRefToRgb(borderColor))
+  ; }
+
+  _colorRefToRgb(colorRef) {
+    red := colorRef & 0xFF
+    green := (colorRef >> 8) & 0xFF
+    blue := (colorRef >> 16) & 0xFF
+    return (red << 16) | (green << 8) | blue
   }
 
   _normalizeColor(color) {
@@ -1475,7 +1483,7 @@ class WindowStash extends AKPlugin {
       if (!WinExist("ahk_id " hwnd))
         continue
       this._restoreParkedWindow(hwnd, info)
-      this._restoreWindowBorderColor(hwnd, info)
+      ; this._restoreWindowBorderColor(hwnd, info)
       this._moveWindow(hwnd, info["originalFrame"])
       if (info["wasMaximized"])
         try WinMaximize("ahk_id " hwnd)

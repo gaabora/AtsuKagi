@@ -21,6 +21,7 @@ class AKBase {
   static _nextLogId := 0
   static _hasBindingProblems := false
   static _logPushHandler := 0
+  static _nextNotificationId := 0
   Debug(level:=0) {
     this.debugLevel := level
     ; this.initMenu()
@@ -37,16 +38,31 @@ class AKBase {
     this.outputDebugLine(AKApp.LOG_NOTICE, text, 2)
     return this.msgBox(text, title ? title : "NOTICE", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_INFO)
   }
-  ShowInfo(text, title:="", timeout:=2000) {
-    this.outputDebugLine(AKApp.LOG_INFO, text, 3)
-    infoTag := A_TickCount
-    Notify.Show(title,text,,,, 'dur=0 pos=ct tag=' . infoTag)
-    SetTimer(infoNotificationOff, timeout)
-    return
+  ShowInfo(text, title:="", timeout:=2000, style:="info") {
+    style := this._getNotificationStyle(style)
+    this.outputDebugLine(style["logLevel"], text, style["logLevel"])
+    AKBase._nextNotificationId += 1
+    notificationTag := "AKNotification" AKBase._nextNotificationId
+    options := "dur=0 pos=ct style=round show=fade@100 bc=" style["backgroundColor"] " tc=" style["accentColor"] " mc=" style["messageColor"] " tag=" notificationTag
+    Notify.Show(title, text,,,, options)
+    if (timeout > 0)
+      SetTimer(infoNotificationOff, -timeout)
+    return notificationTag
   
     infoNotificationOff() {
-      Notify.Destroy(infoTag)
-      SetTimer(infoNotificationOff,0)
+      Notify.Destroy(notificationTag)
+    }
+  }
+  _getNotificationStyle(style) {
+    switch StrLower(Trim("" style)) {
+      case "success":
+        return Map("backgroundColor", "14261D", "accentColor", "4ADE80", "messageColor", "F0FDF4", "logLevel", AKBase.LOG_INFO)
+      case "warning":
+        return Map("backgroundColor", "2B2314", "accentColor", "FBBF24", "messageColor", "FFFBEB", "logLevel", AKBase.LOG_WARNING)
+      case "error":
+        return Map("backgroundColor", "2C1719", "accentColor", "F87171", "messageColor", "FEF2F2", "logLevel", AKBase.LOG_ERROR)
+      default:
+        return Map("backgroundColor", "172033", "accentColor", "7DD3FC", "messageColor", "F8FAFC", "logLevel", AKBase.LOG_INFO)
     }
   }
   msgBox(text, title:="", timeout:=0, options:=0) {
