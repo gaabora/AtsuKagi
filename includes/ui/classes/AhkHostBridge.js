@@ -45,14 +45,14 @@ class AhkHostBridge {
     return this._parseHostResult(this.host.SavePluginSetting(`${pluginId || ''}`, `${key || ''}`, JSON.stringify(value)));
   }
 
-  saveHotkey(index, hotKey, action, allowRiskyHotkeys = false) {
+  saveHotkey(oldHotKey, hotKey, action, allowRiskyHotkeys = false) {
     this._checkHostFunction('SaveHotkey');
-    return this._parseHostResult(this.host.SaveHotkey(Number(index) || 0, `${hotKey || ''}`, `${action || ''}`, allowRiskyHotkeys ? 1 : 0));
+    return this._parseHostResult(this.host.SaveHotkey(`${oldHotKey || ''}`, `${hotKey || ''}`, `${action || ''}`, allowRiskyHotkeys ? 1 : 0));
   }
 
-  removeHotkey(index) {
+  removeHotkey(hotKey) {
     this._checkHostFunction('RemoveHotkey');
-    return this._parseHostResult(this.host.RemoveHotkey(Number(index) || 0));
+    return this._parseHostResult(this.host.RemoveHotkey(`${hotKey || ''}`));
   }
 
   addHotkey(hotKey, action, allowRiskyHotkeys = false) {

@@ -377,21 +377,14 @@ class SettingsPage {
           const actionName = `${this.hotkeyRecorder.actionTarget.actionName || ''}`.trim();
           const replaceRaw = `${this.hotkeyRecorder.actionTarget.replaceHotkeyRaw || ''}`.trim();
 
-          let idx = -1;
-          if (replaceRaw) {
-            idx = this._findHotkeyIndexByRaw(replaceRaw);
-          }
-          if (idx === -1) {
-            idx = this.form._hotkeyEntries.findIndex(
-              (e) => this.form._extractActionName(e.action) === actionName
-            );
-          }
-
-          if (idx !== -1) {
-            const removedRaw = `${this.form._hotkeyEntries[idx]?.hotKey || ''}`.trim();
-            const result = this.hostBridge.removeHotkey(idx);
+          const fallbackEntry = this.form._hotkeyEntries.find(
+            (e) => this.form._extractActionName(e.action) === actionName
+          );
+          const removedRaw = replaceRaw || `${fallbackEntry?.hotKey || ''}`.trim();
+          if (removedRaw) {
+            const result = this.hostBridge.removeHotkey(removedRaw);
             if (result?.ok) {
-              if (removedRaw) this.form.removeHotkeyByRaw(removedRaw);
+              this.form.removeHotkeyByRaw(removedRaw);
               this._refreshActionHotkeys(actionName);
               this.form._renderHotkeys(this.form._hotkeyEntries);
               if (cancelBtn) cancelBtn.click();
@@ -557,12 +550,6 @@ class SettingsPage {
     this._bindDevToolsButton();
   }
 
-  _findHotkeyIndexByRaw(hotkeyRaw) {
-    const raw = `${hotkeyRaw || ''}`.trim();
-    if (!raw) return -1;
-    return this.form._hotkeyEntries.findIndex((entry) => `${entry.hotKey || ''}`.trim() === raw);
-  }
-
   _bindActionHotkeyRemoval() {
     document.addEventListener('click', (ev) => {
       const removeBtn = ev.target.closest('[data-action-hotkey-remove]');
@@ -575,13 +562,7 @@ class SettingsPage {
       const actionItem = removeBtn.closest('.plugin-action-item');
       const actionName = `${actionItem?.getAttribute('data-action-name') || ''}`.trim();
 
-      const idx = this._findHotkeyIndexByRaw(raw);
-      if (idx === -1) {
-        console.warn('Hotkey not found in local entries, skipping atomic remove', { raw });
-        return;
-      }
-
-      const result = this.hostBridge.removeHotkey(idx);
+      const result = this.hostBridge.removeHotkey(raw);
       if (!result?.ok) {
         console.error('Failed to remove hotkey', { raw, error: result?.error });
         return;
@@ -656,18 +637,14 @@ class SettingsPage {
 
     let result;
     if (replaceWith) {
-      const idx = this._findHotkeyIndexByRaw(replaceWith);
-      if (idx !== -1) {
-        result = this.hostBridge.saveHotkey(idx, newRaw, handlerToSave, allowRiskyHotkeys);
-      } else {
-        result = this.hostBridge.addHotkey(newRaw, handlerToSave, allowRiskyHotkeys);
-      }
+      result = this.hostBridge.saveHotkey(replaceWith, newRaw, handlerToSave, allowRiskyHotkeys);
     } else {
       const existingIdx = this.form._hotkeyEntries.findIndex(
         (e) => this.form._extractActionName(e.action) === actionName
       );
       if (existingIdx !== -1) {
-        result = this.hostBridge.saveHotkey(existingIdx, newRaw, handlerToSave, allowRiskyHotkeys);
+        const oldRaw = `${this.form._hotkeyEntries[existingIdx]?.hotKey || ''}`.trim();
+        result = this.hostBridge.saveHotkey(oldRaw, newRaw, handlerToSave, allowRiskyHotkeys);
       } else {
         result = this.hostBridge.addHotkey(newRaw, handlerToSave, allowRiskyHotkeys);
       }

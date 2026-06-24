@@ -581,10 +581,11 @@ class AKApp extends AKBase {
   }
 
   UnbindAllHotkeys() {
-    for hotkey, hkDef in this._assignedHotkeys {
-      try Hotkey(hotkey, "Off")
-    }
-    this._assignedHotkeys := Map()
+    toUnbind := []
+    for hotkey in this._assignedHotkeys
+      toUnbind.Push(hotkey)
+    for hotkey in toUnbind
+      this._turnOffHotkey(hotkey)
   }
 
   RebindAllHotkeys() {
@@ -918,14 +919,11 @@ class AKApp extends AKBase {
         continue
       if ("" hkDef["action"] != target)
         continue
-      try Hotkey(hotkey, "Off")
       toDelete.Push(hotkey)
     }
 
-    for hotkey in toDelete {
-      if (this._assignedHotkeys.Has(hotkey))
-        this._assignedHotkeys.Delete(hotkey)
-    }
+    for hotkey in toDelete
+      this._turnOffHotkey(hotkey)
   }
 
   _rebindControlHotkeys() {
@@ -1294,15 +1292,40 @@ class AKApp extends AKBase {
     this.Config.HOTKEYS := parsed
   }
 
+  _turnOffHotkey(hotkey) {
+    hotkeyText := Trim("" hotkey)
+    if (!hotkeyText)
+      return
+    if (this._assignedHotkeys.Has(hotkeyText))
+      this._assignedHotkeys.Delete(hotkeyText)
+    try Hotkey(hotkeyText, "Off")
+    catch Error as err
+      this.outputDebugLine(AKApp.LOG_DEBUG, "Failed to unbind hotkey " hotkeyText ": " err.Message, Map("source", "hotkeys"))
+  }
+
+  _findHotkeyEntryIndex(entries, hotKey) {
+    hotKeyText := Trim("" hotKey)
+    if (!hotKeyText)
+      return -1
+    wantedUniversal := convertToUniversalVkHotkey(hotKeyText)
+    for idx, entry in entries {
+      entryHotKey := entry.Has("hotKey") ? Trim("" entry["hotKey"]) : ""
+      if (!entryHotKey)
+        continue
+      if (entryHotKey = hotKeyText || convertToUniversalVkHotkey(entryHotKey) = wantedUniversal)
+        return idx - 1
+    }
+    return -1
+  }
   _unbindAssignedHotkeyByRaw(hotKey) {
     hotKeyText := Trim("" hotKey)
     if (!hotKeyText)
       return
-
     universal := convertToUniversalVkHotkey(hotKeyText)
-    try Hotkey(universal, "Off")
     if (this._assignedHotkeys.Has(universal))
-      this._assignedHotkeys.Delete(universal)
+      this._turnOffHotkey(universal)
+    else if (this._assignedHotkeys.Has(hotKeyText))
+      this._turnOffHotkey(hotKeyText)
   }
 
   _isDangerousMouseOnlyHotkey(hotKey) {
@@ -1402,15 +1425,12 @@ class AKApp extends AKBase {
     return problems
   }
 
-  SaveHotkey(index, hotKey, action, allowRiskyHotkeys := false) {
-    try idx := Integer(index)
-    catch {
-      return this._jsonAtomicResult(false, "Invalid hotkey index")
-    }
-
+  SaveHotkey(oldHotKey, hotKey, action, allowRiskyHotkeys := false) {
     entries := this._hotkeyEntriesFromConfig()
+    oldHotKeyText := Trim("" oldHotKey)
+    idx := this._findHotkeyEntryIndex(entries, oldHotKeyText)
     if (idx < 0 || idx >= entries.Length)
-      return this._jsonAtomicResult(false, "Hotkey index out of range")
+      return this._jsonAtomicResult(false, oldHotKeyText ? "Hotkey to replace was not found: " oldHotKeyText : "Missing hotkey to replace")
 
     problems := this._validateHotkeyEntry(hotKey, action, entries, idx, allowRiskyHotkeys)
     if (problems.Length > 0)
@@ -1432,28 +1452,26 @@ class AKApp extends AKBase {
     this._saveHotkeyEntries(entries)
     this.Config.Save()
     this.outputDebugLine(AKApp.LOG_DEBUG, "Config written to disk", Map("source", "core"))
-    this.outputDebugLine(AKApp.LOG_DEBUG, "Hotkey updated at index " idx ": " hotKey " -> " action, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys", "index", idx)))
+    this.outputDebugLine(AKApp.LOG_DEBUG, "Hotkey updated: " oldHotKeyText " -> " hotKey " -> " action, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys", "hotKey", hotKey)))
     return this._jsonAtomicResult(true, "", Map("problems", []))
   }
 
-  RemoveHotkey(index) {
-    try idx := Integer(index)
-    catch {
-      return this._jsonAtomicResult(false, "Invalid hotkey index")
-    }
-
+  RemoveHotkey(hotKey) {
     entries := this._hotkeyEntriesFromConfig()
+    hotKeyText := Trim("" hotKey)
+    idx := this._findHotkeyEntryIndex(entries, hotKeyText)
     if (idx < 0 || idx >= entries.Length)
-      return this._jsonAtomicResult(false, "Hotkey index out of range")
+      return this._jsonAtomicResult(false, hotKeyText ? "Hotkey to remove was not found: " hotKeyText : "Missing hotkey to remove")
 
     oldEntry := entries[idx + 1]
     this._unbindAssignedHotkeyByRaw(oldEntry["hotKey"])
+
     entries.RemoveAt(idx + 1)
 
     this._saveHotkeyEntries(entries)
     this.Config.Save()
     this.outputDebugLine(AKApp.LOG_DEBUG, "Config written to disk", Map("source", "core"))
-    this.outputDebugLine(AKApp.LOG_DEBUG, "Hotkey removed at index " idx, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys", "index", idx)))
+    this.outputDebugLine(AKApp.LOG_DEBUG, "Hotkey removed: " hotKeyText, Map("source", "hotkeys", "settingRef", Map("page", "hotkeys", "hotKey", hotKeyText)))
     return this._jsonAtomicResult(true, "", Map("problems", []))
   }
 
@@ -1915,7 +1933,19 @@ class AKApp extends AKBase {
     return true
   }
 
+  ; TODO: Add temporary implicit LWin up:: handler to skip the Start menu when Win was pressed without other keyboard keys but with mouse buttons.
+  ; Apply this only to actions that need this kind of hotkey behavior.
+  ; LWin up::
+  ; if (do_not_open_start_menu || dragging || resizing)
+  ;   do_not_open_start_menu := false
+  ; else
+  ;   Send {LWin}
+  ; return
   _runHotkeyAction(some*) {
+    if (!this._assignedHotkeys.Has(A_ThisHotkey)) {
+      this.outputDebugLine(AKApp.LOG_DEBUG, "Hotkey " A_ThisHotkey " was changed to some other, skipping") ; this is maybe implicit fail but since looks like ahk2 dont have yet proper way to unbind hotkey so
+      return
+    }
     hkDef := this._assignedHotkeys[A_ThisHotKey]
     ; TODO: HotkeyThrottlingBlocklist?
     if (A_PriorHotkey = A_ThisHotkey && A_TimeSincePriorHotkey < this.HotkeyThrottlingTimeout) {

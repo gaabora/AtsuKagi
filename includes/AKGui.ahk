@@ -69,8 +69,8 @@ class AKGui extends AKBase {
     nw.AddCallbackToScript("SaveSettingsJson", (wv, payload:="") => this._saveSettingsJson(payload))
     nw.AddCallbackToScript("SaveGeneralSetting", (wv, key:="", value:="") => this._saveGeneralSetting(key, value))
     nw.AddCallbackToScript("SavePluginSetting", (wv, pluginId:="", key:="", value:="") => this._savePluginSetting(pluginId, key, value))
-    nw.AddCallbackToScript("SaveHotkey", (wv, index:=0, hotKey:="", action:="", allowRiskyHotkeys:=0) => this._saveHotkey(index, hotKey, action, allowRiskyHotkeys))
-    nw.AddCallbackToScript("RemoveHotkey", (wv, index:=0) => this._removeHotkey(index))
+    nw.AddCallbackToScript("SaveHotkey", (wv, oldHotKey:="", hotKey:="", action:="", allowRiskyHotkeys:=0) => this._saveHotkey(oldHotKey, hotKey, action, allowRiskyHotkeys))
+    nw.AddCallbackToScript("RemoveHotkey", (wv, hotKey:="") => this._removeHotkey(hotKey))
     nw.AddCallbackToScript("AddHotkey", (wv, hotKey:="", action:="", allowRiskyHotkeys:=0) => this._addHotkey(hotKey, action, allowRiskyHotkeys))
     nw.AddCallbackToScript("StartHotkeyRecording", (wv, optionsJson:="") => this._startHotkeyRecording(nw, optionsJson))
     nw.AddCallbackToScript("StopHotkeyRecording", (wv, *) => this._stopHotkeyRecording())
@@ -181,12 +181,12 @@ class AKGui extends AKBase {
     return this.App.SavePluginSetting(pluginId, key, value)
   }
 
-  _saveHotkey(index, hotKey, action, allowRiskyHotkeys:=0) {
-    return this.App.SaveHotkey(index, hotKey, action, allowRiskyHotkeys)
+  _saveHotkey(oldHotKey, hotKey, action, allowRiskyHotkeys:=0) {
+    return this.App.SaveHotkey(oldHotKey, hotKey, action, allowRiskyHotkeys)
   }
 
-  _removeHotkey(index) {
-    return this.App.RemoveHotkey(index)
+  _removeHotkey(hotKey) {
+    return this.App.RemoveHotkey(hotKey)
   }
 
   _addHotkey(hotKey, action, allowRiskyHotkeys:=0) {
