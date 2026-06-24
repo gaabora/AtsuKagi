@@ -66,5 +66,5 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
-
+speak in simplified english please, so even foreigner without tech background can understand what you mean, without fancy metaphors but better in simple examples
 no newlines between params in methods and conditions if line <200 symbols

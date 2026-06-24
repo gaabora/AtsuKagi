@@ -4,8 +4,7 @@
     {
       "label": "build",
       "group": {
-        "kind": "build",
-        "isDefault": true
+        "kind": "build"
       },
       "command": "${config:haribol.paths.ahkCompiler}",
       "type": "shell",
@@ -44,8 +43,7 @@
         "tests\\RunAllTests.ahk"
       ],
       "group": {
-        "kind": "test",
-        "isDefault": true
+        "kind": "test"
       },
       "problemMatcher": {
         "owner": "ahk",
@@ -67,7 +65,34 @@
       }
     },
     {
+      "label": "test cli",
+      "type": "shell",
+      "command": "${config:haribol.paths.ahkRuntime}",
+      "args": [
+        "tests\\RunAllTests.ahk"
+      ],
+      "group": {
+        "kind": "build"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "test gui",
+      "type": "shell",
+      "command": "${config:haribol.paths.ahkRuntime}",
+      "args": [
+        "tests\\RunAllTestsGui.ahk"
+      ],
+      "group": {
+        "kind": "build"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "run script",
+      "group": {
+        "kind": "build"
+      },
       "type": "shell",
       "command": "${config:haribol.paths.ahkRuntime}",
       "args": [
@@ -94,6 +119,9 @@
     },
     {
       "label": "run binary",
+      "group": {
+        "kind": "build"
+      },
       "command": "${workspaceRoot}\\Haribol!.exe",
       "type": "shell",
       "problemMatcher": []

@@ -45,6 +45,16 @@
       "port": 9005,
       "captureStreams": true,
       "stopOnEntry": false,
+    },
+    {
+      "runtime": "${config:haribol.paths.ahkRuntime}",
+      "type": "ahkdbg",
+      "request": "launch",
+      "name": "AHK v2 Debug AllTests GUI",
+      "program": "${workspaceFolder}/tests/RunAllTestsGui.ahk",
+      "port": 9005,
+      "captureStreams": true,
+      "stopOnEntry": false,
     }
   ]
 }

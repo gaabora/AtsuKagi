@@ -31,15 +31,15 @@ class AKBase {
     AKBase._notificationConfig := config
   }
   ShowError(text, title:="") {
-    this.outputDebugLine(AKApp.LOG_ERROR, text, 0)
+    this.outputDebugLine(AKBase.LOG_ERROR, text, 0)
     return this.MsgBox(text, title ? title : "ERROR", , MSGBOX_OPTS.BUTTONS_CANCEL_RETRY_CONTINUE | MSGBOX_OPTS.ICON_ERROR | MSGBOX_OPTS.DEFAULT_BUTTON_2)
   }
   ShowWarning(text, title:="", timeout:=15000) {
-    this.outputDebugLine(AKApp.LOG_WARNING, text)
+    this.outputDebugLine(AKBase.LOG_WARNING, text)
     return this.msgBox(text, title ? title : "WARNING", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_WARNING)
   }
   ShowNotice(text, title:="", timeout:=10000) {
-    this.outputDebugLine(AKApp.LOG_NOTICE, text, 2)
+    this.outputDebugLine(AKBase.LOG_NOTICE, text, 2)
     return this.msgBox(text, title ? title : "NOTICE", timeout, MSGBOX_OPTS.BUTTONS_OK | MSGBOX_OPTS.ICON_INFO)
   }
   ShowInfo(text, title:="", timeout:=-1, style:="info") {

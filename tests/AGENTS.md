@@ -9,6 +9,7 @@
 - Tests should describe existing production contracts without introducing runtime dependencies.
 - `Yunit/` is bundled third-party test infrastructure.
 - `RunAllTests.ahk` runs all suites through Yunit stdout mode for CLI/task output.
+- `RunAllTestsGui.ahk` opens each suite in Yunit window mode for manual GUI review.
 
 ## Local Contracts
 
