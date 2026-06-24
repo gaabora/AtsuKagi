@@ -8,6 +8,7 @@
 
 - Treat these files as developer-local workflow configuration.
 - Build and launch entries must point at repository-owned scripts and artifacts.
+- The default `test` task runs `tests/RunAllTests.ahk` for combined CLI output.
 
 ## Local Contracts
 

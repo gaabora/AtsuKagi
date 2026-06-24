@@ -23,9 +23,7 @@
       "port": 9005,
       "captureStreams": true,
       "stopOnEntry": false,
-      "skipFiles": [
-        "${workspaceFolder}/tests/**/*.ahk"
-      ]
+      // "skipFiles": [ "${workspaceFolder}/tests/**/*.ahk" ]
     },
     {
       "runtime": "${config:haribol.paths.ahkRuntime}",
@@ -33,6 +31,17 @@
       "request": "launch",
       "name": "AHK v2 Debug IniFileTests",
       "program": "${workspaceFolder}/tests/IniFileTests.ahk",
+      "port": 9005,
+      "captureStreams": true,
+      "stopOnEntry": false,
+    },
+    {
+      "runtime": "${config:haribol.paths.ahkRuntime}",
+      "type": "ahkdbg",
+      "request": "launch",
+      "name": "AHK v2 Debug AllTests",
+      "program": "${workspaceFolder}/tests/RunAllTests.ahk",
+      "args": ["--debug-output"],
       "port": 9005,
       "captureStreams": true,
       "stopOnEntry": false,

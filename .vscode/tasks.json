@@ -41,7 +41,7 @@
       "type": "shell",
       "command": "${config:haribol.paths.ahkRuntime}",
       "args": [
-        "tests\\IniFileTests.ahk"
+        "tests\\RunAllTests.ahk"
       ],
       "group": {
         "kind": "test",
