@@ -95,7 +95,7 @@ Detect current keyboard layout, switch layouts, convert mistyped text between EN
 - **ShowUsersKeyboardLayouts()** - Display all installed keyboard layouts available on system.
 - **GetCurrentKeyboardLayoutName()** - Get name of currently active keyboard layout.
 - **SwitchKeyboardLayout(layoutNameOrId='')** - Switch to specific keyboard layout by name or language ID.
-- **SwitchSelectedTextLayout(layoutA, layoutB)** - Convert selected text between two layouts and replace.
+- **SwitchSelectedTextLayout(layoutA='', layoutB='')** - Convert selected text using a supported installed pair, or an explicit compatible pair.
 - **SwitchSelectedTextCase()** - Toggle case of selected text (UPPER ↔ lower).
 
 ## RDPWindowHandler

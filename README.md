@@ -62,7 +62,7 @@ These examples come from the current default config.
 | `Ctrl+Win+Alt+Space` | `ToggleWindowTransparency` | Toggle transparency on the active window |
 | `Win+WheelUp` | `IfThenElse(IsMouseOverWindowTitlebar, GoWithHoveredWindowToPrevDesktop, GoToPrevDesktop)` | Switch desktop, or move with hovered window |
 | `CapsLock` | `SwitchKeyboardLayout()` | Switch current keyboard layout |
-| `Ctrl+CapsLock` | `SwitchSelectedTextLayout(EN,RU)` | Convert selected text between EN and RU layouts |
+| `Ctrl+CapsLock` | `SwitchSelectedTextLayout()` | Convert selected text using a supported installed layout pair |
 | `RButton` | `SkipIfBlocklisted(NoRightClickGesture, EnterGestureMode(1, 4))` | Right-button gesture mode unless excluded by blocklist |
 | `XButton2` | `EnterGestureMode(4, 4, ToggleTaskView)` | Four-finger gesture mode with Task View fallback |
 

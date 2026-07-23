@@ -34,8 +34,6 @@
 
 ## Verification
 
-- Do not run automated tests under the current repository-wide user preference.
-
 ## Child DOX Index
 
 - [`ui/AGENTS.md`](ui/AGENTS.md): settings WebView frontend and bundled frontend dependencies.

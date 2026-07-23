@@ -128,7 +128,8 @@ class ShellHookCodes {
 
 class KeyboardInputFlags {
   static WM_INPUTLANGCHANGEREQUEST := 0x0050
-  static INPUTLANGCHANGE_SYSCHARSET := 1
+  static INPUTLANGCHANGE_SYSCHARSET := 0x0001
+  static INPUTLANGCHANGE_FORWARD := 0x0002
 }
 
 class VirtualDesktopMessages {

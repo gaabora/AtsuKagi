@@ -152,7 +152,7 @@ GetDefaultHotkeysConfig() {
   config["*~+Control"]   := "ShowCurrentKeyboardLayout()"
   config["*~+Alt"]       := "ShowCurrentKeyboardLayout()"
   
-  config["^CapsLock"]    := "SwitchSelectedTextLayout(EN,RU)"
+  config["^CapsLock"]    := "SwitchSelectedTextLayout()"
   
   ; config["#!CapsLock"]   := "SwitchToNextRDPClientWindow"
   ; config["+CapsLock"]    := "MinimizeRestoreRDPClientWindows"

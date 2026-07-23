@@ -26,6 +26,9 @@
 - `VirtualDesktopManager` selects its versioned accessor DLL through shared `GetWindowsRelease()` detection.
 - `VirtualDesktopManager.LoopFirstAndLast` is a descriptor-backed setting that controls whether previous/next navigation wraps at the desktop boundaries.
 - `VirtualDesktopManager` shows `Desktop N` after desktop-change events on Windows 10, where native desktop-name feedback is absent.
+- `TextLocaleManager` automatic text conversion supports exact standard US QWERTY KLID `00000409` and standard Russian KLID `00000419`; variants and ambiguous same-language HKL matches must skip safely.
+- `TextLocaleManager.SwitchSelectedTextLayout()` validates a compatible installed pair, the exact final HKL, and the target window before pasting; explicit layout names must use the same validation.
+- `TextLocaleManager.SwitchKeyboardLayout()` uses `INPUTLANGCHANGE_FORWARD` for its no-argument next-layout action and the exact resolved active HKL for named switching.
 - Use AutoHotkey v2 syntax and existing plugin naming conventions.
 
 ## Work Guidance

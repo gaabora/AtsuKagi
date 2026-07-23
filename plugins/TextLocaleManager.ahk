@@ -1,6 +1,11 @@
 class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixes
   KEY_MAPPING_DICT := Map()
   USER_KEYBOARD_LAYOUTS := []
+  SUPPORTED_USER_LAYOUTS := Map()
+  SUPPORTED_LAYOUT_PAIRS := []
+  TEXT_LAYOUT_ALIASES := Map("EN", "EN", "ENG", "EN", "RU", "RU", "RUS", "RU")
+  SUPPORTED_TEXT_LAYOUT_KLIDS := Map("EN", Map("00000409", true), "RU", Map("00000419", true))
+  IMPLICIT_LINE_COPY_PROCESSES := Map("Code.exe", true, "Code - Insiders.exe", true, "VSCodium.exe", true, "Cursor.exe", true) ; TODO: make configurable by using some named blocklist with simple understandable description
 
   HOTKEY_CTRL_C := '^{vk43}'
   HOTKEY_CTRL_X := '^{vk58}'
@@ -57,14 +62,14 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
           "action", "SwapTextLayout",
           "label", "Swap text layout",
           "description", "Convert text from one keyboard layout to another (e.g., EN to RU)",
-          "params", ["incorrectText", "layoutA", "layoutB"],
+          "params", [Map("name", "incorrectText"), Map("name", "layoutA"), Map("name", "layoutB")],
           "category", "Text Conversion"
         ),
         Map(
           "action", "SwitchSelectedTextLayout",
           "label", "Switch selected text layout",
           "description", "Fix mistyped selected text by converting between two keyboard layouts",
-          "params", ["layoutA", "layoutB"],
+          "params", [Map("name", "layoutA", "default", ""), Map("name", "layoutB", "default", "")],
           "category", "Text Conversion"
         ),
         Map(
@@ -98,20 +103,22 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
     this.WHITESPACE_SYMBOLS := " `t`n"
 
     this.USER_KEYBOARD_LAYOUTS := this._getUsersKeyboardLayouts()
+    this._refreshSupportedLayoutPairs()
   }
 
   SwapTextLayout(incorrectText, layoutA, layoutB) { ;;;
+    layoutA := this._resolveTextLayoutName(layoutA)
+    layoutB := this._resolveTextLayoutName(layoutB)
     oldLayout := ''
-    newLayout := ''
+    newLayout := this._detectLayout(incorrectText, layoutA, layoutB)
     newText := ''
+
+    if (newLayout = '')
+      return {newText: incorrectText, newLayout: ''}
 
     Loop Parse, incorrectText
     {
       currentSymbol := A_LoopField
-
-      if (newLayout = '') {
-        newLayout := this._detectLayout(currentSymbol, layoutA, layoutB)
-      }
 
       if (newLayout = layoutA) {
         oldLayout := layoutB
@@ -151,7 +158,9 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
   ShowUsersKeyboardLayouts() { ;;;
     outputText := ''
     for (layoutData in this._getUsersKeyboardLayouts()) {
-      outputText .= layoutData.name . ' (' . layoutData.alias . ' ' . layoutData.value . ')`n'
+      textLayoutName := this._resolveInstalledTextLayoutName(layoutData)
+      supportText := (textLayoutName != '') ? 'supported as ' . textLayoutName : 'unsupported'
+      outputText .= layoutData.name . ' (' . layoutData.alias . ' ' . layoutData.value . ') - ' . supportText . '`n'
     }
     this.ShowInfo(outputText)
   }
@@ -161,29 +170,41 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
   }
 
   SwitchKeyboardLayout(layoutNameOrId:='') { ;;;
-    layoutId := (IsNumber(layoutNameOrId)) ? layoutNameOrId : INPUT_LOCALES.GetLayoutCodeNumber(layoutNameOrId)
-    layoutName := INPUT_LOCALES.GetKeyboardLayoutName(layoutId)
-    if (layoutId != INPUT_LOCALES._NEXT && !this._isLayoutValid(layoutId))
-      throw TypeError('Keyboard layout ' . layoutNameOrId . ' is not valid or was not added for current user')
-
-    hwnd := ControlGetFocus("A") || WinExist("A")
-
-    SendMessage(KeyboardInputFlags.WM_INPUTLANGCHANGEREQUEST, KeyboardInputFlags.INPUTLANGCHANGE_SYSCHARSET, layoutId,, hwnd)
+    targetHwnd := this._getKeyboardLayoutTargetHwnd()
+    isNextLayout := !IsNumber(layoutNameOrId) && Trim("" layoutNameOrId) = ""
+    if (isNextLayout) {
+      this._requestKeyboardLayout(0, KeyboardInputFlags.INPUTLANGCHANGE_FORWARD, targetHwnd)
+    } else {
+      layoutData := this._resolveInstalledKeyboardLayout(layoutNameOrId)
+      if (!layoutData)
+        throw TypeError('Keyboard layout ' . layoutNameOrId . ' is not valid or was not added for current user')
+      this._requestKeyboardLayout(layoutData.hkl, KeyboardInputFlags.INPUTLANGCHANGE_SYSCHARSET, targetHwnd)
+    }
 
     this.ShowCurrentKeyboardLayout()
   }
 
-  SwitchSelectedTextLayout(layoutA, layoutB) { ;;;
-    selectedText := this._getSelectedText() 
-    converted := this.SwapTextLayout(selectedText, layoutA, layoutB)
+  SwitchSelectedTextLayout(params*) { ;;;
+    layoutPair := this._getTextLayoutPair(params*)
+    if (!layoutPair)
+      return
 
-    OutputDebug('selectedText' . selectedText . '`n')
-    OutputDebug('newText' . converted.newText . '`n')
-    OutputDebug('newLayout' . converted.newLayout . '`n')
+    selectedText := this._getSelectedText()
+    if (selectedText = '')
+      return
 
+    converted := this.SwapTextLayout(selectedText, layoutPair.layoutA, layoutPair.layoutB)
+    if (converted.newLayout = '' || converted.newText = selectedText)
+      return
+
+    targetLayoutData := this._getPairLayoutData(layoutPair, converted.newLayout)
+    if (!targetLayoutData || !targetLayoutData.hkl)
+      return
+
+    targetHwnd := this._getKeyboardLayoutTargetHwnd()
     this._putText(converted.newText)
-
-    this.SwitchKeyboardLayout(converted.newLayout)
+    this._requestKeyboardLayout(targetLayoutData.hkl, KeyboardInputFlags.INPUTLANGCHANGE_SYSCHARSET, targetHwnd)
+    this.ShowCurrentKeyboardLayout()
   }
 
   SwitchSelectedTextCase() { ;;;
@@ -278,7 +299,7 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
     ; Check named blocklist for windows where Ctrl+C should not be sent
     MouseGetPos(,, &hwnd)
     if (this.IsInBlocklist('NoCtrlCHotkey', hwnd)) {
-      this.outputDebugLine(AKApp.LOG_NOTICE, '_getSelectedText: skipped Ctrl+C for blocklisted window')
+      this.outputDebugLine(AKBase.LOG_NOTICE, '_getSelectedText: skipped Ctrl+C for blocklisted window')
       return ''
     }
 
@@ -289,7 +310,23 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
       ? A_Clipboard
       : ''
     A_Clipboard := clipboardBackup
+    if (selectedText != '' && this._isLikelyImplicitLineCopy(selectedText))
+      return ''
     return selectedText
+  }
+
+  _isLikelyImplicitLineCopy(text, processName := '') {
+    text := "" text
+    if (!RegExMatch(text, "^[^\r\n]*\R$"))
+      return false
+    processName := Trim("" processName)
+    if (processName = '') {
+      try processName := WinGetProcessName("A")
+      catch {
+        processName := ''
+      }
+    }
+    return processName != '' && this.IMPLICIT_LINE_COPY_PROCESSES.Has(processName)
   }
 
   _putText(text) {
@@ -302,6 +339,8 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
   }
 
   _getHeyMapDict(layoutA, layoutB) {
+    layoutA := this._resolveTextLayoutName(layoutA)
+    layoutB := this._resolveTextLayoutName(layoutB)
     combA := layoutA . '-' . layoutB
     if (this.KEY_MAPPING_DICT.Has(combA))
       return this.KEY_MAPPING_DICT[combA]
@@ -311,42 +350,199 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
     throw Error('No key mapping dictionaries found for layouts combinations ' . combA . ', ' . combB)
   }
 
-  _detectLayout(currentSymbol, layoutA, layoutB) {
+  _detectLayout(text, layoutA, layoutB) {
+    layoutA := this._resolveTextLayoutName(layoutA)
+    layoutB := this._resolveTextLayoutName(layoutB)
     keyMapDict := this._getHeyMapDict(layoutA, layoutB)
 
-    for (idx, fromGroup in keyMapDict[layoutA]) {
-        if (InStr(keyMapDict[layoutA][idx], currentSymbol, true)) {
-            return layoutB
-        }
-        if (InStr(keyMapDict[layoutB][idx], currentSymbol, true)) {
-            return layoutA
-        }
+    Loop Parse, text
+    {
+      currentSymbol := A_LoopField
+      symbolLayout := this._getSymbolTextLayout(currentSymbol, keyMapDict, layoutA, layoutB)
+      if (symbolLayout = layoutA)
+        return layoutB
+      if (symbolLayout = layoutB)
+        return layoutA
     }
+    return ''
   }
 
-  _isLayoutValid(layoutId) {
-    for (layoutData in this._getUsersKeyboardLayouts()) {
-      if (layoutData.value = layoutId)
+  _getSymbolTextLayout(symbol, keyMapDict, layoutA, layoutB) {
+    isInLayoutA := this._isSymbolInTextLayout(symbol, keyMapDict[layoutA])
+    isInLayoutB := this._isSymbolInTextLayout(symbol, keyMapDict[layoutB])
+    if (isInLayoutA = isInLayoutB)
+      return ''
+    return isInLayoutA ? layoutA : layoutB
+  }
+
+  _isSymbolInTextLayout(symbol, layoutGroups) {
+    for layoutGroup in layoutGroups {
+      if (InStr(layoutGroup, symbol, true))
         return true
     }
     return false
   }
+
+  _getTextLayoutPair(params*) {
+    if (params.Length = 0)
+      return this.SUPPORTED_LAYOUT_PAIRS.Length ? this.SUPPORTED_LAYOUT_PAIRS[1] : false
+    if (params.Length != 2)
+      throw ValueError('Both text layout names are required')
+    layoutAParam := Trim("" params[1])
+    layoutBParam := Trim("" params[2])
+    if (layoutAParam = "" && layoutBParam = "")
+      return this.SUPPORTED_LAYOUT_PAIRS.Length ? this.SUPPORTED_LAYOUT_PAIRS[1] : false
+    if (layoutAParam = "" || layoutBParam = "")
+      throw ValueError('Both text layout names are required')
+    layoutA := this._resolveTextLayoutName(layoutAParam)
+    layoutB := this._resolveTextLayoutName(layoutBParam)
+    return this._createSupportedLayoutPair(layoutA, layoutB)
+  }
+
+  _refreshSupportedLayoutPairs() {
+    this.SUPPORTED_USER_LAYOUTS := Map()
+    this.SUPPORTED_LAYOUT_PAIRS := []
+    for (layoutData in this.USER_KEYBOARD_LAYOUTS) {
+      textLayoutName := this._resolveInstalledTextLayoutName(layoutData)
+      if (textLayoutName != '')
+        this.SUPPORTED_USER_LAYOUTS[textLayoutName] := layoutData
+    }
+    layoutPair := this._createSupportedLayoutPair("EN", "RU")
+    if (layoutPair)
+      this.SUPPORTED_LAYOUT_PAIRS.Push(layoutPair)
+  }
+
+  _createSupportedLayoutPair(layoutA, layoutB) {
+    if (!this.SUPPORTED_USER_LAYOUTS.Has(layoutA) || !this.SUPPORTED_USER_LAYOUTS.Has(layoutB))
+      return false
+    installedLayoutA := this.SUPPORTED_USER_LAYOUTS[layoutA]
+    installedLayoutB := this.SUPPORTED_USER_LAYOUTS[layoutB]
+    if (!installedLayoutA.hkl || !installedLayoutB.hkl)
+      return false
+    try this._getHeyMapDict(layoutA, layoutB)
+    catch
+      return false
+    return {
+      layoutA: layoutA,
+      layoutB: layoutB,
+      installedLayoutA: installedLayoutA,
+      installedLayoutB: installedLayoutB
+    }
+  }
+
+  _getPairLayoutData(layoutPair, textLayoutName) {
+    if (layoutPair.layoutA = textLayoutName)
+      return layoutPair.installedLayoutA
+    if (layoutPair.layoutB = textLayoutName)
+      return layoutPair.installedLayoutB
+    return false
+  }
+
+  _resolveInstalledTextLayoutName(layoutData) {
+    if (!layoutData.HasOwnProp("klid") || !layoutData.HasOwnProp("hkl") || layoutData.klid = '' || !layoutData.hkl)
+      return ''
+    layoutKlid := StrUpper(layoutData.klid)
+    for textLayoutName, supportedKlids in this.SUPPORTED_TEXT_LAYOUT_KLIDS {
+      if (supportedKlids.Has(layoutKlid))
+        return textLayoutName
+    }
+    return ''
+  }
+
+  _resolveTextLayoutName(layoutName) {
+    layoutName := StrUpper(Trim("" layoutName))
+    if (layoutName = '')
+      return ''
+    if (this.TEXT_LAYOUT_ALIASES.Has(layoutName))
+      return this.TEXT_LAYOUT_ALIASES[layoutName]
+    throw ValueError('Unknown text conversion layout ' . layoutName)
+  }
+
+  _resolveInstalledKeyboardLayout(layoutNameOrId) {
+    requestedLayoutId := IsNumber(layoutNameOrId) ? layoutNameOrId : INPUT_LOCALES.GetLayoutCodeNumber(layoutNameOrId)
+    normalizedRequestedHkl := this._normalizeKeyboardLayoutHandle(requestedLayoutId)
+    for layoutData in this.USER_KEYBOARD_LAYOUTS {
+      if (layoutData.hkl && (layoutData.value = requestedLayoutId || this._normalizeKeyboardLayoutHandle(layoutData.hkl) = normalizedRequestedHkl))
+        return layoutData
+    }
+    return false
+  }
+
+  _getKeyboardLayoutTargetHwnd() {
+    targetHwnd := 0
+    try targetHwnd := ControlGetFocus("A")
+    if (!targetHwnd)
+      targetHwnd := WinExist("A")
+    if (!targetHwnd)
+      throw TargetError('Active window or focused control not found')
+    return targetHwnd
+  }
+
+  _requestKeyboardLayout(layoutHkl, requestFlags, targetHwnd) {
+    SendMessage(KeyboardInputFlags.WM_INPUTLANGCHANGEREQUEST, requestFlags, layoutHkl,, "ahk_id " . targetHwnd)
+  }
   
   _getUsersKeyboardLayouts() {
     keyboardLayouts := []
-    Loop Reg, "HKCU\Keyboard Layout\Preload", "R KV" ; recursively keys+values
-    {
-      if (A_LoopRegType != "key") {
-        value := RegRead()
-        if (value != "") {
-          alias := '0x' . value
-          intValue := Integer(alias)
-          name := INPUT_LOCALES.GetKeyboardLayoutName(intValue)
-          keyboardLayouts.Push({ alias: alias, name: name, value: intValue })
-        }
-      }
+    activeHandlesByLanguage := Map()
+    for keyboardLayoutHkl in this._getActiveKeyboardLayoutHandles() {
+      normalizedHkl := this._normalizeKeyboardLayoutHandle(keyboardLayoutHkl)
+      languageId := normalizedHkl & 0xFFFF
+      if (!activeHandlesByLanguage.Has(languageId))
+        activeHandlesByLanguage[languageId] := []
+      activeHandlesByLanguage[languageId].Push(keyboardLayoutHkl)
+    }
+
+    configuredKlids := this._getConfiguredKeyboardLayoutKlids()
+    configuredKlidsByLanguage := Map()
+    for layoutKlid in configuredKlids {
+      languageId := Integer("0x" layoutKlid) & 0xFFFF
+      if (!configuredKlidsByLanguage.Has(languageId))
+        configuredKlidsByLanguage[languageId] := []
+      configuredKlidsByLanguage[languageId].Push(layoutKlid)
+    }
+
+    for layoutKlid in configuredKlids {
+      layoutValue := Integer("0x" layoutKlid)
+      languageId := layoutValue & 0xFFFF
+      matchingActiveHandles := activeHandlesByLanguage.Has(languageId) ? activeHandlesByLanguage[languageId] : []
+      matchingConfiguredKlids := configuredKlidsByLanguage[languageId]
+      keyboardLayoutHkl := (matchingActiveHandles.Length = 1 && matchingConfiguredKlids.Length = 1) ? matchingActiveHandles[1] : 0
+      layoutName := INPUT_LOCALES.GetKeyboardLayoutName(languageId)
+      keyboardLayouts.Push({alias: '0x' . layoutKlid, klid: layoutKlid, name: layoutName, value: layoutValue, hkl: keyboardLayoutHkl})
     }
     return keyboardLayouts
+  }
+
+  _getConfiguredKeyboardLayoutKlids() {
+    configuredKlids := []
+    configuredKlidsSet := Map()
+    Loop Reg, "HKCU\Keyboard Layout\Preload", "V"
+    {
+      layoutKlid := StrUpper(Trim("" RegRead()))
+      try layoutKlid := StrUpper(Trim("" RegRead("HKCU\Keyboard Layout\Substitutes", layoutKlid)))
+      if (!RegExMatch(layoutKlid, "^[0-9A-F]{8}$") || configuredKlidsSet.Has(layoutKlid))
+        continue
+      configuredKlidsSet[layoutKlid] := true
+      configuredKlids.Push(layoutKlid)
+    }
+    return configuredKlids
+  }
+
+  _getActiveKeyboardLayoutHandles() {
+    keyboardLayoutHandles := []
+    layoutCount := DllCall("User32.dll\GetKeyboardLayoutList", "Int", 0, "Ptr", 0, "Int")
+    if (layoutCount <= 0)
+      return keyboardLayoutHandles
+    layoutBuffer := Buffer(layoutCount * A_PtrSize)
+    copiedLayoutCount := DllCall("User32.dll\GetKeyboardLayoutList", "Int", layoutCount, "Ptr", layoutBuffer.Ptr, "Int")
+    Loop copiedLayoutCount
+      keyboardLayoutHandles.Push(NumGet(layoutBuffer, (A_Index - 1) * A_PtrSize, "Ptr"))
+    return keyboardLayoutHandles
+  }
+
+  _normalizeKeyboardLayoutHandle(keyboardLayoutHkl) {
+    return keyboardLayoutHkl & 0xFFFFFFFF
   }
 
   _convertSymbol(currentSymbol, fromLayout, toLayout) {
@@ -370,6 +566,10 @@ class TextLocaleManager extends AKPlugin { ; TODO: needs review, maybe some fixe
 
 class INPUT_LOCALES {
   static _NEXT := 0x0
+  static LAYOUT_ALIASES := {
+    EN: "ENG",
+    RU: "RUS"
+  }
   static LAYOUTS := { 
     ; https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/default-input-locales-for-windows-language-packs?view=windows-11
     ; TODO Add more cases for other layouts
@@ -386,10 +586,24 @@ class INPUT_LOCALES {
   }
 
   static GetLayoutCodeNumber(layoutName) {
+    layoutName := INPUT_LOCALES.ResolveLayoutName(layoutName)
+    if (layoutName = '')
+      return INPUT_LOCALES._NEXT
     try {
       return INPUT_LOCALES.LAYOUTS.%layoutName%
     } catch {
-      return INPUT_LOCALES._NEXT
+      throw ValueError('Unknown keyboard layout ' . layoutName)
+    }
+  }
+
+  static ResolveLayoutName(layoutName) {
+    layoutName := StrUpper(Trim(layoutName))
+    if (layoutName = '')
+      return ''
+    try {
+      return INPUT_LOCALES.LAYOUT_ALIASES.%layoutName%
+    } catch {
+      return layoutName
     }
   }
 
