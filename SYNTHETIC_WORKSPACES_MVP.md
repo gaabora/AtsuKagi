@@ -10,7 +10,7 @@ The MVP is complete only when all required steps below are marked `✅` and the 
 <a id="mvp-2"></a>
 ## MVP-2: Status rules
 
-- Current status: not started.
+- Current status: Stage 0 decisions are complete; the two feasibility prototypes have not started.
 - Use `[ ]` for work that has not started.
 - Replace `[ ]` with `✅` only after the linked section is implemented.
 - Do not copy details from linked sections into this file.
@@ -19,10 +19,10 @@ The MVP is complete only when all required steps below are marked `✅` and the 
 <a id="mvp-3"></a>
 ## MVP-3: Stage 0 - decisions and feasibility
 
-- [ ] Resolve every MVP-blocking input decision in [`INPUT-3`](SYNTHETIC_WORKSPACES_INPUT.md#input-3).
-- [ ] Resolve every MVP-blocking workspace and window decision in [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2).
-- [ ] Resolve every MVP-blocking persistence decision in [`STATE-8`](SYNTHETIC_WORKSPACES_STATE.md#state-8).
-- [ ] Resolve every MVP-blocking overview decision in [`OVERVIEW-2`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-2).
+- ✅ Resolve every MVP-blocking input decision in [`INPUT-3`](SYNTHETIC_WORKSPACES_INPUT.md#input-3).
+- ✅ Resolve every MVP-blocking workspace and window decision in [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2).
+- ✅ Resolve every MVP-blocking persistence decision in [`STATE-8`](SYNTHETIC_WORKSPACES_STATE.md#state-8).
+- ✅ Resolve every MVP-blocking overview decision in [`OVERVIEW-2`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-2).
 - [ ] Prove the managed CapsLock backend against [`TEST-3`](SYNTHETIC_WORKSPACES_TESTS.md#test-3).
 - [ ] Prove the desktop-cover and z-order approach against [`TEST-4`](SYNTHETIC_WORKSPACES_TESTS.md#test-4).
 

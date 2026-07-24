@@ -35,18 +35,22 @@ Canonical behavior: [`INPUT-2`](SYNTHETIC_WORKSPACES_INPUT.md#input-2) through [
 ### Chords and commit
 
 - [ ] CapsLock tap runs the approved configured tap action.
-- [ ] `CapsLock+W` switches North exactly once.
-- [ ] `CapsLock+W+D` and `CapsLock+D+W` switch North East exactly once.
-- [ ] Both W/D release orders resolve to the same North East action.
-- [ ] Releasing CapsLock before direction suffixes commits once; later suffix releases only clear state.
+- [ ] In `while-held` mode, `CapsLock+W` held unchanged for 100 ms switches North once.
+- [ ] `CapsLock+W+D` and `CapsLock+D+W` held unchanged for 100 ms switch North East once.
+- [ ] Both direction press orders and release orders produce the same diagonal result.
+- [ ] Changing a valid mask before 100 ms restarts the timer and does not switch the earlier mask.
+- [ ] Keeping one valid chord held after its switch does not repeat.
+- [ ] Releasing all direction keys rearms another switch without requiring CapsLock release.
+- [ ] An invalid mask cancels only its timer; a later stable valid mask can still switch during the same CapsLock hold.
+- [ ] In `on-release` mode, no direction switches while CapsLock is held and CapsLock release switches once to the last valid mask.
 - [ ] Every cardinal and diagonal mapping reaches the correct slot.
 - [ ] A direction held before CapsLock remains application input and is ignored by that session.
-- [ ] W released before D is pressed in one CapsLock hold is not merged into a diagonal.
-- [ ] Opposite or extra directions switch nothing and do not run the CapsLock tap action.
-- [ ] `CapsLock+W+Space` is invalid and does not toggle the overview.
-- [ ] `CapsLock+Space` opens and closes the overview without sending Space.
+- [ ] W released before D starts a separate gesture and is not merged into a diagonal.
+- [ ] `CapsLock+W+Space` does not toggle the overview and does not stop later direction gestures.
+- [ ] `CapsLock+Space` opens or closes the overview, sends no Space, and locks other Caps-mode actions until CapsLock release.
 - [ ] Keys still held from opening do not navigate the overview.
-- [ ] Auto-repeat does not dispatch an extra workspace action.
+- [ ] An unbound `CapsLock+Q` passes Q through and does not run the CapsLock tap action.
+- [ ] Keyboard auto-repeat does not dispatch an extra workspace action.
 
 ### Legacy and pass-through
 
@@ -69,7 +73,10 @@ Canonical behavior: [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2) through [
 - [ ] Haribol! shell UI stays above the active application band.
 - [ ] Normal activation and z-order changes can be detected and repaired without trapping a window.
 - [ ] A failed stack operation removes every cover and leaves all manageable windows reachable.
-- [ ] The chosen policy has explicit results for topmost, fullscreen, elevated, protected, and non-responsive windows.
+- [ ] A controllable topmost window loses topmost only while its assigned workspace is inactive, then regains it when that workspace becomes active.
+- [ ] A controllable non-blocklisted fullscreen window minimizes while its assigned workspace is inactive, then returns to its prior fullscreen state when that workspace becomes active.
+- [ ] An elevated, protected, or non-responsive window becomes unsupported without a forced move, stack, focus, minimize, or restore operation.
+- [ ] If a cover could make an unsupported window unreachable, that monitor stays uncovered and reports reduced isolation.
 
 ### Model and events
 
@@ -126,9 +133,12 @@ Canonical behavior: [`STATE-8`](SYNTHETIC_WORKSPACES_STATE.md#state-8) through [
 <a id="test-6"></a>
 ## TEST-6: MVP overview checks
 
-Canonical behavior: [`OVERVIEW-3`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-3) through [`OVERVIEW-5`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-5), [`OVERVIEW-9`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-9), and [`OVERVIEW-10`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-10).
+Canonical behavior: [`OVERVIEW-2`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-2) through [`OVERVIEW-5`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-5), [`OVERVIEW-9`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-9), and [`OVERVIEW-10`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-10).
 
 - [ ] The overview opens at the bounds selected by decision `UI-D01`.
+- [ ] Other monitors keep showing the active workspace, and the dim setting controls only their dim layer.
+- [ ] Every directional slot uses the arrow and initial color from the canonical [slot mapping](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-2-direction).
+- [ ] A slot without a custom name shows its arrow once, while a custom name keeps the arrow as its fixed badge.
 - [ ] The grid always contains nine equal cells.
 - [ ] Eight slots and the center Control Center stay in the correct cells.
 - [ ] The Control Center is clearly a placeholder, not a ninth workspace.

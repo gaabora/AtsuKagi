@@ -56,11 +56,11 @@ This table is the only place that tracks input decision status.
 | `IN-D03` | Chosen | Yes | Use one app-owned router with a small Windows/AHK backend for managed keys and mouse triggers. |
 | `IN-D04` | Chosen | Yes | A CapsLock press with no owned suffix should run the configured `SwitchKeyboardLayout()` action on release. |
 | `IN-D05` | Chosen | Yes | Exact `Alt+CapsLock` and `Ctrl+CapsLock` chords should keep their current actions and follow the rules in [`INPUT-6`](#input-6). |
-| `IN-D06` | Chosen | Yes | A direction session should commit at most one workspace action when CapsLock is released. //TODO: no, idk how to say byt there should be some throttle before switching to workspace while holding main modifier (caps) and user can switch between desktops while holding that modifier, need to add a switch setting for this 2 modes in ui |
-| `IN-D07` | Chosen | Yes | Opposite directions, a third direction - see "throttle before switching to workspace" in IN-D06, probably choose last valid of pressed direction hotkeys (including last valid diagonals) |
-| `IN-D08` | Chosen | Yes | CapsLock must be pressed before a workspace suffix. Suffix order after CapsLock remains independent. treat main modifier hotkey (caps) as a mode enabling modifier that need to be pressed first |
-| `IN-D09` | Chosen | Yes | CapsLock and every owned suffix should be consumed for their full down/up cycle. Unowned `W`, `A`, `S`, `D`, and `Space` should pass through. //FIXME: - i dont understand what here can be unclear, we press main mod (caps) - if it was alone we look for next keys that can define space switching (wasd) or other keys that will define other possible actions, like 'space' to open overwiev or other keys to do other actions  |
-| `IN-D10` | Chosen | No | Shift should be the default WinDrag quick-position modifier. - yes, but it is also configurable |
+| `IN-D06` | Chosen | Yes | Expose `while-held` and `on-release` workspace switch modes in settings. `while-held` is the default and allows several direction gestures during one CapsLock hold. |
+| `IN-D07` | Chosen | Yes | In `while-held` mode, a valid chord must stay unchanged for 100 ms before one switch. An invalid mask cancels only its pending timer. |
+| `IN-D08` | Chosen | Yes | CapsLock starts the mode and must be pressed before a workspace suffix. Direction suffix order after CapsLock is independent. |
+| `IN-D09` | Chosen | Yes | Consume CapsLock and both down/up events of a suffix that matches a Caps-mode action. An unbound non-modifier key passes through and cancels the CapsLock tap action. |
+| `IN-D10` | Chosen | No | Shift is the default configurable WinDrag quick-position modifier. |
 
 Implementation must not start beyond a safe prototype until every decision marked as an MVP blocker is chosen.
 
@@ -90,8 +90,8 @@ The router must:
 - Keep an ordered context stack.
 - Apply prefix and suffix ordering per binding.
 - Prefer the most specific matching chord.
-- Support an explicit commit event.
-- Keep a per-session `hasCommitted` guard.
+- Support prefix-release commits and stable-chord timer commits.
+- Keep per-action and per-gesture guards so held input cannot repeat unintentionally.
 - Ignore keyboard auto-repeat unless a binding enables it.
 - Record every consumed key-down and consume its matching key-up.
 - Keep backend release guards until consumed keys are physically up, even after a logical context closes.
@@ -139,7 +139,8 @@ Example readable binding:
   "prefixKey": "CapsLock",
   "requiredSuffixKeys": ["W", "D"],
   "suffixOrder": "any",
-  "trigger": "prefix-release",
+  "trigger": "stable-hold",
+  "stableMs": 100,
   "allowExtraManagedKeys": false,
   "consume": true,
   "repeat": false,
@@ -152,17 +153,19 @@ The runtime form may use normalized key IDs or masks, but user-facing data shoul
 <a id="input-5"></a>
 ## INPUT-5: CapsLock session
 
-The recommended session model becomes required when decisions `IN-D04` through `IN-D09` are accepted.
+The chosen session model supports both switch modes from `IN-D06`.
 
 Session state keeps:
 
 - `ignoredPreheldSuffixes`: managed suffixes already down when CapsLock goes down.
 - `heldDirectionMask`: eligible directions from this session that are still physically down.
-- `candidateDirectionMask`: the best simultaneous direction mask reached by the first direction gesture.
-- `directionGestureFrozen`: true after every key from the first gesture is up.
+- `currentValidDirectionMask`: the current cardinal or diagonal mask, or empty while the mask is invalid.
+- `lastValidDirectionMask`: the newest valid mask for `on-release` mode.
+- `pendingDirectionMask` and its 100 ms timer for `while-held` mode.
+- `directionGestureArmed`: true when a new direction gesture may switch.
 - `sessionMode`: unset, `direction`, `space`, or `legacy`.
-- `isInvalid`.
-- `hasCommitted`.
+- `isActionLocked`: true after Space or a legacy action runs.
+- `tapCancelled`: true after any non-tap CapsLock use.
 - Consumed keys and their backend release guards.
 
 Session rules:
@@ -170,27 +173,32 @@ Session rules:
 1. CapsLock down starts one `workspace-layer` session, provisionally consumes CapsLock, and snapshots pre-held suffixes.
 2. A pre-held suffix is not part of the chord. Its key-up passes through because its key-down passed through.
 3. The router always consumes the matching CapsLock up for an owned session.
-4. The first eligible suffix locks the session to `direction` or `space`. An accepted legacy chord locks it to `legacy`.
-5. In direction mode, each eligible direction key-down updates `heldDirectionMask`.
-6. While a first direction gesture still has a key down, a valid simultaneous mask replaces `candidateDirectionMask`.
-7. Direction key-up changes only `heldDirectionMask`. It never shrinks `candidateDirectionMask`.
-8. When `heldDirectionMask` becomes empty, the first gesture freezes.
-9. A later separate direction press in the same CapsLock hold marks the session invalid instead of merging two taps into a diagonal.
-10. An opposite pair, third direction, or other invalid managed direction combination makes the session invalid for the rest of the hold.
-11. If Space is the first suffix, the router toggles the overview immediately and sets `hasCommitted`.
-12. If direction mode started first, Space is an incompatible extra suffix. It makes the session invalid and does not toggle the overview.
-13. On CapsLock release, the router freezes and commits a valid cardinal or diagonal candidate exactly once.
-14. An invalid or empty direction candidate switches nothing and gives the approved feedback.
-15. A session with no eligible suffix and no legacy modifier runs the configured CapsLock tap action on release.
-16. `hasCommitted` prevents any later release from dispatching another action.
-17. Opening the overview starts a transition guard. Navigation starts only after every opening key is released.
-18. Releasing CapsLock does not close an overview opened by `CapsLock+Space`.
+4. The first accepted action family sets `sessionMode` to `direction`, `space`, or `legacy`.
+5. Direction down/up events update `heldDirectionMask`.
+6. A valid mask becomes `currentValidDirectionMask` and `lastValidDirectionMask`. In `while-held` mode, an armed new or changed valid mask starts or restarts the timer.
+7. In `while-held` mode, an armed valid mask that stays unchanged for 100 ms switches once, clears its timer, and disarms the current gesture.
+8. Keeping the same direction keys held after a switch cannot switch again.
+9. Releasing every eligible direction key clears the pending timer and rearms the next gesture without requiring CapsLock release.
+10. An opposite pair, third direction, or other invalid direction mask clears `currentValidDirectionMask` and cancels only the pending timer. A later valid mask starts a new timer only while the gesture is armed.
+11. In `on-release` mode, direction chords do not switch while CapsLock is held. CapsLock release switches once to `lastValidDirectionMask`.
+12. A direction session that never reaches a valid mask switches nothing and gives short feedback.
+13. If Space is the first suffix, the router toggles the overview immediately, sets `isActionLocked`, and accepts no other Caps-mode action until CapsLock is released.
+14. If direction mode started first, Space is consumed but does not toggle the overview or stop later direction gestures.
+15. An accepted legacy chord dispatches once, sets `isActionLocked`, and accepts no other Caps-mode action until CapsLock is released.
+16. An unbound non-modifier key passes through and sets `tapCancelled`.
+17. A session with no accepted action and no `tapCancelled` runs the configured CapsLock tap action on release.
+18. `isActionLocked` prevents a second Caps-mode action during the same hold.
+19. Opening the overview starts a transition guard. Navigation starts only after every opening key is released.
+20. Releasing CapsLock does not close an overview opened by `CapsLock+Space`.
 
 <a id="input-6"></a>
 ## INPUT-6: Consumption, pass-through, and legacy chords
 
-- Extra unmanaged keys do not change a workspace match.
-- Extra managed direction keys may invalidate the session.
+- An owned suffix is a key with an active binding in the current router context.
+- CapsLock and an owned suffix are consumed for their complete down/up cycle when their action matches.
+- An unbound non-modifier key passes through and cancels the CapsLock tap action.
+- Extra unmanaged keys do not change an active direction match.
+- Extra managed direction keys may make the current mask invalid and cancel its timer, but they do not invalidate the full CapsLock session.
 - Every consumed key-down has a matching consumed key-up, including when a context changes before key-up.
 - Keys that were already down before an owned session remain pass-through for both down and up.
 - `W`, `A`, `S`, `D`, and `Space` reach the active application when no router context owns them.
@@ -199,11 +207,11 @@ Session rules:
 Legacy `Alt+CapsLock` and `Ctrl+CapsLock` rules:
 
 - An exact legacy chord works in either key order when it becomes complete before the first workspace suffix is accepted.
-- The first eligible legacy chord locks the session, sets `hasCommitted`, and dispatches once.
+- The first eligible legacy chord dispatches once and sets `isActionLocked`.
 - A legacy modifier held before CapsLock is not consumed, and its key-up also passes through.
 - A legacy modifier pressed after CapsLock is consumed with a release guard.
-- If both Alt and Ctrl are already down when CapsLock starts, neither exact legacy chord matches. The session is invalid and consumed, while both pre-held modifier key-up events pass through.
-- After a suffix or legacy chord locks the session, later managed modifiers cannot replace the result or dispatch a second action.
+- If both Alt and Ctrl are already down when CapsLock starts, neither exact legacy chord matches. The router sets `tapCancelled`, consumes CapsLock, and passes through both pre-held modifier key-up events.
+- After a Space or legacy action locks the session, later Caps-bound keys cannot replace the result or dispatch a second action.
 
 <a id="input-7"></a>
 ## INPUT-7: Lifecycle and repair

@@ -23,16 +23,43 @@ This table is the only place that tracks overview decision status.
 | ID | Status | MVP blocker | Decision or recommended result |
 |---|---|---|---|
 | `UI-D01` | Chosen | Yes | Open the overview on the monitor containing the pointer instead of spanning the virtual screen. |
-| `UI-D02` | Chosen | No | Other monitors keep showing the active workspace and may receive a simple dim layer while the overview is open. |
+| `UI-D02` | Chosen | No | Use the [other-monitor display rule](#overview-2-other-monitors). |
 | `UI-D03` | Chosen | Yes | Use colored window rectangles for the first overview, not live thumbnails. |
-| `UI-D04` | Chosen | Yes | Use arrow emojis ⬆️↗️➡️↘️⬇️↙️⬅️↖️ with optional tooltip `Top Right`. |
-| `UI-D05` | Chosen | Yes | Choose the exact eight Vastu colors and hex values. Known directions are North green, South red, East orange, and West dark blue and diagonal directions are colors in between main directions colors. LCH lightness of all 8 colors should be on same level 
-[ #49A84A, #8DA63E, #D48A33, #D25B42, #C84C61, #8556B4, #3D70C4, #3F97A2 ]  |
+| `UI-D04` | Chosen | Yes | Use the fixed [slot-to-arrow mapping](#overview-2-direction). Each arrow is both the slot badge and its default name. |
+| `UI-D05` | Chosen | Yes | Use the initial colors from the same [slot mapping](#overview-2-direction). |
 | `UI-D06` | Chosen | No | Ship `none` and one predictable lightness-step same-app color preset. |
-| `UI-D07` | Chosen | No | Custom icons accept `.ico`, `.png`, and executable icons. |
+| `UI-D07` | Chosen | No | Custom icons accept `.ico`, `.png`, or an icon extracted from a selected executable. |
 | `UI-D08` | Open | No | Confirm the first Control Center providers and the clock/date plus current-workspace widgets. |
 | `UI-D09` | Chosen | No | `One-Hand Control` is the user name and internal name. |
-| `UI-D10` | Open | No | Define one safe action map for each One-Hand overview context. //FIXME: what does it even mean? |
+| `UI-D10` | Open | No | Approve one key-to-action map for each One-Hand router context in [`OVERVIEW-8`](#overview-8). Safe means that one key cannot run two actions in the same context and destructive actions use confirmation. |
+
+<a id="overview-2-other-monitors"></a>
+### Other monitors
+
+While the overview is open, all other monitors keep showing the active workspace. The `dimOtherMonitorsInOverview` setting controls whether they receive a simple dim layer. The setting is enabled by default.
+
+<a id="overview-2-direction"></a>
+### Direction badges, default names, and colors
+
+This table is the only slot-to-arrow and default-color mapping:
+
+| Slot | Arrow | Direction label | Initial color |
+|---|---|---|---|
+| `n` | ⬆️ | Top | `#49A84A` |
+| `ne` | ↗️ | Top Right | `#8DA63E` |
+| `e` | ➡️ | Right | `#D48A33` |
+| `se` | ↘️ | Bottom Right | `#D25B42` |
+| `s` | ⬇️ | Bottom | `#C84C61` |
+| `sw` | ↙️ | Bottom Left | `#8556B4` |
+| `w` | ⬅️ | Left | `#3D70C4` |
+| `nw` | ↖️ | Top Left | `#3F97A2` |
+
+Display rules:
+
+- Without a custom name, show the arrow once. It acts as both the default name and the direction badge.
+- With a custom name, show the custom name together with the fixed arrow badge.
+- Use the direction label for the tooltip and accessible label.
+- The colors may be tuned later without changing the slot-to-arrow mapping.
 
 <a id="overview-3"></a>
 ## OVERVIEW-3: Host, grid, and focus lifecycle
@@ -66,8 +93,7 @@ This table is the only place that tracks overview decision status.
 
 Each workspace cell shows:
 
-- Resolved name.
-- Fixed direction badge.
+- Resolved workspace label and fixed badge from the [slot mapping](#overview-2-direction).
 - Resolved workspace color.
 - Selected layout name or icon.
 - Window count.

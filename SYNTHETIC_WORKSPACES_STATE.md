@@ -50,7 +50,7 @@ This table is the only place that tracks core workspace decision status.
 | `ST-D04` | Chosen | Yes | One workspace is active globally across all monitors for the MVP. |
 | `ST-D05` | Chosen | Yes | A normal managed window belongs to exactly one workspace for the MVP. |
 | `ST-D06` | Chosen | Yes | A taskbar or application activation request for an inactive window switches to that window's workspace. |
-| `ST-D07` | Chosen | Yes | Choose the safe MVP policy for topmost-remain topmost on the workspace it is topmost (later will introduce 'pinned'-that is topmost and shown on all workspaces in same position), fullscreen-if not blocklisted getting minimized/restored, elevated, protected, and non-responsive windows - idk, what is better to do with them? |
+| `ST-D07` | Chosen | Yes | Use the MVP special-window policy in [`STATE-4`](#state-4-special). |
 | `ST-D08` | Chosen | Yes | Synthetic workspaces and `VirtualDesktopManager` remain independent. |
 | `ST-D09` | Chosen | No | Untouched default name, badge, and color follow the current slot, while custom overrides move with the workspace identity. Reset returns to the current slot default. |
 | `ST-D10` | Open | No | Choose the first shipped tiling templates from the candidates in [`STATE-7`](#state-7). |
@@ -85,7 +85,7 @@ Every action runs through the existing central dispatcher.
 | Batch placement | `SetWindowPos` and deferred-window positioning when useful |
 | Focus | Validated foreground and activation calls |
 | Cover layer | One non-activating Haribol! GUI per monitor |
-| App metadata | Icon, AppUserModelID, and optional guarded command-line reads |
+| App metadata | Icon, AppUserModelID, and optional guarded process launch-argument reads |
 | Monitor identity | Display device identity with documented fallback |
 | Persistence | JSON sidecar and Windows-safe atomic replacement |
 
@@ -127,6 +127,15 @@ The backend classifies each top-level window and gives a diagnostic reason:
 | `shell` | Windows shell or Haribol! shell UI |
 | `ignored` | Hidden, cloaked, tool, or other non-user window |
 | `unsupported` | Window that cannot be controlled safely under the chosen policy |
+
+<a id="state-4-special"></a>
+### MVP special-window policy
+
+- Keep a window's saved topmost state while its assigned workspace is active. Temporarily clear topmost before placing it in an inactive workspace and restore topmost when its workspace becomes active. Classify the window as `unsupported` if this cannot be done safely.
+- For a controllable fullscreen window that is not blocklisted, minimize it when its workspace becomes inactive and restore its previous fullscreen state when the workspace becomes active. Classify it as `unsupported` if minimize or restore fails.
+- Classify elevated, protected, and non-responsive windows as `unsupported`. Do not force their move, stack, focus, minimize, or restore operations.
+- If a cover could make an unsupported window unreachable, do not create or keep the cover on that monitor and report reduced workspace isolation.
+- A later `pinned` rule may keep a window topmost and visible in the same position on every workspace. It is not part of the MVP.
 
 Drag eligibility and workspace eligibility are different. Do not reuse a private WinDrag filter as the workspace filter.
 
@@ -195,7 +204,7 @@ Each pending entry records the transaction ID, runtime record ID, property, prio
 - Treat a root owner and its owned dialogs as one stacking group.
 - Keep every monitor cover in one contiguous band between inactive and active groups.
 - Keep overview and other Haribol! shell UI above active application windows.
-- Apply the chosen topmost policy outside the normal band.
+- Apply the special-window policy from [`STATE-4`](#state-4-special) outside the normal band.
 - If cover placement cannot be verified, remove all covers and stop synthetic mode.
 - Process-owned covers disappear if the app crashes.
 
@@ -212,7 +221,7 @@ Each pending entry records the transaction ID, runtime record ID, property, prio
 
 - Never report a switch as complete when destination focus or stack verification fails.
 - Do not hide unsupported windows from diagnostics.
-- Keep elevated or protected windows reachable under the chosen safe policy.
+- Apply the unsupported-window reachability fallback from [`STATE-4`](#state-4-special).
 - A newer external window change wins over rollback.
 
 <a id="state-7"></a>
@@ -260,7 +269,7 @@ This table is the only place that tracks persistence decision status.
 |---|---|---|---|
 | `PS-D01` | Chosen | Yes | Store structured state in a versioned `synthetic-workspaces.json` beside the active config file. |
 | `PS-D02` | Chosen | Yes | Write through a temporary file and replace the previous file atomically through the platform backend. |
-| `PS-D03` | Open | No | Command-line matching is disabled by default and enabled only for an advanced user rule. //FIXME: what is "Command-line matching"? if there are some therminology, keep it consistent, where and how should i even find that? |
+| `PS-D03` | Open | No | Process launch-argument matching uses an app's launch arguments as an optional later identity condition. Keep it disabled by default unless the user enables such a rule in [`STATE-9`](#state-9). |
 
 Runtime observed, desired, pending, HWND, PID, and runtime record IDs are never stored.
 
@@ -286,7 +295,7 @@ A unique window profile may contain:
 - Exact window class.
 - Exact AppUserModelID when available.
 - Exact, contains, wildcard, or regular-expression title matcher.
-- Optional contains or regular-expression command-line matcher.
+- Optional contains or regular-expression process launch-argument matcher.
 - Optional root-owner rule.
 - One workspace assignment for the MVP.
 - Monitor-specific normalized freeform geometry.
@@ -305,16 +314,16 @@ Do not apply placement or workspace assignment from a profile that currently mat
 
 ### Later identity and visual tools
 
-- Let the user build a rule from current executable, class, title, AppUserModelID, and optional command-line data.
+- Let the user build a rule from current executable, class, title, AppUserModelID, and optional process launch arguments.
 - Show which current windows a draft rule matches before save.
-- Let a user replace an automatic title matcher with a project, document, or command-line rule.
+- Let a user replace an automatic title matcher with a project, document, or process launch-argument rule.
 - App visual rules may match several windows by grouping key, executable path or name, or AppUserModelID.
 - App visual rules own only icon fallback, base color, and same-app color preset.
 - Choose one highest-priority app visual rule. On a tie, report conflict and use the built-in default.
 - A unique profile visual override wins over an app visual rule.
 - App visual rules never store workspace assignment, geometry, focus history, or unique window title.
 
-Command-line inspection runs locally only for an enabled advanced rule. Store only the user-entered matcher, report access denial, and do not log full command lines or private local paths.
+Process launch-argument inspection runs locally only for an enabled advanced rule. Store only the user-entered matcher, report access denial, and do not log full launch arguments or private local paths.
 
 <a id="state-10"></a>
 ## STATE-10: Persisted schema and validation
