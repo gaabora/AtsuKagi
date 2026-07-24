@@ -22,16 +22,17 @@ This table is the only place that tracks overview decision status.
 
 | ID | Status | MVP blocker | Decision or recommended result |
 |---|---|---|---|
-| `UI-D01` | Open | Yes | Open the overview on the monitor containing the pointer instead of spanning the virtual screen. |
-| `UI-D02` | Open | No | Other monitors keep showing the active workspace and may receive a simple dim layer while the overview is open. |
+| `UI-D01` | Chosen | Yes | Open the overview on the monitor containing the pointer instead of spanning the virtual screen. |
+| `UI-D02` | Chosen | No | Other monitors keep showing the active workspace and may receive a simple dim layer while the overview is open. |
 | `UI-D03` | Chosen | Yes | Use colored window rectangles for the first overview, not live thumbnails. |
-| `UI-D04` | Open | Yes | Use full default names such as `North East` and a fixed short badge such as `NE`. |
-| `UI-D05` | Open | Yes | Choose the exact eight Vastu colors and hex values. Known directions are North green, South red, East orange, and West dark blue. |
-| `UI-D06` | Open | No | Ship `none` and one predictable lightness-step same-app color preset. |
-| `UI-D07` | Open | No | Decide whether custom icons accept any local image or only `.ico`, `.png`, and executable icons. |
+| `UI-D04` | Chosen | Yes | Use arrow emojis ⬆️↗️➡️↘️⬇️↙️⬅️↖️ with optional tooltip `Top Right`. |
+| `UI-D05` | Chosen | Yes | Choose the exact eight Vastu colors and hex values. Known directions are North green, South red, East orange, and West dark blue and diagonal directions are colors in between main directions colors. LCH lightness of all 8 colors should be on same level 
+[ #49A84A, #8DA63E, #D48A33, #D25B42, #C84C61, #8556B4, #3D70C4, #3F97A2 ]  |
+| `UI-D06` | Chosen | No | Ship `none` and one predictable lightness-step same-app color preset. |
+| `UI-D07` | Chosen | No | Custom icons accept `.ico`, `.png`, and executable icons. |
 | `UI-D08` | Open | No | Confirm the first Control Center providers and the clock/date plus current-workspace widgets. |
-| `UI-D09` | Open | No | Decide whether `One-Hand Control` is the user name and `one-left` remains an internal name. |
-| `UI-D10` | Open | No | Define one safe action map for each One-Hand overview context. |
+| `UI-D09` | Chosen | No | `One-Hand Control` is the user name and internal name. |
+| `UI-D10` | Open | No | Define one safe action map for each One-Hand overview context. //FIXME: what does it even mean? |
 
 <a id="overview-3"></a>
 ## OVERVIEW-3: Host, grid, and focus lifecycle

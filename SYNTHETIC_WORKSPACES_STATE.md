@@ -45,14 +45,14 @@ This table is the only place that tracks core workspace decision status.
 | ID | Status | MVP blocker | Decision or recommended result |
 |---|---|---|---|
 | `ST-D01` | Chosen | Yes | Stable workspace IDs are separate from directional slots. |
-| `ST-D02` | Open | Yes | A direction selects the workspace currently mapped to that slot. |
-| `ST-D03` | Open | No | Swapping slots moves the complete workspace identity, including windows, custom name, custom color, layout, rules, and focus history. |
-| `ST-D04` | Open | Yes | One workspace is active globally across all monitors for the MVP. |
-| `ST-D05` | Open | Yes | A normal managed window belongs to exactly one workspace for the MVP. |
-| `ST-D06` | Open | Yes | A taskbar or application activation request for an inactive window switches to that window's workspace. |
-| `ST-D07` | Open | Yes | Choose the safe MVP policy for topmost, fullscreen, elevated, protected, and non-responsive windows. |
-| `ST-D08` | Open | Yes | Synthetic workspaces and `VirtualDesktopManager` remain independent. |
-| `ST-D09` | Open | No | Untouched default name, badge, and color follow the current slot, while custom overrides move with the workspace identity. Reset returns to the current slot default. |
+| `ST-D02` | Chosen | Yes | A direction selects the workspace currently mapped to that slot. |
+| `ST-D03` | Chosen | No | Swapping slots moves the complete workspace identity, including windows, custom name, custom color, layout, rules, and focus history. |
+| `ST-D04` | Chosen | Yes | One workspace is active globally across all monitors for the MVP. |
+| `ST-D05` | Chosen | Yes | A normal managed window belongs to exactly one workspace for the MVP. |
+| `ST-D06` | Chosen | Yes | A taskbar or application activation request for an inactive window switches to that window's workspace. |
+| `ST-D07` | Chosen | Yes | Choose the safe MVP policy for topmost-remain topmost on the workspace it is topmost (later will introduce 'pinned'-that is topmost and shown on all workspaces in same position), fullscreen-if not blocklisted getting minimized/restored, elevated, protected, and non-responsive windows - idk, what is better to do with them? |
+| `ST-D08` | Chosen | Yes | Synthetic workspaces and `VirtualDesktopManager` remain independent. |
+| `ST-D09` | Chosen | No | Untouched default name, badge, and color follow the current slot, while custom overrides move with the workspace identity. Reset returns to the current slot default. |
 | `ST-D10` | Open | No | Choose the first shipped tiling templates from the candidates in [`STATE-7`](#state-7). |
 
 <a id="state-3"></a>
@@ -260,7 +260,7 @@ This table is the only place that tracks persistence decision status.
 |---|---|---|---|
 | `PS-D01` | Chosen | Yes | Store structured state in a versioned `synthetic-workspaces.json` beside the active config file. |
 | `PS-D02` | Chosen | Yes | Write through a temporary file and replace the previous file atomically through the platform backend. |
-| `PS-D03` | Open | No | Command-line matching is disabled by default and enabled only for an advanced user rule. |
+| `PS-D03` | Open | No | Command-line matching is disabled by default and enabled only for an advanced user rule. //FIXME: what is "Command-line matching"? if there are some therminology, keep it consistent, where and how should i even find that? |
 
 Runtime observed, desired, pending, HWND, PID, and runtime record IDs are never stored.
 

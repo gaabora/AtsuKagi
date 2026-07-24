@@ -54,13 +54,13 @@ This table is the only place that tracks input decision status.
 | `IN-D01` | Chosen | Yes | Use `CapsLock+W/A/S/D` for cardinal slots and two direction suffixes for diagonal slots. |
 | `IN-D02` | Chosen | Yes | Use `CapsLock+Space` to toggle the overview. |
 | `IN-D03` | Chosen | Yes | Use one app-owned router with a small Windows/AHK backend for managed keys and mouse triggers. |
-| `IN-D04` | Open | Yes | A CapsLock press with no owned suffix should run the configured `SwitchKeyboardLayout()` action on release. |
-| `IN-D05` | Open | Yes | Exact `Alt+CapsLock` and `Ctrl+CapsLock` chords should keep their current actions and follow the rules in [`INPUT-6`](#input-6). |
-| `IN-D06` | Open | Yes | A direction session should commit at most one workspace action when CapsLock is released. |
-| `IN-D07` | Open | Yes | Opposite directions, a third direction, or a separate second direction gesture should switch nothing and show short feedback. |
-| `IN-D08` | Open | Yes | CapsLock must be pressed before a workspace suffix. Suffix order after CapsLock remains independent. |
-| `IN-D09` | Open | Yes | CapsLock and every owned suffix should be consumed for their full down/up cycle. Unowned `W`, `A`, `S`, `D`, and `Space` should pass through. |
-| `IN-D10` | Open | No | Shift should be the default WinDrag quick-position modifier. |
+| `IN-D04` | Chosen | Yes | A CapsLock press with no owned suffix should run the configured `SwitchKeyboardLayout()` action on release. |
+| `IN-D05` | Chosen | Yes | Exact `Alt+CapsLock` and `Ctrl+CapsLock` chords should keep their current actions and follow the rules in [`INPUT-6`](#input-6). |
+| `IN-D06` | Chosen | Yes | A direction session should commit at most one workspace action when CapsLock is released. //TODO: no, idk how to say byt there should be some throttle before switching to workspace while holding main modifier (caps) and user can switch between desktops while holding that modifier, need to add a switch setting for this 2 modes in ui |
+| `IN-D07` | Chosen | Yes | Opposite directions, a third direction - see "throttle before switching to workspace" in IN-D06, probably choose last valid of pressed direction hotkeys (including last valid diagonals) |
+| `IN-D08` | Chosen | Yes | CapsLock must be pressed before a workspace suffix. Suffix order after CapsLock remains independent. treat main modifier hotkey (caps) as a mode enabling modifier that need to be pressed first |
+| `IN-D09` | Chosen | Yes | CapsLock and every owned suffix should be consumed for their full down/up cycle. Unowned `W`, `A`, `S`, `D`, and `Space` should pass through. //FIXME: - i dont understand what here can be unclear, we press main mod (caps) - if it was alone we look for next keys that can define space switching (wasd) or other keys that will define other possible actions, like 'space' to open overwiev or other keys to do other actions  |
+| `IN-D10` | Chosen | No | Shift should be the default WinDrag quick-position modifier. - yes, but it is also configurable |
 
 Implementation must not start beyond a safe prototype until every decision marked as an MVP blocker is chosen.
 
