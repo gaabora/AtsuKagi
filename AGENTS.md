@@ -83,3 +83,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 Write at about CEFR A2-B1 English.
 If a word is uncommon for an English learner, replace it with a simpler one.
 Never try to sound academic or professional. Clarity is more important than precision unless the technical term is absolutely necessary.
+
+## Root Plan Index
+
+- `SYNTHETIC_WORKSPACES_PLAN.md` is the entry point and source-of-truth map for all synthetic workspace planning documents.
