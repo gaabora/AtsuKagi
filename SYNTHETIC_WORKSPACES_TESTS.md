@@ -28,9 +28,11 @@ Canonical behavior: [`INPUT-2`](SYNTHETIC_WORKSPACES_INPUT.md#input-2) through [
 
 ### Backend feasibility gate
 
-- [ ] Dynamic AHK callbacks can observe and consume every managed CapsLock down/up sequence without blocking unowned WASD or Space.
-- [ ] If dynamic callbacks fail a required case, a small low-level-hook prototype can provide the same router events and cleanup contract.
-- [ ] Suspend, reload, focus change, and a missed key-up cannot leave a managed key suppressed.
+- ✅ Dynamic AHK callbacks can observe and consume every managed CapsLock down/up sequence without blocking unowned WASD or Space.
+- ✅ A low-level-hook prototype is not required because dynamic callbacks passed every backend feasibility case.
+- ✅ Suspend, reload, focus change, and a missed key-up cannot leave a managed key suppressed.
+
+Feasibility evidence (2026-07-25): [`SyntheticWorkspacesCapsLockPrototype.ahk`](SyntheticWorkspacesCapsLockPrototype.ahk) passed all 12 physical-key checklist cases. Hidden startup, cleanup, and locked-log smoke checks also passed.
 
 ### Chords and commit
 

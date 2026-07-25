@@ -130,6 +130,8 @@ For the AHK version, the Windows backend should register suppressing wildcard do
 
 A permanent low-level hook is a fallback only if dynamic hotkeys cannot reliably observe or consume a required sequence. Core binding records and context behavior must not depend on which Windows backend is used.
 
+The feasibility prototype passed the required physical-key checks on 2026-07-25. The MVP can use dynamic AHK callbacks; a permanent low-level hook is not required.
+
 Example readable binding:
 
 ```json
