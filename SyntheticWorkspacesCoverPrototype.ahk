@@ -12,6 +12,8 @@ class WindowsCoverBackendPrototype {
   static SWP_NOACTIVATE := 0x0010
   static SWP_NOOWNERZORDER := 0x0200
   static WS_EX_TOPMOST := 0x00000008
+  static WM_MOUSEACTIVATE := 0x0021
+  static MA_NOACTIVATEANDEAT := 4
   static WM_NULL := 0x0000
   static SMTO_ABORTIFHUNG := 0x0002
 
@@ -25,6 +27,7 @@ class WindowsCoverBackendPrototype {
     this.forceNextStackFailure := false
     this.lastCoverCreateKeptForeground := false
     this.operationCounts := Map()
+    this.suppressedMonitorNumbers := Map()
   }
 
   StartWinEvents(eventCallback) {
@@ -59,6 +62,11 @@ class WindowsCoverBackendPrototype {
     foregroundBefore := DllCall("GetForegroundWindow", "Ptr")
     monitorNumber := 1
     while (monitorNumber <= MonitorGetCount()) {
+      if (this.suppressedMonitorNumbers.Has(monitorNumber)) {
+        this._Log("COVER", "skipped-suppressed-monitor:" monitorNumber)
+        monitorNumber += 1
+        continue
+      }
       MonitorGetWorkArea(monitorNumber, &workLeft, &workTop, &workRight, &workBottom)
       coverWidth := workRight - workLeft
       coverHeight := workBottom - workTop
@@ -87,6 +95,23 @@ class WindowsCoverBackendPrototype {
     this._Log("COVER", "removed-monitor:" monitorNumber)
   }
 
+  SuppressCover(monitorNumber) {
+    this.suppressedMonitorNumbers[monitorNumber] := true
+    this.RemoveCover(monitorNumber)
+    this._Log("COVER", "suppressed-monitor:" monitorNumber)
+  }
+
+  ClearCoverSuppression(monitorNumber) {
+    if (!this.suppressedMonitorNumbers.Has(monitorNumber))
+      return
+    this.suppressedMonitorNumbers.Delete(monitorNumber)
+    this._Log("COVER", "suppression-cleared-monitor:" monitorNumber)
+  }
+
+  HasSuppressedCovers() {
+    return this.suppressedMonitorNumbers.Count > 0
+  }
+
   RemoveAllCovers() {
     for monitorNumber, coverRecord in this.covers
       try coverRecord["gui"].Destroy()
@@ -111,7 +136,17 @@ class WindowsCoverBackendPrototype {
   }
 
   VerifyCoverGeometry() {
-    if (this.covers.Count != MonitorGetCount())
+    expectedCoverCount := 0
+    monitorNumber := 1
+    while (monitorNumber <= MonitorGetCount()) {
+      if (this.suppressedMonitorNumbers.Has(monitorNumber)) {
+        if (this.covers.Has(monitorNumber))
+          return false
+      } else
+        expectedCoverCount += 1
+      monitorNumber += 1
+    }
+    if (this.covers.Count != expectedCoverCount)
       return false
     for monitorNumber, coverRecord in this.covers {
       if (!WinExist("ahk_id " coverRecord["hwnd"]) || !DllCall("IsWindowVisible", "Ptr", coverRecord["hwnd"]))
@@ -151,7 +186,13 @@ class WindowsCoverBackendPrototype {
   }
 
   IsTopmost(windowHwnd) {
-    return (WinGetExStyle("ahk_id " windowHwnd) & WindowsCoverBackendPrototype.WS_EX_TOPMOST) != 0
+    if (!windowHwnd || !DllCall("IsWindow", "Ptr", windowHwnd))
+      return false
+    try {
+      return (WinGetExStyle("ahk_id " windowHwnd) & WindowsCoverBackendPrototype.WS_EX_TOPMOST) != 0
+    } catch {
+      return false
+    }
   }
 
   IsMinimized(windowHwnd) {
@@ -202,6 +243,8 @@ class WindowsCoverBackendPrototype {
 
 class CoverFeasibilityPrototype {
   static WM_APP_HANG := 0x8001
+  static UNRESPONSIVE_DURATION_MS := 12000
+  static MAX_RECONCILE_ATTEMPTS := 2
 
   __New(smokeMode, logPath) {
     this.smokeMode := smokeMode
@@ -214,13 +257,22 @@ class CoverFeasibilityPrototype {
     this.repairTestPending := false
     this.repairEventObserved := false
     this.repairApplied := false
+    this.repairScheduled := false
+    this.repairStartedAt := 0
+    this.lastRepairDurationMs := 0
+    this.stepBeforeRepair := ""
+    this.reconcileAttemptCount := 0
     this.lastEvent := "none"
     this.reducedIsolation := false
+    this.specialStatePrepared := false
     this.unsupportedFixturePid := 0
     this.unsupportedFixtureHwnd := 0
     this.unsupportedMonitorNumber := 0
     this.unsupportedRectBefore := 0
     this.unsupportedOperationsBefore := 0
+    this.unsupportedTestRunning := false
+    this.unsupportedVerified := false
+    this.unsupportedHangUntil := 0
     this.fixtureGuis := Map()
     this.windowHwnds := Map()
     this.pendingLogText := ""
@@ -233,14 +285,17 @@ class CoverFeasibilityPrototype {
     this.repairCallback := this._RepairFromEvent.Bind(this)
     this.repairCheckCallback := this._CompleteRepairTest.Bind(this)
     this.unresponsiveCheckCallback := this._CompleteUnsupportedTest.Bind(this)
+    this.unresponsiveCountdownCallback := this._UpdateUnsupportedCountdown.Bind(this)
     this.reconcileCallback := this._ReconcileStack.Bind(this)
     this.logFlushCallback := this._FlushLogQueue.Bind(this)
     this.safetyRestoreCallback := this._SafetyRestore.Bind(this)
     this.emergencyCallback := this._EmergencyHotkey.Bind(this)
+    this.mouseActivateCallback := this._HandleMouseActivate.Bind(this)
     this.exitCallback := this._OnExit.Bind(this)
     this.backend := WindowsCoverBackendPrototype(this.logCallback)
     this._CreatePanel()
     this.eventHookReady := this.backend.StartWinEvents(this.winEventCallback)
+    OnMessage(WindowsCoverBackendPrototype.WM_MOUSEACTIVATE, this.mouseActivateCallback)
     Hotkey("^+F12", this.emergencyCallback)
     SetTimer(this.reconcileCallback, 1000)
     SetTimer(this.logFlushCallback, 250)
@@ -264,22 +319,26 @@ class CoverFeasibilityPrototype {
   _CreatePanel() {
     instructions := [
       "Manual TEST-4 cover feasibility prototype. It touches only the test windows that it creates.",
-      "1. Create / Reset: expect one blue cover per monitor, Workspace A above it, Workspace B below it, and SHELL UI above normal active windows.",
-      "2. Break z-order: Workspace B is activated on purpose. Expect a WinEvent and automatic repair.",
-      "3. Switch to B: expect TOPMOST A to lose topmost and FULLSCREEN A to minimize.",
-      "4. Switch to A: expect topmost and fullscreen state to return.",
-      "5. Start unresponsive window: its monitor cover must be removed, Reduced isolation becomes YES, and the window is not moved or focused.",
-      "6. Simulate stack failure: every cover must disappear and all test windows must stay reachable.",
-      "7. Close and reopen: no cover or changed test-window state may remain.",
-      "Emergency: press Ctrl+Shift+F12 at any time. Covers also auto-remove after 60 seconds."
+      "1. Create / Reset: expect one blue cover per monitor, Workspace A above it, Workspace B below it, and SHELL UI above normal active windows. Clicking a cover must do nothing and cause no blink.",
+      "2. Break z-order: Workspace B is activated on purpose. A short flash is expected; repair must finish within one second.",
+      "3. Show special A: TOPMOST A and FULLSCREEN A appear only for this test. Clicking fullscreen must not hide or blink the SHELL UI or main panel.",
+      "4. Switch to B: expect TOPMOST A to lose topmost and FULLSCREEN A to minimize.",
+      "5. Switch to A: expect topmost and fullscreen state to return.",
+      "6. Start unresponsive window: it stays visible on A and B. Its monitor must stay uncovered until Create / Reset or Abort closes the test fixture.",
+      "7. Simulate stack failure: every cover must disappear and all test windows must stay reachable.",
+      "8. Close and reopen: no cover or changed test-window state may remain.",
+      "Emergency: press Ctrl+Shift+F12 at any time. Covers also auto-remove after 60 seconds. Abort test removes all prototype windows."
     ]
     instructionText := ""
     for instructionLine in instructions
       instructionText .= instructionLine "`n"
-    this.panelGui := Gui("+ToolWindow +AlwaysOnTop +Resize", "SyntheticWorkspaces cover feasibility prototype")
+    this.panelGui := Gui("+AlwaysOnTop +Resize", "SyntheticWorkspaces cover feasibility prototype")
     this.panelGui.OnEvent("Close", (*) => ExitApp())
     this.panelGui.SetFont("s9", "Segoe UI")
     this.panelGui.Add("Text", "w930", instructionText)
+    this.panelGui.SetFont("s14 Bold", "Segoe UI")
+    this.currentStepText := this.panelGui.Add("Text", "xm w930 c8A2BE2", "CURRENT STEP 1/8 - click Create / Reset")
+    this.panelGui.SetFont("s9 Norm", "Segoe UI")
     this.lastResultText := this.panelGui.Add("Text", "xm w930 c0066CC", "READY - create the test windows")
     this.resultEdit := this.panelGui.Add("Edit", "xm ReadOnly w930 r8 -Wrap")
     this.liveEdit := this.panelGui.Add("Edit", "xm ReadOnly w930 r8 -Wrap")
@@ -289,16 +348,20 @@ class CoverFeasibilityPrototype {
     applyAButton.OnEvent("Click", this._ApplyWorkspaceA.Bind(this))
     breakButton := this.panelGui.Add("Button", "x+8 yp w135", "Break z-order")
     breakButton.OnEvent("Click", this._BreakAndRepair.Bind(this))
-    switchBButton := this.panelGui.Add("Button", "x+8 yp w120", "Switch to B")
+    prepareSpecialButton := this.panelGui.Add("Button", "x+8 yp w145", "Show special A")
+    prepareSpecialButton.OnEvent("Click", this._PrepareSpecialWorkspaceA.Bind(this))
+    switchBButton := this.panelGui.Add("Button", "x+8 yp w110", "Switch to B")
     switchBButton.OnEvent("Click", this._SwitchWorkspaceB.Bind(this))
-    switchAButton := this.panelGui.Add("Button", "x+8 yp w120", "Switch to A")
+    switchAButton := this.panelGui.Add("Button", "x+8 yp w110", "Switch to A")
     switchAButton.OnEvent("Click", this._SwitchWorkspaceA.Bind(this))
     unsupportedButton := this.panelGui.Add("Button", "xm w190", "Start unresponsive window")
     unsupportedButton.OnEvent("Click", this._StartUnsupportedTest.Bind(this))
     failureButton := this.panelGui.Add("Button", "x+8 yp w175", "Simulate stack failure")
     failureButton.OnEvent("Click", this._SimulateStackFailure.Bind(this))
-    emergencyButton := this.panelGui.Add("Button", "x+8 yp w170", "Emergency Restore")
+    emergencyButton := this.panelGui.Add("Button", "x+8 yp w140", "Remove covers")
     emergencyButton.OnEvent("Click", this._EmergencyButton.Bind(this))
+    abortButton := this.panelGui.Add("Button", "x+8 yp w120", "Abort test")
+    abortButton.OnEvent("Click", this._AbortTest.Bind(this))
     this.panelGui.Add("Text", "xm w930", "Log file: " this.logPath)
     this.logStatusText := this.panelGui.Add("Text", "xm w930", "File log: waiting for data")
     this.logEdit := this.panelGui.Add("Edit", "xm ReadOnly w930 r10 -Wrap")
@@ -309,15 +372,17 @@ class CoverFeasibilityPrototype {
     this._InitializeResults()
     this.currentWorkspace := "A"
     this.reducedIsolation := false
+    this.specialStatePrepared := false
+    this.reconcileAttemptCount := 0
     MonitorGetWorkArea(MonitorGetPrimary(), &workLeft, &workTop, &workRight, &workBottom)
     panelWidth := 960
     panelLeft := Min(workRight - panelWidth, workLeft + 20)
     this.panelGui.Show("x" panelLeft " y" (workTop + 20) " w" panelWidth)
-    this.fixtureGuis["normalA"] := this._CreateTestWindow("Workspace A - ACTIVE", "2F7D32", "WORKSPACE A`nACTIVE NORMAL WINDOW")
-    this.fixtureGuis["normalB"] := this._CreateTestWindow("Workspace B - INACTIVE", "8A3B3B", "WORKSPACE B`nINACTIVE NORMAL WINDOW")
-    this.fixtureGuis["topmostA"] := this._CreateTestWindow("Workspace A - TOPMOST", "6A3D9A", "WORKSPACE A`nSAVED TOPMOST WINDOW", "+AlwaysOnTop")
-    this.fixtureGuis["fullscreenA"] := this._CreateTestWindow("Workspace A - FULLSCREEN", "1E5C73", "WORKSPACE A`nFULLSCREEN WINDOW", "-Caption +ToolWindow")
-    this.fixtureGuis["shell"] := this._CreateTestWindow("Haribol shell UI sample", "B56A00", "HARIBOL SHELL UI`nMUST STAY ABOVE NORMAL ACTIVE WINDOWS", "+ToolWindow +E0x08000000")
+    this.fixtureGuis["normalA"] := this._CreateTestWindow("normalA", "Workspace A - ACTIVE", "2F7D32", "WORKSPACE A`nACTIVE NORMAL WINDOW")
+    this.fixtureGuis["normalB"] := this._CreateTestWindow("normalB", "Workspace B - INACTIVE", "8A3B3B", "WORKSPACE B`nINACTIVE NORMAL WINDOW")
+    this.fixtureGuis["topmostA"] := this._CreateTestWindow("topmostA", "Workspace A - TOPMOST", "6A3D9A", "WORKSPACE A`nSAVED TOPMOST WINDOW", "+AlwaysOnTop")
+    this.fixtureGuis["fullscreenA"] := this._CreateTestWindow("fullscreenA", "Workspace A - FULLSCREEN", "1E5C73", "WORKSPACE A`nFULLSCREEN WINDOW", "-Caption +ToolWindow")
+    this.fixtureGuis["shell"] := this._CreateTestWindow("shell", "Haribol shell UI sample", "B56A00", "HARIBOL SHELL UI`nMUST STAY ABOVE NORMAL ACTIVE WINDOWS", "+ToolWindow +E0x08000000")
     this.windowHwnds["normalA"] := this.fixtureGuis["normalA"].Hwnd
     this.windowHwnds["normalB"] := this.fixtureGuis["normalB"].Hwnd
     this.windowHwnds["topmostA"] := this.fixtureGuis["topmostA"].Hwnd
@@ -325,27 +390,27 @@ class CoverFeasibilityPrototype {
     this.windowHwnds["shell"] := this.fixtureGuis["shell"].Hwnd
     this.fixtureGuis["normalA"].Show("NA x" (workLeft + 70) " y" (workTop + 220) " w360 h220")
     this.fixtureGuis["normalB"].Show("NA x" (workLeft + 470) " y" (workTop + 240) " w360 h220")
-    this.fixtureGuis["topmostA"].Show("NA x" (workLeft + 150) " y" (workTop + 470) " w330 h170")
     this.fixtureGuis["shell"].Show("NA x" (workRight - 380) " y" (workTop + 100) " w340 h130")
     MonitorGet(MonitorGetPrimary(), &monitorLeft, &monitorTop, &monitorRight, &monitorBottom)
+    this.topmostRect := Map("left", Max(workLeft + 20, workRight - 380), "top", workTop + 470, "width", 330, "height", 170)
     this.fullscreenRect := Map("left", monitorLeft, "top", monitorTop, "width", monitorRight - monitorLeft, "height", monitorBottom - monitorTop)
     this.recoveryFullscreenRect := Map("left", workLeft + 420, "top", workTop + 470, "width", 380, "height", 220)
-    this.fixtureGuis["fullscreenA"].Show("NA x" monitorLeft " y" monitorTop " w" (monitorRight - monitorLeft) " h" (monitorBottom - monitorTop))
     this.testWindowsReady := true
     this.backend.CreateCovers()
     this._ApplyWorkspace("A")
     coverResult := this._VerifyBands()
     this._SetResult("covers", coverResult["passed"], coverResult["detail"])
+    this._SetCurrentStep(coverResult["passed"] ? "CURRENT STEP 2/8 - click Break z-order" : "STEP 1 FAILED - click Create / Reset again")
     this._ArmSafetyRestore()
     this._Log("TEST", "created-and-applied-A")
   }
 
-  _CreateTestWindow(title, color, label, options := "") {
+  _CreateTestWindow(windowName, title, color, label, options := "") {
     testGui := Gui(options, title)
     testGui.BackColor := color
     testGui.SetFont("s18 Bold cFFFFFF", "Segoe UI")
     testGui.Add("Text", "Center w320 r4 BackgroundTrans", label)
-    testGui.OnEvent("Close", (*) => testGui.Hide())
+    testGui.OnEvent("Close", this._HandleTestWindowClose.Bind(this, windowName))
     return testGui
   }
 
@@ -357,37 +422,71 @@ class CoverFeasibilityPrototype {
     this._ApplyWorkspace("A")
     coverResult := this._VerifyBands()
     this._SetResult("covers", coverResult["passed"], coverResult["detail"])
+    this._SetCurrentStep(coverResult["passed"] ? "CURRENT STEP 2/8 - click Break z-order" : "STEP 1 FAILED - click Apply A again")
     this._ArmSafetyRestore()
+  }
+
+  _PrepareSpecialWorkspaceA(*) {
+    if (!this._RequireTestWindows())
+      return
+    if (this.backend.covers.Count = 0)
+      this.backend.CreateCovers()
+    this.specialStatePrepared := true
+    this.fixtureGuis["topmostA"].Show("NA x" this.topmostRect["left"] " y" this.topmostRect["top"] " w" this.topmostRect["width"] " h" this.topmostRect["height"])
+    this.fixtureGuis["fullscreenA"].Show("NA x" this.fullscreenRect["left"] " y" this.fullscreenRect["top"] " w" this.fullscreenRect["width"] " h" this.fullscreenRect["height"])
+    workspaceApplied := this._ApplyWorkspace("A")
+    specialPassed := workspaceApplied && this.backend.IsTopmost(this.windowHwnds["topmostA"]) && !this.backend.IsMinimized(this.windowHwnds["fullscreenA"]) && this._FullscreenGeometryMatches() && this._PanelIsReachable()
+    if (!specialPassed && this.backend.covers.Count > 0)
+      this._RecoverAll("special-prepare-failed")
+    this.lastResultText.Text := specialPassed ? "READY - special A windows are visible; the main panel must remain usable" : "FAIL - special A state did not apply; covers were removed"
+    this._SetCurrentStep(specialPassed ? "CURRENT STEP 4/8 - click Switch to B" : "STEP 3 FAILED - click Create / Reset")
+    this._ArmSafetyRestore()
+    this._KeepPanelReachable()
+    this._RefreshStatus()
   }
 
   _SwitchWorkspaceB(*) {
     if (!this._RequireTestWindows())
       return
+    if (!this.specialStatePrepared) {
+      this.lastResultText.Text := "NOT READY - click Show special A first"
+      this._SetCurrentStep("CURRENT STEP 3/8 - click Show special A")
+      this._KeepPanelReachable()
+      return
+    }
     if (this.backend.covers.Count = 0)
       this.backend.CreateCovers()
     this._ApplyWorkspace("B")
     specialPassed := !this.backend.IsTopmost(this.windowHwnds["topmostA"]) && this.backend.IsMinimized(this.windowHwnds["fullscreenA"])
     this._SetResult("specialInactive", specialPassed, specialPassed ? "Topmost cleared and fullscreen minimized" : "Expected topmost OFF and fullscreen minimized")
+    this._SetCurrentStep(specialPassed ? "CURRENT STEP 5/8 - click Switch to A" : "STEP 4 FAILED - click Switch to B again")
     this._ArmSafetyRestore()
   }
 
   _SwitchWorkspaceA(*) {
     if (!this._RequireTestWindows())
       return
+    if (!this.specialStatePrepared) {
+      this.lastResultText.Text := "NOT READY - click Show special A first"
+      this._SetCurrentStep("CURRENT STEP 3/8 - click Show special A")
+      this._KeepPanelReachable()
+      return
+    }
     if (this.backend.covers.Count = 0)
       this.backend.CreateCovers()
     this._ApplyWorkspace("A")
     specialPassed := this.backend.IsTopmost(this.windowHwnds["topmostA"]) && !this.backend.IsMinimized(this.windowHwnds["fullscreenA"]) && this._FullscreenGeometryMatches()
     this._SetResult("specialRestore", specialPassed, specialPassed ? "Saved topmost and fullscreen state restored" : "Topmost or fullscreen state did not restore")
+    this._SetCurrentStep(specialPassed ? "CURRENT STEP 6/8 - click Start unresponsive window" : "STEP 5 FAILED - click Switch to A again")
     this._ArmSafetyRestore()
   }
 
   _ApplyWorkspace(workspaceName) {
     this.currentWorkspace := workspaceName
-    if (workspaceName = "A") {
+    if (this.specialStatePrepared && workspaceName = "A") {
       this.backend.RestoreWindow(this.windowHwnds["fullscreenA"], this.fullscreenRect)
       this.backend.SetTopmost(this.windowHwnds["topmostA"], true)
-    } else {
+    } else if (this.specialStatePrepared) {
       this.backend.SetTopmost(this.windowHwnds["topmostA"], false)
       this.backend.MinimizeWindow(this.windowHwnds["fullscreenA"])
     }
@@ -409,11 +508,15 @@ class CoverFeasibilityPrototype {
       activeHwnds := this._GetActiveNormalHwnds()
       inactiveHwnds := this._GetInactiveHwnds()
       shellHwnd := this.windowHwnds["shell"]
-      stackSucceeded := this.backend.SetTopmost(shellHwnd, false) && this.backend.PlaceAtTop(shellHwnd)
-      upperHwnd := shellHwnd
-      for activeHwnd in activeHwnds {
-        if (stackSucceeded)
-          stackSucceeded := this.backend.PlaceBelow(activeHwnd, upperHwnd)
+      stackSucceeded := this.backend.SetTopmost(shellHwnd, true)
+      upperHwnd := 0
+      for idx, activeHwnd in activeHwnds {
+        if (stackSucceeded) {
+          if (idx = 1)
+            stackSucceeded := this.backend.PlaceAtTop(activeHwnd)
+          else
+            stackSucceeded := this.backend.PlaceBelow(activeHwnd, upperHwnd)
+        }
         upperHwnd := activeHwnd
       }
       for coverHwnd in this.backend.GetCoverHwnds() {
@@ -428,30 +531,44 @@ class CoverFeasibilityPrototype {
       }
     } finally {
       this.stackApplying := false
-      this.ignoreEventsUntil := A_TickCount + 250
+      this.ignoreEventsUntil := A_TickCount + 500
+      this._KeepPanelReachable()
     }
     return stackSucceeded
   }
 
   _GetActiveNormalHwnds() {
-    if (this.currentWorkspace = "A")
-      return [this.windowHwnds["fullscreenA"], this.windowHwnds["normalA"]]
+    if (this.currentWorkspace = "A") {
+      activeHwnds := [this.windowHwnds["normalA"]]
+      if (this.specialStatePrepared)
+        activeHwnds.InsertAt(1, this.windowHwnds["fullscreenA"])
+      return activeHwnds
+    }
     return [this.windowHwnds["normalB"]]
   }
 
   _GetInactiveHwnds() {
     if (this.currentWorkspace = "A")
       return [this.windowHwnds["normalB"]]
-    return [this.windowHwnds["normalA"], this.windowHwnds["topmostA"], this.windowHwnds["fullscreenA"]]
+    if (this.specialStatePrepared)
+      return [this.windowHwnds["normalA"], this.windowHwnds["topmostA"], this.windowHwnds["fullscreenA"]]
+    return [this.windowHwnds["normalA"]]
   }
 
   _VerifyBands() {
     if (!this.testWindowsReady)
       return Map("passed", false, "detail", "Test windows do not exist")
+    if (!this._PanelIsReachable())
+      return Map("passed", false, "detail", "Main panel is not reachable above the test windows")
+    unavailableWindowName := this._GetUnavailableWindowName()
+    if (unavailableWindowName != "")
+      return Map("passed", false, "detail", "Test window is missing or hidden: " unavailableWindowName)
     if (!this.backend.VerifyCoverGeometry() || !this.backend.lastCoverCreateKeptForeground)
       return Map("passed", false, "detail", "Cover count, geometry, visibility, or NoActivate check failed")
     zOrderRanks := this._ReadZOrderRanks()
     shellHwnd := this.windowHwnds["shell"]
+    if (!this.backend.IsTopmost(shellHwnd))
+      return Map("passed", false, "detail", "Shell UI is not in its protected topmost band")
     if (!zOrderRanks.Has(shellHwnd))
       return Map("passed", false, "detail", "Shell UI is missing from z-order")
     activeHwnds := this._GetActiveNormalHwnds()
@@ -482,6 +599,60 @@ class CoverFeasibilityPrototype {
     return zOrderRanks
   }
 
+  _KeepPanelReachable() {
+    if (IsObject(this.panelGui) && DllCall("IsWindowVisible", "Ptr", this.panelGui.Hwnd))
+      this.backend.SetTopmost(this.panelGui.Hwnd, true)
+  }
+
+  _PanelIsReachable() {
+    if (!IsObject(this.panelGui) || !DllCall("IsWindowVisible", "Ptr", this.panelGui.Hwnd) || !this.backend.IsTopmost(this.panelGui.Hwnd))
+      return false
+    zOrderRanks := this._ReadZOrderRanks()
+    if (!zOrderRanks.Has(this.panelGui.Hwnd))
+      return false
+    shellHwnd := this.windowHwnds["shell"]
+    if (zOrderRanks.Has(shellHwnd) && zOrderRanks[this.panelGui.Hwnd] >= zOrderRanks[shellHwnd])
+      return false
+    topmostHwnd := this.windowHwnds["topmostA"]
+    return !this.specialStatePrepared || !zOrderRanks.Has(topmostHwnd) || zOrderRanks[this.panelGui.Hwnd] < zOrderRanks[topmostHwnd]
+  }
+
+  _GetUnavailableWindowName() {
+    if (!this.testWindowsReady)
+      return ""
+    for windowName in ["normalA", "normalB", "topmostA", "fullscreenA", "shell"] {
+      if (!this.windowHwnds.Has(windowName) || !DllCall("IsWindow", "Ptr", this.windowHwnds[windowName]))
+        return windowName
+    }
+    requiredVisibleNames := ["normalA", "normalB", "shell"]
+    if (this.specialStatePrepared) {
+      requiredVisibleNames.Push("topmostA")
+      requiredVisibleNames.Push("fullscreenA")
+    }
+    for windowName in requiredVisibleNames {
+      if (!DllCall("IsWindowVisible", "Ptr", this.windowHwnds[windowName]))
+        return windowName
+    }
+    return ""
+  }
+
+  _HandleTestWindowClose(windowName, *) {
+    if (this.cleanedUp || !this.testWindowsReady)
+      return
+    this._FailForTestWindow(windowName)
+  }
+
+  _FailForTestWindow(windowName) {
+    if (!this.testWindowsReady)
+      return
+    detail := "Test window closed or disappeared: " windowName "; covers removed"
+    this._Log("WINDOW", "unavailable:" windowName)
+    this._RemoveTestWindows()
+    this._SetResult("covers", false, detail)
+    this._SetCurrentStep("TEST WINDOW CLOSED - click Create / Reset to start again")
+    this._KeepPanelReachable()
+  }
+
   _BreakAndRepair(*) {
     if (!this._RequireTestWindows())
       return
@@ -493,55 +664,115 @@ class CoverFeasibilityPrototype {
     this.repairTestPending := true
     this.repairEventObserved := false
     this.repairApplied := false
+    this.repairScheduled := false
+    SetTimer(this.repairCallback, 0)
+    this._SetCurrentStep("RUNNING STEP 2/8 - waiting for WinEvent repair")
     this.ignoreEventsUntil := 0
     this.backend.PlaceAtTop(brokenHwnd)
     DllCall("SetForegroundWindow", "Ptr", brokenHwnd)
     this._Log("TEST", "z-order-broken:" brokenHwnd)
-    SetTimer(this.repairCheckCallback, -800)
+    SetTimer(this.repairCheckCallback, -900)
+  }
+
+  _HandleMouseActivate(wParam, lParam, messageNumber, windowHwnd) {
+    if (this.cleanedUp || !this.backend.IsCoverHwnd(windowHwnd))
+      return
+    this._Log("COVER_CLICK", "blocked:" windowHwnd)
+    return WindowsCoverBackendPrototype.MA_NOACTIVATEANDEAT
   }
 
   _HandleWinEvent(eventNumber, windowHwnd, objectId, childId) {
-    if (this.cleanedUp || this.stackApplying || A_TickCount < this.ignoreEventsUntil || !this._IsTrackedWindow(windowHwnd))
+    if (this.cleanedUp || this.stackApplying || this.backend.covers.Count = 0 || A_TickCount < this.ignoreEventsUntil || !this._IsTrackedWindow(windowHwnd))
       return
     eventName := eventNumber = WindowsCoverBackendPrototype.EVENT_SYSTEM_FOREGROUND ? "foreground" : "reorder"
     this.lastEvent := eventName ":" windowHwnd
     this._Log("WINEVENT", this.lastEvent)
     if (this.repairTestPending)
       this.repairEventObserved := true
-    SetTimer(this.repairCallback, -80)
+    if (!this.repairScheduled) {
+      this.repairScheduled := true
+      this.repairStartedAt := A_TickCount
+      this.stepBeforeRepair := this.currentStepText.Text
+      this.currentStepText.Text := "REPAIRING - detected z-order change"
+      SetTimer(this.repairCallback, -80)
+    }
     this._RefreshStatus()
   }
 
   _RepairFromEvent() {
+    this.repairScheduled := false
     if (!this.testWindowsReady || this.backend.covers.Count = 0)
       return
+    unavailableWindowName := this._GetUnavailableWindowName()
+    if (unavailableWindowName != "") {
+      this._FailForTestWindow(unavailableWindowName)
+      return
+    }
     verification := this._VerifyBands()
     if (!verification["passed"]) {
-      this.repairApplied := this._ApplyStack()
-      activeFocusHwnd := this.currentWorkspace = "A" ? this.windowHwnds["normalA"] : this.windowHwnds["normalB"]
+      activeFocusHwnd := this._GetActiveNormalHwnds()[1]
       DllCall("SetForegroundWindow", "Ptr", activeFocusHwnd)
-      this._Log("REPAIR", this.repairApplied ? "stack-restored" : "stack-failed")
+      this.repairApplied := this._ApplyStack()
+      this.lastRepairDurationMs := A_TickCount - this.repairStartedAt
+      if (!this.testWindowsReady)
+        return
+      unavailableWindowName := this._GetUnavailableWindowName()
+      if (unavailableWindowName != "") {
+        this._FailForTestWindow(unavailableWindowName)
+        return
+      }
+      verificationAfter := this._VerifyBands()
+      repairSucceeded := this.repairApplied && verificationAfter["passed"]
+      if (repairSucceeded)
+        this.reconcileAttemptCount := 0
+      else
+        this.reconcileAttemptCount += 1
+      this._Log("REPAIR", (repairSucceeded ? "stack-restored:" : "stack-failed:") this.lastRepairDurationMs "ms;attempt=" this.reconcileAttemptCount)
+      if (!repairSucceeded && this.reconcileAttemptCount >= CoverFeasibilityPrototype.MAX_RECONCILE_ATTEMPTS) {
+        this._StopForUnstableStack("event-repair-limit")
+        return
+      }
     }
+    if (this.stepBeforeRepair != "")
+      this.currentStepText.Text := this.stepBeforeRepair
+    this.stepBeforeRepair := ""
   }
 
   _CompleteRepairTest() {
     verification := this._VerifyBands()
     inactiveHwnd := this.currentWorkspace = "A" ? this.windowHwnds["normalB"] : this.windowHwnds["normalA"]
     inactiveStillForeground := DllCall("GetForegroundWindow", "Ptr") = inactiveHwnd
-    repairPassed := this.repairEventObserved && this.repairApplied && verification["passed"] && !inactiveStillForeground
-    detail := repairPassed ? "WinEvent observed and z-order/focus repaired" : "Event=" this._YesNo(this.repairEventObserved) ", repair=" this._YesNo(this.repairApplied) ", bands=" this._YesNo(verification["passed"])
+    repairPassed := this.repairEventObserved && this.repairApplied && verification["passed"] && !inactiveStillForeground && this.lastRepairDurationMs > 0 && this.lastRepairDurationMs <= 1000
+    detail := repairPassed ? "WinEvent observed; z-order/focus repaired in " this.lastRepairDurationMs " ms" : "Event=" this._YesNo(this.repairEventObserved) ", repair=" this._YesNo(this.repairApplied) ", bands=" this._YesNo(verification["passed"]) ", time=" this.lastRepairDurationMs " ms"
     this.repairTestPending := false
     this._SetResult("repair", repairPassed, detail)
+    if (!repairPassed)
+      this._RecoverAll("repair-test-failed")
+    this._SetCurrentStep(repairPassed ? "CURRENT STEP 3/8 - click Show special A" : "STEP 2 FAILED - covers removed; click Apply A or Create / Reset")
+  }
+
+  _StopForUnstableStack(reason) {
+    if (this.backend.covers.Count = 0)
+      return
+    detail := "Z-order did not stabilize after " CoverFeasibilityPrototype.MAX_RECONCILE_ATTEMPTS " attempts; covers removed"
+    this._SetResult("repair", false, detail)
+    this._RecoverAll(reason)
+    this._SetCurrentStep("Z-ORDER FAILED - click Create / Reset to start again")
   }
 
   _StartUnsupportedTest(*) {
     if (!this._RequireTestWindows())
       return
+    if (this.unsupportedTestRunning && this.unsupportedFixtureHwnd && WinExist("ahk_id " this.unsupportedFixtureHwnd)) {
+      this._UpdateUnsupportedCountdown(true)
+      this._Log("UNSUPPORTED", "test-already-running")
+      return
+    }
+    this._CloseUnsupportedFixture()
     if (this.backend.covers.Count = 0) {
       this.backend.CreateCovers()
       this._ApplyWorkspace(this.currentWorkspace)
     }
-    this._CloseUnsupportedFixture()
     MonitorGetWorkArea(MonitorGetPrimary(), &workLeft, &workTop, &workRight, &workBottom)
     fixtureToken := A_TickCount
     fixtureTitle := "SW Unsupported " fixtureToken
@@ -563,24 +794,35 @@ class CoverFeasibilityPrototype {
     this.unsupportedMonitorNumber := MonitorGetPrimary()
     this.unsupportedRectBefore := this.backend.GetWindowRect(fixtureHwnd)
     this.unsupportedOperationsBefore := this.backend.GetOperationCount(fixtureHwnd)
+    this.unsupportedTestRunning := true
+    this.unsupportedVerified := false
+    this.unsupportedHangUntil := A_TickCount + CoverFeasibilityPrototype.UNRESPONSIVE_DURATION_MS
     PostMessage(CoverFeasibilityPrototype.WM_APP_HANG, 0, 0,, "ahk_id " fixtureHwnd)
+    this._UpdateUnsupportedCountdown(true)
     this.lastResultText.Text := "RUNNING - waiting for the test window to stop responding"
     this._Log("TEST", "unsupported-hang-started:" fixtureHwnd)
     SetTimer(this.unresponsiveCheckCallback, -500)
+    SetTimer(this.unresponsiveCountdownCallback, 1000)
   }
 
   _CompleteUnsupportedTest() {
     if (!this.unsupportedFixtureHwnd || !WinExist("ahk_id " this.unsupportedFixtureHwnd)) {
+      this.unsupportedTestRunning := false
+      SetTimer(this.unresponsiveCountdownCallback, 0)
       this._SetResult("unsupported", false, "The test window closed too early")
+      this._SetCurrentStep("STEP 6 FAILED - start the unresponsive window again")
       return
     }
     isResponsive := this.backend.IsResponsive(this.unsupportedFixtureHwnd)
     if (isResponsive) {
+      this.unsupportedTestRunning := false
+      SetTimer(this.unresponsiveCountdownCallback, 0)
       this._SetResult("unsupported", false, "The test window still responds")
+      this._SetCurrentStep("STEP 6 FAILED - start the unresponsive window again")
       return
     }
     operationsBeforeFallback := this.backend.GetOperationCount(this.unsupportedFixtureHwnd)
-    this.backend.RemoveCover(this.unsupportedMonitorNumber)
+    this.backend.SuppressCover(this.unsupportedMonitorNumber)
     this.reducedIsolation := true
     this._ApplyStack()
     operationsAfterFallback := this.backend.GetOperationCount(this.unsupportedFixtureHwnd)
@@ -588,9 +830,35 @@ class CoverFeasibilityPrototype {
     untouched := operationsBeforeFallback = this.unsupportedOperationsBefore && operationsAfterFallback = operationsBeforeFallback && this._RectsMatch(this.unsupportedRectBefore, rectAfter)
     coverRemoved := !this.backend.covers.Has(this.unsupportedMonitorNumber)
     unsupportedPassed := untouched && coverRemoved
+    this.unsupportedVerified := unsupportedPassed
     detail := unsupportedPassed ? "Unsupported window untouched; monitor cover removed; reduced isolation reported" : "The unsupported window changed or its monitor stayed covered"
     this._SetResult("unsupported", unsupportedPassed, detail)
+    if (unsupportedPassed)
+      this._UpdateUnsupportedCountdown(true)
+    else
+      this._SetCurrentStep("STEP 6 FAILED - start the unresponsive window again")
     this._Log("UNSUPPORTED", unsupportedPassed ? "safe-fallback" : "fallback-failed")
+  }
+
+  _UpdateUnsupportedCountdown(forceUpdate := false) {
+    if (!this.unsupportedTestRunning)
+      return
+    currentStep := this.currentStepText.Text
+    countdownOwnsStep := forceUpdate || InStr(currentStep, "UNRESPONSIVE") || InStr(currentStep, "WAITING FOR UNRESPONSIVE")
+    remainingMs := this.unsupportedHangUntil - A_TickCount
+    if (remainingMs <= 0 || !this.unsupportedFixturePid || !ProcessExist(this.unsupportedFixturePid)) {
+      unsupportedPassed := this.unsupportedVerified
+      this.unsupportedTestRunning := false
+      SetTimer(this.unresponsiveCountdownCallback, 0)
+      if (countdownOwnsStep)
+        this._SetCurrentStep(unsupportedPassed ? "CURRENT STEP 7/8 - click Simulate stack failure" : "STEP 6 FAILED - start the unresponsive window again")
+      return
+    }
+    if (!countdownOwnsStep)
+      return
+    remainingSeconds := Ceil(remainingMs / 1000)
+    stateText := this.unsupportedVerified ? "UNRESPONSIVE VERIFIED" : "WAITING FOR UNRESPONSIVE CHECK"
+    this.currentStepText.Text := stateText " - " remainingSeconds " second(s) left; repeated Start is blocked"
   }
 
   _SimulateStackFailure(*) {
@@ -606,35 +874,63 @@ class CoverFeasibilityPrototype {
       this._RecoverAll("forced-stack-failure")
     recoveryPassed := !stackSucceeded && this.backend.covers.Count = 0 && this._AllManagedWindowsReachable()
     this._SetResult("failure", recoveryPassed, recoveryPassed ? "Failure detected; covers removed; test windows reachable" : "Safe recovery did not complete")
+    this._SetCurrentStep(recoveryPassed ? "CURRENT STEP 8/8 - close the prototype, check cleanup, then reopen" : "STEP 7 FAILED - click Simulate stack failure again")
   }
 
   _RecoverAll(reason) {
     SetTimer(this.safetyRestoreCallback, 0)
+    SetTimer(this.repairCallback, 0)
+    SetTimer(this.repairCheckCallback, 0)
+    this.repairScheduled := false
+    this.repairTestPending := false
+    this.reconcileAttemptCount := 0
     this.backend.RemoveAllCovers()
+    this.reducedIsolation := this.backend.HasSuppressedCovers()
     if (this.testWindowsReady) {
-      this.backend.SetTopmost(this.windowHwnds["topmostA"], true)
-      this.backend.RestoreWindow(this.windowHwnds["fullscreenA"], this.recoveryFullscreenRect)
-      for windowName in ["normalA", "normalB", "topmostA", "fullscreenA", "shell"] {
+      this.backend.SetTopmost(this.windowHwnds["shell"], false)
+      this.backend.SetTopmost(this.windowHwnds["topmostA"], false)
+      for windowName in ["normalA", "normalB", "shell"] {
         windowHwnd := this.windowHwnds[windowName]
         DllCall("ShowWindow", "Ptr", windowHwnd, "Int", 5)
+      }
+      if (this.specialStatePrepared) {
+        this.backend.RestoreWindow(this.windowHwnds["fullscreenA"], this.recoveryFullscreenRect)
+        DllCall("ShowWindow", "Ptr", this.windowHwnds["topmostA"], "Int", 5)
+        this.backend.SetTopmost(this.windowHwnds["topmostA"], false)
+      } else {
+        try this.fixtureGuis["topmostA"].Hide()
+        try this.fixtureGuis["fullscreenA"].Hide()
       }
     }
     this._Log("RECOVERY", reason)
     this.lastResultText.Text := "RECOVERED - " reason
+    this._KeepPanelReachable()
     this._RefreshStatus()
   }
 
   _EmergencyButton(*) {
     this._RecoverAll("manual-button")
+    this._SetCurrentStep("COVERS REMOVED - click Create / Reset to start again")
+  }
+
+  _AbortTest(*) {
+    this._RecoverAll("manual-abort")
+    this._RemoveTestWindows()
+    this.lastResultText.Text := "ABORTED - all prototype test windows and covers were removed"
+    this._SetCurrentStep("TEST ABORTED - click Create / Reset to start again")
+    this._KeepPanelReachable()
   }
 
   _EmergencyHotkey(*) {
     this._RecoverAll("Ctrl+Shift+F12")
+    this._SetCurrentStep("COVERS REMOVED - click Create / Reset to start again")
   }
 
   _SafetyRestore() {
-    if (this.backend.covers.Count > 0)
+    if (this.backend.covers.Count > 0) {
       this._RecoverAll("60-second-safety-timeout")
+      this._SetCurrentStep("SAFETY TIMEOUT - click Apply A or Create / Reset")
+    }
   }
 
   _ArmSafetyRestore() {
@@ -643,16 +939,37 @@ class CoverFeasibilityPrototype {
   }
 
   _ReconcileStack() {
-    if (this.cleanedUp || !this.testWindowsReady || this.stackApplying || this.repairTestPending || this.backend.covers.Count = 0)
+    if (this.cleanedUp || !this.testWindowsReady || this.stackApplying || this.repairTestPending || this.reducedIsolation || this.backend.covers.Count = 0)
       return
-    verification := this._VerifyBands()
-    if (!verification["passed"]) {
-      repaired := this._ApplyStack()
-      this._Log("RECONCILE", repaired ? "stack-restored" : "stack-failed")
-      if (!repaired)
-        this._RecoverAll("reconcile-failed")
+    unavailableWindowName := this._GetUnavailableWindowName()
+    if (unavailableWindowName != "") {
+      this._FailForTestWindow(unavailableWindowName)
+      return
     }
-    this._RefreshStatus()
+    verification := this._VerifyBands()
+    if (verification["passed"]) {
+      this.reconcileAttemptCount := 0
+      this._RefreshStatus()
+      return
+    }
+    this.reconcileAttemptCount += 1
+    repaired := this._ApplyStack()
+    if (!this.testWindowsReady)
+      return
+    unavailableWindowName := this._GetUnavailableWindowName()
+    if (unavailableWindowName != "") {
+      this._FailForTestWindow(unavailableWindowName)
+      return
+    }
+    verificationAfter := this._VerifyBands()
+    repairPassed := repaired && verificationAfter["passed"]
+    this._Log("RECONCILE", (repairPassed ? "stack-restored" : "stack-failed") ":attempt=" this.reconcileAttemptCount)
+    if (repairPassed)
+      this.reconcileAttemptCount := 0
+    else if (this.reconcileAttemptCount >= CoverFeasibilityPrototype.MAX_RECONCILE_ATTEMPTS)
+      this._StopForUnstableStack("reconcile-limit")
+    if (this.backend.covers.Count > 0)
+      this._RefreshStatus()
   }
 
   _FullscreenGeometryMatches() {
@@ -667,18 +984,29 @@ class CoverFeasibilityPrototype {
   }
 
   _AllManagedWindowsReachable() {
-    for windowName in ["normalA", "normalB", "topmostA", "fullscreenA", "shell"] {
+    requiredVisibleNames := ["normalA", "normalB", "shell"]
+    if (this.specialStatePrepared) {
+      requiredVisibleNames.Push("topmostA")
+      requiredVisibleNames.Push("fullscreenA")
+    }
+    for windowName in requiredVisibleNames {
       windowHwnd := this.windowHwnds[windowName]
-      if (!WinExist("ahk_id " windowHwnd) || !DllCall("IsWindowVisible", "Ptr", windowHwnd) || this.backend.IsMinimized(windowHwnd))
+      if (!DllCall("IsWindow", "Ptr", windowHwnd) || !DllCall("IsWindowVisible", "Ptr", windowHwnd) || this.backend.IsMinimized(windowHwnd))
         return false
     }
     return true
   }
 
   _RequireTestWindows() {
-    if (this.testWindowsReady)
-      return true
+    if (this.testWindowsReady) {
+      unavailableWindowName := this._GetUnavailableWindowName()
+      if (unavailableWindowName = "")
+        return true
+      this._FailForTestWindow(unavailableWindowName)
+      return false
+    }
     this.lastResultText.Text := "NOT READY - click Create / Reset first"
+    this._SetCurrentStep("CURRENT STEP 1/8 - click Create / Reset")
     return false
   }
 
@@ -700,6 +1028,12 @@ class CoverFeasibilityPrototype {
     this._RefreshStatus()
   }
 
+  _SetCurrentStep(stepText) {
+    if (IsObject(this.currentStepText))
+      this.currentStepText.Text := stepText
+    this._Log("STEP", stepText)
+  }
+
   _RefreshStatus() {
     if (!IsObject(this.resultEdit))
       return
@@ -717,10 +1051,16 @@ class CoverFeasibilityPrototype {
     liveText := "LIVE STATE`r`n"
     liveText .= "Workspace: " this.currentWorkspace " | Covers: " this.backend.covers.Count "/" MonitorGetCount() " on monitor(s): " coverMonitors "`r`n"
     liveText .= "WinEvent hooks: " (this.eventHookReady ? "READY" : "FAILED") " | Last event: " this.lastEvent "`r`n"
+    liveText .= "Last repair: " (this.lastRepairDurationMs > 0 ? this.lastRepairDurationMs " ms" : "none") " | Expected maximum: 1000 ms`r`n"
     liveText .= "Reduced isolation: " this._YesNo(this.reducedIsolation) "`r`n"
     if (this.testWindowsReady) {
-      liveText .= "TOPMOST A: " this._YesNo(this.backend.IsTopmost(this.windowHwnds["topmostA"])) " | FULLSCREEN A minimized: " this._YesNo(this.backend.IsMinimized(this.windowHwnds["fullscreenA"])) "`r`n"
-      liveText .= "Tracked z-order ranks: " this._GetTrackedZOrderText() "`r`n"
+      unavailableWindowName := this._GetUnavailableWindowName()
+      if (unavailableWindowName != "")
+        liveText .= "Test window unavailable: " unavailableWindowName " | safe cleanup pending`r`n"
+      else {
+        liveText .= "Special A prepared: " this._YesNo(this.specialStatePrepared) " | TOPMOST A: " this._YesNo(this.backend.IsTopmost(this.windowHwnds["topmostA"])) " | FULLSCREEN A minimized: " this._YesNo(this.backend.IsMinimized(this.windowHwnds["fullscreenA"])) "`r`n"
+        liveText .= "Tracked z-order ranks: " this._GetTrackedZOrderText() "`r`n"
+      }
     }
     liveText .= "Emergency: Ctrl+Shift+F12"
     this.liveEdit.Value := liveText
@@ -748,16 +1088,24 @@ class CoverFeasibilityPrototype {
 
   _RemoveTestWindows() {
     SetTimer(this.safetyRestoreCallback, 0)
+    SetTimer(this.repairCallback, 0)
+    SetTimer(this.repairCheckCallback, 0)
+    this.repairScheduled := false
+    this.repairTestPending := false
+    this.reconcileAttemptCount := 0
+    this.testWindowsReady := false
     this.backend.RemoveAllCovers()
     this._CloseUnsupportedFixture()
     for windowName, fixtureGui in this.fixtureGuis
       try fixtureGui.Destroy()
     this.fixtureGuis := Map()
     this.windowHwnds := Map()
-    this.testWindowsReady := false
+    this.specialStatePrepared := false
   }
 
   _CloseUnsupportedFixture() {
+    SetTimer(this.unresponsiveCountdownCallback, 0)
+    suppressedMonitorNumber := this.unsupportedMonitorNumber
     if (this.unsupportedFixtureHwnd && WinExist("ahk_id " this.unsupportedFixtureHwnd))
       try PostMessage(0x0010, 0, 0,, "ahk_id " this.unsupportedFixtureHwnd)
     if (this.unsupportedFixturePid && ProcessExist(this.unsupportedFixturePid)) {
@@ -765,11 +1113,17 @@ class CoverFeasibilityPrototype {
       if (ProcessExist(this.unsupportedFixturePid))
         try ProcessClose(this.unsupportedFixturePid)
     }
+    if (suppressedMonitorNumber)
+      this.backend.ClearCoverSuppression(suppressedMonitorNumber)
+    this.reducedIsolation := this.backend.HasSuppressedCovers()
     this.unsupportedFixturePid := 0
     this.unsupportedFixtureHwnd := 0
     this.unsupportedMonitorNumber := 0
     this.unsupportedRectBefore := 0
     this.unsupportedOperationsBefore := 0
+    this.unsupportedTestRunning := false
+    this.unsupportedVerified := false
+    this.unsupportedHangUntil := 0
   }
 
   _Log(eventName, value) {
@@ -812,9 +1166,11 @@ class CoverFeasibilityPrototype {
     SetTimer(this.repairCallback, 0)
     SetTimer(this.repairCheckCallback, 0)
     SetTimer(this.unresponsiveCheckCallback, 0)
+    SetTimer(this.unresponsiveCountdownCallback, 0)
     SetTimer(this.safetyRestoreCallback, 0)
     SetTimer(this.logFlushCallback, 0)
     try Hotkey("^+F12", "Off")
+    try OnMessage(WindowsCoverBackendPrototype.WM_MOUSEACTIVATE, this.mouseActivateCallback, 0)
     this.backend.StopWinEvents()
     this._RecoverAll("exit-cleanup")
     this._RemoveTestWindows()
@@ -825,18 +1181,29 @@ class CoverFeasibilityPrototype {
 
 RunUnresponsiveFixture(fixtureToken, parentPid, windowLeft, windowTop) {
   global unsupportedFixtureGui
+  global unsupportedFixtureStateText
   global unsupportedHangCallback
   global unsupportedParentTimerCallback
   unsupportedFixtureGui := Gui("+Resize", "SW Unsupported " fixtureToken)
   unsupportedFixtureGui.BackColor := "5B2020"
   unsupportedFixtureGui.SetFont("s16 Bold cFFFFFF", "Segoe UI")
-  unsupportedFixtureGui.Add("Text", "Center w380 r5 BackgroundTrans", "TEST WINDOW`nTHIS WINDOW WILL STOP RESPONDING FOR 8 SECONDS")
+  unsupportedFixtureStateText := unsupportedFixtureGui.Add("Text", "Center w380 r6 BackgroundTrans", "TEST WINDOW`nIT WILL FREEZE FOR 12 SECONDS`nTRY TO CLICK OR DRAG IT")
   unsupportedFixtureGui.OnEvent("Close", (*) => ExitApp())
-  unsupportedHangCallback := (*) => DllCall("Sleep", "UInt", 8000)
+  unsupportedHangCallback := (*) => HangUnresponsiveFixture(fixtureToken)
   OnMessage(CoverFeasibilityPrototype.WM_APP_HANG, unsupportedHangCallback)
   unsupportedParentTimerCallback := (*) => ProcessExist(parentPid) ? 0 : ExitApp()
   SetTimer(unsupportedParentTimerCallback, 1000)
   unsupportedFixtureGui.Show("NA x" windowLeft " y" windowTop " w420 h220")
+}
+
+HangUnresponsiveFixture(fixtureToken) {
+  global unsupportedFixtureGui
+  global unsupportedFixtureStateText
+  unsupportedFixtureGui.Title := "SW Unsupported " fixtureToken " - FROZEN"
+  unsupportedFixtureStateText.Text := "FROZEN FOR 12 SECONDS`nTRY TO CLICK OR DRAG THIS WINDOW`nTHE MAIN PANEL SHOWS THE COUNTDOWN"
+  DllCall("Sleep", "UInt", CoverFeasibilityPrototype.UNRESPONSIVE_DURATION_MS)
+  unsupportedFixtureGui.Title := "SW Unsupported " fixtureToken " - RESPONDING AGAIN"
+  unsupportedFixtureStateText.Text := "RESPONDING AGAIN`nTHE 12-SECOND FREEZE IS COMPLETE"
 }
 
 if (A_Args.Length >= 1 && A_Args[1] = "--unresponsive-fixture") {
