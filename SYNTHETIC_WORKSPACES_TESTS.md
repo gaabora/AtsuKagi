@@ -77,8 +77,9 @@ Canonical behavior: [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2) through [
 - [ ] A failed stack operation removes every cover and leaves all manageable windows reachable.
 - [ ] A controllable topmost window loses topmost only while its assigned workspace is inactive, then regains it when that workspace becomes active.
 - [ ] A controllable non-blocklisted fullscreen window minimizes while its assigned workspace is inactive, then returns to its prior fullscreen state when that workspace becomes active.
-- [ ] An elevated, protected, or non-responsive window becomes unsupported without a forced move, stack, focus, minimize, or restore operation.
-- [ ] If a cover could make an unsupported window unreachable, that monitor stays uncovered and reports reduced isolation.
+- [ ] A non-responsive topmost window keeps its geometry and focus state while one bounded non-activating attempt clears topmost and parks it below the existing cover.
+- [ ] Every cover remains in place while a window is unsupported; a rejected park stops retrying and reports that the window may remain above its cover.
+- [ ] When the window responds again, its saved topmost state returns only on its assigned active workspace and the window remains below the cover on other workspaces.
 
 ### Model and events
 
@@ -101,7 +102,7 @@ Canonical behavior: [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2) through [
 - [ ] A failed verification keeps the previous committed active workspace.
 - [ ] An unexpected event during apply causes one bounded refresh and replan or a safe rollback.
 - [ ] Rollback does not overwrite a newer external window change.
-- [ ] Normal z-order is inactive owner groups, covers, active owner groups, and Haribol! shell UI.
+- [ ] Normal z-order is parked unsupported groups, inactive owner groups, covers, active owner groups, and Haribol! shell UI.
 - [ ] Suspend, reload, disable, and exit remove every cover and temporary topmost change.
 - [ ] Emergency tray restore works while normal hotkeys are suspended.
 - [ ] Emergency restore makes every manageable window reachable.
