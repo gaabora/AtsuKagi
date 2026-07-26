@@ -9,6 +9,7 @@ testFiles := [
    "SwapButtonsHandlerTests.ahk",
    "TextLocaleManagerTests.ahk",
    "SyntheticWorkspacesModelTests.ahk",
+   "SyntheticWorkspacesPluginTests.ahk",
    "TextToSpeechTests.ahk",
    "TimerHandlersTests.ahk",
    "TouchGesturesSimulatorTests.ahk",
