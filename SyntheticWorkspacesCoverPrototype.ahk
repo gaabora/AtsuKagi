@@ -9,6 +9,7 @@ class WindowsCoverBackendPrototype {
   static HWND_NOTOPMOST := -2
   static SWP_NOSIZE := 0x0001
   static SWP_NOMOVE := 0x0002
+  static SWP_NOZORDER := 0x0004
   static SWP_NOACTIVATE := 0x0010
   static SWP_NOOWNERZORDER := 0x0200
   static SWP_NOSENDCHANGING := 0x0400
@@ -129,13 +130,39 @@ class WindowsCoverBackendPrototype {
     return this._SetWindowPos(windowHwnd, upperWindowHwnd)
   }
 
-  ParkBelowCoverSynchronously(windowHwnd, coverHwnd) {
-    if (!windowHwnd || !coverHwnd)
+  MoveOffscreenSynchronously(windowHwnd, offscreenLeft, offscreenTop) {
+    if (!windowHwnd)
       return false
-    topmostCleared := this._SetWindowPos(windowHwnd, WindowsCoverBackendPrototype.HWND_NOTOPMOST, false, true)
-    if (!topmostCleared)
+    this._RecordOperation(windowHwnd)
+    flags := WindowsCoverBackendPrototype.SWP_NOSIZE | WindowsCoverBackendPrototype.SWP_NOZORDER | WindowsCoverBackendPrototype.SWP_NOACTIVATE | WindowsCoverBackendPrototype.SWP_NOOWNERZORDER | WindowsCoverBackendPrototype.SWP_NOSENDCHANGING
+    return DllCall("SetWindowPos", "Ptr", windowHwnd, "Ptr", 0, "Int", offscreenLeft, "Int", offscreenTop, "Int", 0, "Int", 0, "UInt", flags)
+  }
+
+  MoveToRect(windowHwnd, windowRect) {
+    if (!windowHwnd || !IsObject(windowRect))
       return false
-    return this._SetWindowPos(windowHwnd, coverHwnd, false, true)
+    this._RecordOperation(windowHwnd)
+    flags := WindowsCoverBackendPrototype.SWP_NOZORDER | WindowsCoverBackendPrototype.SWP_NOACTIVATE | WindowsCoverBackendPrototype.SWP_NOOWNERZORDER
+    return DllCall("SetWindowPos", "Ptr", windowHwnd, "Ptr", 0, "Int", windowRect["left"], "Int", windowRect["top"], "Int", windowRect["width"], "Int", windowRect["height"], "UInt", flags)
+  }
+
+  GetOffscreenPosition() {
+    virtualLeft := DllCall("GetSystemMetrics", "Int", 76)
+    virtualTop := DllCall("GetSystemMetrics", "Int", 77)
+    virtualWidth := DllCall("GetSystemMetrics", "Int", 78)
+    return Map("left", virtualLeft + virtualWidth + 100, "top", virtualTop + 100)
+  }
+
+  IsRectOutsideVirtualDesktop(windowRect) {
+    if (!IsObject(windowRect))
+      return false
+    virtualLeft := DllCall("GetSystemMetrics", "Int", 76)
+    virtualTop := DllCall("GetSystemMetrics", "Int", 77)
+    virtualRight := virtualLeft + DllCall("GetSystemMetrics", "Int", 78)
+    virtualBottom := virtualTop + DllCall("GetSystemMetrics", "Int", 79)
+    windowRight := windowRect["left"] + windowRect["width"]
+    windowBottom := windowRect["top"] + windowRect["height"]
+    return windowRight <= virtualLeft || windowRect["left"] >= virtualRight || windowBottom <= virtualTop || windowRect["top"] >= virtualBottom
   }
 
   SetTopmost(windowHwnd, enabled) {
@@ -219,7 +246,7 @@ class CoverFeasibilityPrototype {
   static WM_APP_HANG := 0x8001
   static UNRESPONSIVE_DURATION_MS := 12000
   static MAX_RECONCILE_ATTEMPTS := 2
-  static PARK_HELPER_TIMEOUT_MS := 500
+  static OFFSCREEN_HELPER_TIMEOUT_MS := 500
 
   __New(smokeMode, logPath) {
     this.smokeMode := smokeMode
@@ -249,9 +276,10 @@ class CoverFeasibilityPrototype {
     this.unsupportedTestRunning := false
     this.unsupportedVerified := false
     this.unsupportedHangUntil := 0
-    this.unsupportedParkHelperPid := 0
-    this.unsupportedParkPending := false
-    this.unsupportedParkForegroundBefore := 0
+    this.unsupportedOffscreenTarget := 0
+    this.unsupportedOffscreenHelperPid := 0
+    this.unsupportedOffscreenPending := false
+    this.unsupportedOffscreenForegroundBefore := 0
     this.fixtureGuis := Map()
     this.windowHwnds := Map()
     this.pendingLogText := ""
@@ -265,7 +293,7 @@ class CoverFeasibilityPrototype {
     this.repairCheckCallback := this._CompleteRepairTest.Bind(this)
     this.unresponsiveCheckCallback := this._CompleteUnsupportedTest.Bind(this)
     this.unresponsiveCountdownCallback := this._UpdateUnsupportedCountdown.Bind(this)
-    this.unsupportedParkCheckCallback := this._CompleteUnsupportedPark.Bind(this)
+    this.unsupportedOffscreenCheckCallback := this._CompleteUnsupportedOffscreen.Bind(this)
     this.reconcileCallback := this._ReconcileStack.Bind(this)
     this.logFlushCallback := this._FlushLogQueue.Bind(this)
     this.safetyRestoreCallback := this._SafetyRestore.Bind(this)
@@ -291,7 +319,7 @@ class CoverFeasibilityPrototype {
     this.results["repair"] := Map("label", "WinEvent repair", "state", "NOT RUN", "detail", "Use Break z-order")
     this.results["specialInactive"] := Map("label", "Topmost/fullscreen inactive", "state", "NOT RUN", "detail", "Switch to B")
     this.results["specialRestore"] := Map("label", "Topmost/fullscreen restore", "state", "NOT RUN", "detail", "Switch back to A")
-    this.results["unsupported"] := Map("label", "Unsupported parked layer", "state", "NOT RUN", "detail", "Start unresponsive window")
+    this.results["unsupported"] := Map("label", "Unsupported offscreen fallback", "state", "NOT RUN", "detail", "Start unresponsive window")
     this.results["failure"] := Map("label", "Failed-stack recovery", "state", "NOT RUN", "detail", "Simulate stack failure")
     this.results["cleanup"] := Map("label", "Exit cleanup", "state", "MANUAL", "detail", "Close and reopen, then check the desktop")
   }
@@ -304,7 +332,7 @@ class CoverFeasibilityPrototype {
       "3. Show special A: TOPMOST A and FULLSCREEN A appear only for this test. Clicking fullscreen must not hide or blink the SHELL UI or main panel.",
       "4. Switch to B: expect TOPMOST A to lose topmost and FULLSCREEN A to minimize.",
       "5. Switch to A: expect topmost and fullscreen state to return.",
-      "6. Start unresponsive window: a helper gets 500 ms to park the frozen TOPMOST fixture below the existing cover while this panel stays usable. After response, the fixture stays open in Workspace A and topmost returns on A only.",
+      "6. Start unresponsive window: a helper gets 500 ms to move the frozen TOPMOST fixture outside the virtual desktop without changing focus, size, or topmost. After response, the fixture returns to its old position in Workspace A.",
       "7. Simulate stack failure: every cover must disappear and all test windows must stay reachable.",
       "8. Close and reopen: no cover or changed test-window state may remain.",
       "Emergency: press Ctrl+Shift+F12 at any time. Covers also auto-remove after 60 seconds. Abort test removes all prototype windows."
@@ -607,13 +635,6 @@ class CoverFeasibilityPrototype {
     return zOrderRanks
   }
 
-  _IsWindowBelow(windowHwnd, upperWindowHwnd) {
-    if (!windowHwnd || !upperWindowHwnd)
-      return false
-    zOrderRanks := this._ReadZOrderRanks()
-    return zOrderRanks.Has(windowHwnd) && zOrderRanks.Has(upperWindowHwnd) && zOrderRanks[windowHwnd] > zOrderRanks[upperWindowHwnd]
-  }
-
   _KeepPanelReachable() {
     if (IsObject(this.panelGui) && DllCall("IsWindowVisible", "Ptr", this.panelGui.Hwnd))
       this.backend.SetTopmost(this.panelGui.Hwnd, true)
@@ -819,6 +840,7 @@ class CoverFeasibilityPrototype {
     this.unsupportedFixtureHwnd := fixtureHwnd
     this.unsupportedMonitorNumber := MonitorGetPrimary()
     this.unsupportedRectBefore := this.backend.GetWindowRect(fixtureHwnd)
+    this.unsupportedOffscreenTarget := this.backend.GetOffscreenPosition()
     this.unsupportedSavedTopmost := this.backend.IsTopmost(fixtureHwnd)
     this.unsupportedWorkspace := this.currentWorkspace
     this.unsupportedRecovered := false
@@ -849,66 +871,65 @@ class CoverFeasibilityPrototype {
       this._SetCurrentStep("STEP 6 FAILED - start the unresponsive window again")
       return
     }
-    coverHwnd := this.backend.GetCoverHwnd(this.unsupportedMonitorNumber)
-    this.unsupportedParkForegroundBefore := DllCall("GetForegroundWindow", "Ptr")
-    if (!coverHwnd) {
-      this._SetResult("unsupported", false, "No monitor cover exists for the parking test")
-      this._SetCurrentStep("PARK FAILED - covers remain; waiting for the fixture to respond")
+    this.unsupportedOffscreenForegroundBefore := DllCall("GetForegroundWindow", "Ptr")
+    if (!this.backend.GetCoverHwnd(this.unsupportedMonitorNumber)) {
+      this._SetResult("unsupported", false, "No monitor cover exists for the offscreen test")
+      this._SetCurrentStep("OFFSCREEN FAILED - covers remain; waiting for the fixture to respond")
       return
     }
-    commandLine := '"' A_AhkPath '" /ErrorStdOut=UTF-8 "' A_ScriptFullPath '" --park-helper "' this.unsupportedFixtureHwnd '" "' coverHwnd '"'
+    commandLine := '"' A_AhkPath '" /ErrorStdOut=UTF-8 "' A_ScriptFullPath '" --offscreen-helper "' this.unsupportedFixtureHwnd '" "' this.unsupportedOffscreenTarget["left"] '" "' this.unsupportedOffscreenTarget["top"] '"'
     try Run(commandLine, A_ScriptDir, "Hide", &helperPid)
     catch Error as caughtError {
-      this._SetResult("unsupported", false, "Could not start park helper: " caughtError.Message)
-      this._SetCurrentStep("PARK FAILED - covers remain; waiting for the fixture to respond")
-      this._Log("UNSUPPORTED", "park-helper-start-failed")
+      this._SetResult("unsupported", false, "Could not start offscreen helper: " caughtError.Message)
+      this._SetCurrentStep("OFFSCREEN FAILED - covers remain; waiting for the fixture to respond")
+      this._Log("UNSUPPORTED", "offscreen-helper-start-failed")
       return
     }
-    this.unsupportedParkHelperPid := helperPid
-    this.unsupportedParkPending := true
-    this.lastResultText.Text := "RUNNING - helper is trying to park the frozen window"
-    this._Log("UNSUPPORTED", "park-helper-started:" helperPid)
-    SetTimer(this.unsupportedParkCheckCallback, -CoverFeasibilityPrototype.PARK_HELPER_TIMEOUT_MS)
+    this.unsupportedOffscreenHelperPid := helperPid
+    this.unsupportedOffscreenPending := true
+    this.lastResultText.Text := "RUNNING - helper is trying to move the frozen window offscreen"
+    this._Log("UNSUPPORTED", "offscreen-helper-started:" helperPid)
+    SetTimer(this.unsupportedOffscreenCheckCallback, -CoverFeasibilityPrototype.OFFSCREEN_HELPER_TIMEOUT_MS)
   }
 
-  _CompleteUnsupportedPark() {
-    this.unsupportedParkPending := false
-    helperTimedOut := this.unsupportedParkHelperPid && ProcessExist(this.unsupportedParkHelperPid)
+  _CompleteUnsupportedOffscreen() {
+    this.unsupportedOffscreenPending := false
+    helperTimedOut := this.unsupportedOffscreenHelperPid && ProcessExist(this.unsupportedOffscreenHelperPid)
     if (helperTimedOut) {
-      try ProcessClose(this.unsupportedParkHelperPid)
-      try ProcessWaitClose(this.unsupportedParkHelperPid, 0.2)
+      try ProcessClose(this.unsupportedOffscreenHelperPid)
+      try ProcessWaitClose(this.unsupportedOffscreenHelperPid, 0.2)
     }
-    this.unsupportedParkHelperPid := 0
+    this.unsupportedOffscreenHelperPid := 0
     if (!this.unsupportedFixtureHwnd || !WinExist("ahk_id " this.unsupportedFixtureHwnd)) {
-      this._SetResult("unsupported", false, "The test window closed during the park attempt")
+      this._SetResult("unsupported", false, "The test window closed during the offscreen attempt")
       this._SetCurrentStep("STEP 6 FAILED - start the unresponsive window again")
       return
     }
-    coverHwnd := this.backend.GetCoverHwnd(this.unsupportedMonitorNumber)
     rectAfter := this.backend.GetWindowRect(this.unsupportedFixtureHwnd)
     foregroundAfter := DllCall("GetForegroundWindow", "Ptr")
-    geometryKept := this._RectsMatch(this.unsupportedRectBefore, rectAfter) && !this.backend.IsMinimized(this.unsupportedFixtureHwnd)
-    focusKept := this.unsupportedParkForegroundBefore = foregroundAfter
-    coverKept := coverHwnd && this.backend.GetCoverHwnd(this.unsupportedMonitorNumber) = coverHwnd && this.backend.VerifyCoverGeometry()
-    parkedBelow := this._IsWindowBelow(this.unsupportedFixtureHwnd, coverHwnd)
-    topmostCleared := !this.backend.IsTopmost(this.unsupportedFixtureHwnd)
-    unsupportedPassed := this.unsupportedSavedTopmost && geometryKept && focusKept && coverKept && parkedBelow && topmostCleared
+    sizeKept := IsObject(this.unsupportedRectBefore) && IsObject(rectAfter) && rectAfter["width"] = this.unsupportedRectBefore["width"] && rectAfter["height"] = this.unsupportedRectBefore["height"] && !this.backend.IsMinimized(this.unsupportedFixtureHwnd)
+    focusKept := this.unsupportedOffscreenForegroundBefore = foregroundAfter
+    coversKept := this.backend.covers.Count = MonitorGetCount() && this.backend.VerifyCoverGeometry()
+    movedOffscreen := this.backend.IsRectOutsideVirtualDesktop(rectAfter)
+    topmostKept := this.backend.IsTopmost(this.unsupportedFixtureHwnd) = this.unsupportedSavedTopmost
+    unsupportedPassed := this.unsupportedSavedTopmost && sizeKept && focusKept && coversKept && movedOffscreen && topmostKept
     this.unsupportedVerified := unsupportedPassed
     helperState := helperTimedOut ? "helper timed out and was stopped" : "helper exited within 500 ms"
-    detail := unsupportedPassed ? "Frozen topmost window parked below the existing cover; " helperState : "Park failed or changed window state; every cover stayed in place; " helperState
+    checkText := "offscreen=" this._YesNo(movedOffscreen) ", size=" this._YesNo(sizeKept) ", focus=" this._YesNo(focusKept) ", covers=" this._YesNo(coversKept) ", topmost=" this._YesNo(topmostKept)
+    detail := (unsupportedPassed ? "Frozen topmost window moved outside the virtual desktop; " : "Offscreen move failed or changed window state; every cover stayed in place; ") helperState " | " checkText
     this._SetResult("unsupported", unsupportedPassed, detail)
     if (unsupportedPassed)
       this._UpdateUnsupportedCountdown(true)
     else
-      this._SetCurrentStep("PARK FAILED - covers remain; waiting for the fixture to respond")
-    this._Log("UNSUPPORTED", (unsupportedPassed ? "parked-below-cover:" : "park-failed-cover-kept:") helperState)
+      this._SetCurrentStep("OFFSCREEN FAILED - covers remain; waiting for the fixture to respond")
+    this._Log("UNSUPPORTED", (unsupportedPassed ? "moved-offscreen:" : "offscreen-failed-cover-kept:") helperState ":" checkText)
   }
 
   _UpdateUnsupportedCountdown(forceUpdate := false) {
     if (!this.unsupportedTestRunning)
       return
     currentStep := this.currentStepText.Text
-    countdownOwnsStep := forceUpdate || InStr(currentStep, "UNRESPONSIVE") || InStr(currentStep, "WAITING FOR UNRESPONSIVE") || InStr(currentStep, "PARK")
+    countdownOwnsStep := forceUpdate || InStr(currentStep, "UNRESPONSIVE") || InStr(currentStep, "WAITING FOR UNRESPONSIVE") || InStr(currentStep, "OFFSCREEN")
     remainingMs := this.unsupportedHangUntil - A_TickCount
     fixtureExists := this.unsupportedFixtureHwnd && WinExist("ahk_id " this.unsupportedFixtureHwnd) && this.unsupportedFixturePid && ProcessExist(this.unsupportedFixturePid)
     if (!fixtureExists) {
@@ -925,7 +946,7 @@ class CoverFeasibilityPrototype {
     if (!countdownOwnsStep)
       return
     remainingSeconds := Ceil(remainingMs / 1000)
-    stateText := this.unsupportedParkPending ? "PARK HELPER RUNNING" : this.unsupportedVerified ? "PARKED BELOW COVER" : "PARK FAILED; COVERS KEPT"
+    stateText := this.unsupportedOffscreenPending ? "OFFSCREEN HELPER RUNNING" : this.unsupportedVerified ? "MOVED OFFSCREEN" : "OFFSCREEN FAILED; COVERS KEPT"
     this.currentStepText.Text := stateText " - " remainingSeconds " second(s) left; repeated Start is blocked"
   }
 
@@ -942,24 +963,28 @@ class CoverFeasibilityPrototype {
       return
     }
     this.unsupportedRecovered := true
-    if (!this.testWindowsReady)
-      return
-    workspaceApplied := this._ApplyWorkspace(this.currentWorkspace)
-    coverResult := this._VerifyBands()
-    recoveryPassed := workspaceApplied && coverResult["passed"] && this.backend.covers.Count = MonitorGetCount()
-    if (!unsupportedPassed) {
-      this._SetResult("unsupported", false, "The fixture responded and stayed open, but parking failed; every cover remained")
-      this._SetCurrentStep("STEP 6 FAILED - inspect the log or click Start unresponsive window again")
-      this._Log("UNSUPPORTED", "responsive-after-park-failure")
+    if (!this.testWindowsReady) {
+      this.backend.MoveToRect(this.unsupportedFixtureHwnd, this.unsupportedRectBefore)
       return
     }
+    workspaceApplied := this._ApplyWorkspace(this.currentWorkspace)
+    geometryRestored := this.backend.MoveToRect(this.unsupportedFixtureHwnd, this.unsupportedRectBefore)
+    coverResult := this._VerifyBands()
+    restoredRect := this.backend.GetWindowRect(this.unsupportedFixtureHwnd)
+    recoveryPassed := geometryRestored && this._RectsMatch(this.unsupportedRectBefore, restoredRect) && workspaceApplied && coverResult["passed"] && this.backend.covers.Count = MonitorGetCount()
     if (!recoveryPassed) {
       this._SetResult("unsupported", false, "The fixture responded, but its workspace or saved topmost state did not return safely")
       this._RecoverAll("unsupported-recovery-failed")
       this._SetCurrentStep("STEP 6 FAILED - covers removed; click Create / Reset")
       return
     }
-    this._SetResult("unsupported", true, "Frozen topmost fixture parked below the existing cover; after response it stayed open and returned to Workspace A")
+    if (!unsupportedPassed) {
+      this._SetResult("unsupported", false, "The fixture responded and returned to its old position, but the offscreen move failed; every cover remained")
+      this._SetCurrentStep("STEP 6 FAILED - inspect the result details or click Start unresponsive window again")
+      this._Log("UNSUPPORTED", "responsive-after-offscreen-failure")
+      return
+    }
+    this._SetResult("unsupported", true, "Frozen topmost fixture moved offscreen; after response it returned to its old position in Workspace A")
     this._SetCurrentStep("CURRENT STEP 7/8 - click Simulate stack failure")
     this._ArmSafetyRestore()
     this._Log("UNSUPPORTED", "fixture-recovered-after-" recoveryReason)
@@ -1006,6 +1031,7 @@ class CoverFeasibilityPrototype {
       }
       if (this.unsupportedRecovered && this.unsupportedFixtureHwnd && WinExist("ahk_id " this.unsupportedFixtureHwnd)) {
         this.backend.SetTopmost(this.unsupportedFixtureHwnd, this.unsupportedSavedTopmost)
+        this.backend.MoveToRect(this.unsupportedFixtureHwnd, this.unsupportedRectBefore)
         DllCall("ShowWindow", "Ptr", this.unsupportedFixtureHwnd, "Int", 5)
       }
     }
@@ -1172,7 +1198,7 @@ class CoverFeasibilityPrototype {
         liveText .= "Tracked z-order ranks: " this._GetTrackedZOrderText() "`r`n"
       }
       if (this.unsupportedFixtureHwnd && WinExist("ahk_id " this.unsupportedFixtureHwnd)) {
-        unsupportedState := this.unsupportedRecovered ? "RECOVERED" : this.unsupportedParkPending ? "PARKING" : this.unsupportedVerified ? "PARKED" : this.unsupportedTestRunning ? "CHECKING" : "OPEN"
+        unsupportedState := this.unsupportedRecovered ? "RECOVERED" : this.unsupportedOffscreenPending ? "MOVING OFFSCREEN" : this.unsupportedVerified ? "OFFSCREEN" : this.unsupportedTestRunning ? "CHECKING" : "OPEN"
         liveText .= "Unsupported fixture: " unsupportedState " | Saved TOPMOST: " this._YesNo(this.unsupportedSavedTopmost) " | Assigned workspace: " this.unsupportedWorkspace "`r`n"
       }
     }
@@ -1221,18 +1247,18 @@ class CoverFeasibilityPrototype {
     this.specialStatePrepared := false
   }
 
-  _StopUnsupportedParkHelper() {
-    SetTimer(this.unsupportedParkCheckCallback, 0)
-    if (this.unsupportedParkHelperPid && ProcessExist(this.unsupportedParkHelperPid))
-      try ProcessClose(this.unsupportedParkHelperPid)
-    this.unsupportedParkHelperPid := 0
-    this.unsupportedParkPending := false
-    this.unsupportedParkForegroundBefore := 0
+  _StopUnsupportedOffscreenHelper() {
+    SetTimer(this.unsupportedOffscreenCheckCallback, 0)
+    if (this.unsupportedOffscreenHelperPid && ProcessExist(this.unsupportedOffscreenHelperPid))
+      try ProcessClose(this.unsupportedOffscreenHelperPid)
+    this.unsupportedOffscreenHelperPid := 0
+    this.unsupportedOffscreenPending := false
+    this.unsupportedOffscreenForegroundBefore := 0
   }
 
   _CloseUnsupportedFixture() {
     SetTimer(this.unresponsiveCountdownCallback, 0)
-    this._StopUnsupportedParkHelper()
+    this._StopUnsupportedOffscreenHelper()
     if (this.unsupportedFixtureHwnd && WinExist("ahk_id " this.unsupportedFixtureHwnd))
       try PostMessage(0x0010, 0, 0,, "ahk_id " this.unsupportedFixtureHwnd)
     if (this.unsupportedFixturePid && ProcessExist(this.unsupportedFixturePid)) {
@@ -1244,6 +1270,7 @@ class CoverFeasibilityPrototype {
     this.unsupportedFixtureHwnd := 0
     this.unsupportedMonitorNumber := 0
     this.unsupportedRectBefore := 0
+    this.unsupportedOffscreenTarget := 0
     this.unsupportedSavedTopmost := false
     this.unsupportedWorkspace := "A"
     this.unsupportedRecovered := false
@@ -1294,7 +1321,7 @@ class CoverFeasibilityPrototype {
     SetTimer(this.unresponsiveCheckCallback, 0)
     SetTimer(this.unresponsiveCountdownCallback, 0)
     SetTimer(this.safetyRestoreCallback, 0)
-    SetTimer(this.unsupportedParkCheckCallback, 0)
+    SetTimer(this.unsupportedOffscreenCheckCallback, 0)
     SetTimer(this.logFlushCallback, 0)
     try Hotkey("^+F12", "Off")
     try OnMessage(WindowsCoverBackendPrototype.WM_MOUSEACTIVATE, this.mouseActivateCallback, 0)
@@ -1333,16 +1360,16 @@ HangUnresponsiveFixture(fixtureToken) {
   unsupportedFixtureStateText.Text := "RESPONDING AGAIN`nSTAYS OPEN IN WORKSPACE A`nTOPMOST RETURNS ON A ONLY"
 }
 
-RunParkHelper(windowHwnd, coverHwnd) {
+RunOffscreenHelper(windowHwnd, offscreenLeft, offscreenTop) {
   backend := WindowsCoverBackendPrototype(0)
-  parked := backend.ParkBelowCoverSynchronously(windowHwnd, coverHwnd)
-  ExitApp(parked ? 0 : 2)
+  movedOffscreen := backend.MoveOffscreenSynchronously(windowHwnd, offscreenLeft, offscreenTop)
+  ExitApp(movedOffscreen ? 0 : 2)
 }
 
 if (A_Args.Length >= 1 && A_Args[1] = "--unresponsive-fixture") {
   RunUnresponsiveFixture(A_Args[2], A_Args[3] + 0, A_Args[4] + 0, A_Args[5] + 0)
-} else if (A_Args.Length >= 3 && A_Args[1] = "--park-helper") {
-  RunParkHelper(A_Args[2] + 0, A_Args[3] + 0)
+} else if (A_Args.Length >= 4 && A_Args[1] = "--offscreen-helper") {
+  RunOffscreenHelper(A_Args[2] + 0, A_Args[3] + 0, A_Args[4] + 0)
 } else {
   smokeMode := A_Args.Length >= 1 && A_Args[1] = "--smoke"
   logPath := A_Args.Length >= 2 ? A_Args[2] : A_ScriptDir "\tmp\SyntheticWorkspacesCoverPrototypeManual.log"

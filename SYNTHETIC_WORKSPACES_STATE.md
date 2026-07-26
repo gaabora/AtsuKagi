@@ -54,6 +54,7 @@ This table is the only place that tracks core workspace decision status.
 | `ST-D08` | Chosen | Yes | Synthetic workspaces and `VirtualDesktopManager` remain independent. |
 | `ST-D09` | Chosen | No | Untouched default name, badge, and color follow the current slot, while custom overrides move with the workspace identity. Reset returns to the current slot default. |
 | `ST-D10` | Open | No | Choose the first shipped tiling templates from the candidates in [`STATE-7`](#state-7). |
+| `ST-D11` | Chosen | No | Later settings provide one global inactive-window handling mode and an optional unique-window-profile override. Initial modes are `cover`, `minimize`, and `offscreen`; more modes may be added later. |
 
 <a id="state-3"></a>
 ## STATE-3: Public service and platform boundary
@@ -126,17 +127,18 @@ The backend classifies each top-level window and gives a diagnostic reason:
 | `global` | Window visible on every workspace by explicit rule |
 | `shell` | Windows shell or Haribol! shell UI |
 | `ignored` | Hidden, cloaked, tool, or other non-user window |
-| `unsupported` | Window that cannot join normal operations and must use the parked layer |
+| `unsupported` | Window that cannot join normal operations and needs the unsupported-window fallback |
 
 <a id="state-4-special"></a>
 ### MVP special-window policy
 
 - Keep a window's saved topmost state while its assigned workspace is active. Temporarily clear topmost before placing it in an inactive workspace and restore topmost when its workspace becomes active. Classify the window as `unsupported` if this cannot be done safely.
 - For a controllable fullscreen window that is not blocklisted, minimize it when its workspace becomes inactive and restore its previous fullscreen state when the workspace becomes active. Classify it as `unsupported` if minimize or restore fails.
-- Classify elevated, protected, and non-responsive windows as `unsupported`. Save their observed workspace, geometry, fullscreen, minimized, and topmost state. Do not focus, move, hide, minimize, or restore them while they are unsupported.
-- Make one bounded non-activating helper-process attempt to clear topmost and place an unsupported root-owner group in the parked layer below the monitor cover. Keep every monitor cover in place; the main process must not wait on the target window.
-- If Windows rejects the parked-layer operation, stop retrying, keep the covers, and report that the window may remain visible above its cover.
+- Classify elevated, protected, and non-responsive windows as `unsupported`. Save their observed workspace, geometry, fullscreen, minimized, and topmost state. Do not focus, hide, minimize, restore, or perform a blocking move from the main process while they are unsupported.
+- Make one bounded non-activating helper-process attempt to move a non-responsive top-level window fully outside the virtual desktop without changing its size, focus, minimized state, or topmost state. Keep every monitor cover in place; the main process must not wait on the target window.
+- If Windows rejects the offscreen move, stop retrying, keep the covers, and report that the window may remain visible above its cover.
 - Recheck unsupported windows through low-rate reconciliation. When a window becomes controllable again, return it to normal workspace handling and restore its saved topmost state only when its assigned workspace is active.
+- The feasibility prototype does not implement settings. Later, the global handling mode and a unique-window-profile override choose `cover`, `minimize`, or `offscreen`; `inherit` uses the global mode.
 - A later `pinned` rule may keep a window topmost and visible in the same position on every workspace. It is not part of the MVP.
 
 Drag eligibility and workspace eligibility are different. Do not reuse a private WinDrag filter as the workspace filter.
@@ -147,7 +149,7 @@ Drag eligibility and workspace eligibility are different. Do not reuse a private
 - A normal unowned window starts in the active workspace.
 - A window with one saved unambiguous profile uses that profile's workspace.
 - If a profile points to an inactive workspace, apply decision `ST-D06`.
-- Unsupported windows keep their workspace assignment, use the parked layer when possible, and appear in diagnostics.
+- Unsupported windows keep their workspace assignment, use the offscreen fallback when possible, and appear in diagnostics.
 
 ### Runtime focus and layout identity
 
@@ -187,13 +189,13 @@ A switch is one guarded transaction:
 5. Prepare geometry, z-order, topmost, cover, and focus operations without changing the desktop.
 6. Start one transaction guard and mark each expected property as pending.
 7. Apply prepared geometry in batches.
-8. Stack complete root-owner groups in this normal order: parked unsupported groups, inactive groups, all monitor covers as one band, active groups, and Haribol! shell UI.
+8. Keep successfully moved unsupported windows outside the virtual desktop, then stack complete manageable root-owner groups in this normal order: inactive groups, all monitor covers as one band, active groups, and Haribol! shell UI.
 9. Handle approved topmost windows outside the normal band.
 10. Focus the valid last-active runtime window or the next valid entry in runtime focus history.
 11. Read back geometry, stack bands, covers, and foreground focus.
 12. Run at most one bounded refresh, replan, and repair pass.
 13. On failure, restore only snapshot properties that still match values applied by this transaction.
-14. If safe stacking of covers or manageable windows cannot be restored, remove every cover and make all manageable windows reachable. A rejected unsupported parked-layer operation follows the reported exception in [`STATE-4`](#state-4-special) and does not remove covers.
+14. If safe stacking of covers or manageable windows cannot be restored, remove every cover and make all manageable windows reachable. A rejected unsupported offscreen move follows the reported exception in [`STATE-4`](#state-4-special) and does not remove covers.
 15. Commit `activeWorkspaceId`, geometry, focus history, and candidate state only after successful verification.
 16. Clear pending state and the transaction guard through one cleanup path, then save and publish one new model revision.
 
@@ -207,7 +209,7 @@ Each pending entry records the transaction ID, runtime record ID, property, prio
 - Keep every monitor cover in one contiguous band between inactive and active groups.
 - Keep overview and other Haribol! shell UI above active application windows.
 - Apply the special-window policy from [`STATE-4`](#state-4-special) outside the normal band.
-- Keep covers in place when Windows rejects an unsupported parked-layer operation, and expose the failed window in diagnostics.
+- Keep covers in place when Windows rejects an unsupported offscreen move, and expose the failed window in diagnostics.
 - If cover placement cannot be verified, remove all covers and stop synthetic mode.
 - Process-owned covers disappear if the app crashes.
 
@@ -224,7 +226,7 @@ Each pending entry records the transaction ID, runtime record ID, property, prio
 
 - Never report a switch as complete when destination focus or stack verification fails.
 - Do not hide unsupported windows from diagnostics.
-- Keep covers and stop bounded park retries when Windows rejects an unsupported parked-layer operation.
+- Keep covers and stop bounded offscreen retries when Windows rejects an unsupported move.
 - A newer external window change wins over rollback.
 
 <a id="state-7"></a>
@@ -303,6 +305,7 @@ A unique window profile may contain:
 - One workspace assignment for the MVP.
 - Monitor-specific normalized freeform geometry.
 - Custom display title, title format, icon, and per-window color override.
+- Later optional inactive-window handling override: `inherit`, `cover`, `minimize`, or `offscreen`.
 
 Do not apply placement or workspace assignment from a profile that currently matches several windows.
 

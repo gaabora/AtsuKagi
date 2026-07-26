@@ -10,7 +10,7 @@ The MVP is complete only when all required steps below are marked `✅` and the 
 <a id="mvp-2"></a>
 ## MVP-2: Status rules
 
-- Current status: Stage 0 decisions and managed CapsLock feasibility are complete; desktop-cover and z-order feasibility has not started.
+- Current status: Stage 0 decisions and feasibility are complete; Stage 1 workspace-engine implementation has not started.
 - Use `[ ]` for work that has not started.
 - Replace `[ ]` with `✅` only after the linked section is implemented.
 - Do not copy details from linked sections into this file.
@@ -24,7 +24,7 @@ The MVP is complete only when all required steps below are marked `✅` and the 
 - ✅ Resolve every MVP-blocking persistence decision in [`STATE-8`](SYNTHETIC_WORKSPACES_STATE.md#state-8).
 - ✅ Resolve every MVP-blocking overview decision in [`OVERVIEW-2`](SYNTHETIC_WORKSPACES_OVERVIEW.md#overview-2).
 - ✅ Prove the managed CapsLock backend against [`TEST-3`](SYNTHETIC_WORKSPACES_TESTS.md#test-3).
-- [ ] Prove the desktop-cover and z-order approach against [`TEST-4`](SYNTHETIC_WORKSPACES_TESTS.md#test-4).
+- ✅ Prove the desktop-cover and z-order approach against [`TEST-4`](SYNTHETIC_WORKSPACES_TESTS.md#test-4).
 
 <a id="mvp-4"></a>
 ## MVP-4: Stage 1 - workspace engine

@@ -71,15 +71,17 @@ Canonical behavior: [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2) through [
 
 ### Cover feasibility gate
 
-- [ ] A prototype can keep normal inactive windows below one non-activating cover per monitor and active windows above the cover.
-- [ ] Haribol! shell UI stays above the active application band.
-- [ ] Normal activation and z-order changes can be detected and repaired without trapping a window.
-- [ ] A failed stack operation removes every cover and leaves all manageable windows reachable.
-- [ ] A controllable topmost window loses topmost only while its assigned workspace is inactive, then regains it when that workspace becomes active.
-- [ ] A controllable non-blocklisted fullscreen window minimizes while its assigned workspace is inactive, then returns to its prior fullscreen state when that workspace becomes active.
-- [ ] A non-responsive topmost window keeps its geometry and focus state while one bounded non-activating helper-process attempt clears topmost and parks it below the existing cover without blocking the main process.
-- [ ] Every cover remains in place while a window is unsupported; a rejected park stops retrying and reports that the window may remain above its cover.
-- [ ] When the window responds again, its saved topmost state returns only on its assigned active workspace and the window remains below the cover on other workspaces.
+- ✅ A prototype can keep normal inactive windows below one non-activating cover per monitor and active windows above the cover.
+- ✅ Haribol! shell UI stays above the active application band.
+- ✅ Normal activation and z-order changes can be detected and repaired without trapping a window.
+- ✅ A failed stack operation removes every cover and leaves all manageable windows reachable.
+- ✅ A controllable topmost window loses topmost only while its assigned workspace is inactive, then regains it when that workspace becomes active.
+- ✅ A controllable non-blocklisted fullscreen window minimizes while its assigned workspace is inactive, then returns to its prior fullscreen state when that workspace becomes active.
+- ✅ A non-responsive topmost window keeps its size, focus state, minimized state, and topmost state while one bounded non-activating helper-process attempt moves it fully outside the virtual desktop without blocking the main process.
+- ✅ Every cover remains in place while a window is unsupported; a rejected offscreen move stops retrying and reports that the window may remain above its cover.
+- ✅ When the window responds again, its saved geometry returns before normal workspace handling resumes, and its saved topmost state returns only on its assigned active workspace.
+
+Feasibility evidence (2026-07-26): [`SyntheticWorkspacesCoverPrototype.ahk`](SyntheticWorkspacesCoverPrototype.ahk) passed the manual cover, shell band, WinEvent repair, topmost, fullscreen, offscreen, failure recovery, and cleanup checks. The frozen topmost window moved fully outside the virtual desktop while the bounded helper was stopped at its timeout; the main panel stayed usable, every cover remained, and all observed state checks passed.
 
 ### Model and events
 
@@ -102,7 +104,7 @@ Canonical behavior: [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2) through [
 - [ ] A failed verification keeps the previous committed active workspace.
 - [ ] An unexpected event during apply causes one bounded refresh and replan or a safe rollback.
 - [ ] Rollback does not overwrite a newer external window change.
-- [ ] Normal z-order is parked unsupported groups, inactive owner groups, covers, active owner groups, and Haribol! shell UI.
+- [ ] Normal visible z-order is inactive owner groups, covers, active owner groups, and Haribol! shell UI; successfully moved unsupported windows stay outside the virtual desktop.
 - [ ] Suspend, reload, disable, and exit remove every cover and temporary topmost change.
 - [ ] Emergency tray restore works while normal hotkeys are suspended.
 - [ ] Emergency restore makes every manageable window reachable.
