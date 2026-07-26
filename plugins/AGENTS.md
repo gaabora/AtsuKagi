@@ -2,11 +2,13 @@
 
 ## Purpose
 
-- Own dynamically loaded feature classes that extend `AKPlugin` and expose user-callable actions.
+- Own dynamically loaded top-level feature classes that extend `AKPlugin` and expose user-callable actions.
+- Own feature-specific submodules included by those top-level plugins.
 
 ## Ownership
 
-- Each plugin owns its descriptor, configuration defaults, action implementation, and private helpers.
+- Each top-level plugin owns its descriptor, configuration defaults, action implementation, and private helpers.
+- Feature subdirectories own internal model, service, and backend modules and are not separate dynamic plugins.
 - Shared dispatch, metadata processing, blocklists, and settings integration belong in `includes/`.
 - `dynamicPlugins.ahk` at the repository root is generated from this directory and is not hand-maintained as plugin source.
 
@@ -44,4 +46,4 @@
 
 ## Child DOX Index
 
-- No child DOX files.
+- [`SyntheticWorkspaces/AGENTS.md`](SyntheticWorkspaces/AGENTS.md): portable Synthetic Workspaces model and service components.

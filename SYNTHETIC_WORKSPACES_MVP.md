@@ -10,7 +10,7 @@ The MVP is complete only when all required steps below are marked `✅` and the 
 <a id="mvp-2"></a>
 ## MVP-2: Status rules
 
-- Current status: Stage 0 decisions and feasibility are complete; Stage 1 workspace-engine implementation has not started.
+- Current status: Stage 0 and the Stage 1 workspace model are complete; public plugin actions and lifecycle have not started.
 - Use `[ ]` for work that has not started.
 - Replace `[ ]` with `✅` only after the linked section is implemented.
 - Do not copy details from linked sections into this file.
@@ -29,7 +29,7 @@ The MVP is complete only when all required steps below are marked `✅` and the 
 <a id="mvp-4"></a>
 ## MVP-4: Stage 1 - workspace engine
 
-- [ ] Implement the workspace model and invariants in [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2).
+- ✅ Implement the workspace model and invariants in [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2).
 - [ ] Add the public plugin actions and lifecycle in [`STATE-3`](SYNTHETIC_WORKSPACES_STATE.md#state-3).
 - [ ] Implement the runtime window cache and classification in [`STATE-4`](SYNTHETIC_WORKSPACES_STATE.md#state-4).
 - [ ] Implement native events and reconciliation in [`STATE-5`](SYNTHETIC_WORKSPACES_STATE.md#state-5).
