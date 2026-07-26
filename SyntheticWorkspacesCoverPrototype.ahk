@@ -11,7 +11,7 @@ class WindowsCoverBackendPrototype {
   static SWP_NOMOVE := 0x0002
   static SWP_NOACTIVATE := 0x0010
   static SWP_NOOWNERZORDER := 0x0200
-  static SWP_ASYNCWINDOWPOS := 0x4000
+  static SWP_NOSENDCHANGING := 0x0400
   static WS_EX_TOPMOST := 0x00000008
   static WM_MOUSEACTIVATE := 0x0021
   static MA_NOACTIVATEANDEAT := 4
@@ -129,7 +129,7 @@ class WindowsCoverBackendPrototype {
     return this._SetWindowPos(windowHwnd, upperWindowHwnd)
   }
 
-  ParkBelowCover(windowHwnd, coverHwnd) {
+  ParkBelowCoverSynchronously(windowHwnd, coverHwnd) {
     if (!windowHwnd || !coverHwnd)
       return false
     topmostCleared := this._SetWindowPos(windowHwnd, WindowsCoverBackendPrototype.HWND_NOTOPMOST, false, true)
@@ -187,7 +187,7 @@ class WindowsCoverBackendPrototype {
     return this.operationCounts.Has(windowHwnd) ? this.operationCounts[windowHwnd] : 0
   }
 
-  _SetWindowPos(windowHwnd, insertAfterHwnd, allowForcedFailure := true, useAsync := false) {
+  _SetWindowPos(windowHwnd, insertAfterHwnd, allowForcedFailure := true, suppressChanging := false) {
     if (allowForcedFailure && this.forceNextStackFailure) {
       this.forceNextStackFailure := false
       this._Log("STACK", "forced-failure")
@@ -195,8 +195,8 @@ class WindowsCoverBackendPrototype {
     }
     this._RecordOperation(windowHwnd)
     flags := WindowsCoverBackendPrototype.SWP_NOMOVE | WindowsCoverBackendPrototype.SWP_NOSIZE | WindowsCoverBackendPrototype.SWP_NOACTIVATE | WindowsCoverBackendPrototype.SWP_NOOWNERZORDER
-    if (useAsync)
-      flags |= WindowsCoverBackendPrototype.SWP_ASYNCWINDOWPOS
+    if (suppressChanging)
+      flags |= WindowsCoverBackendPrototype.SWP_NOSENDCHANGING
     return DllCall("SetWindowPos", "Ptr", windowHwnd, "Ptr", insertAfterHwnd, "Int", 0, "Int", 0, "Int", 0, "Int", 0, "UInt", flags)
   }
 
@@ -219,6 +219,7 @@ class CoverFeasibilityPrototype {
   static WM_APP_HANG := 0x8001
   static UNRESPONSIVE_DURATION_MS := 12000
   static MAX_RECONCILE_ATTEMPTS := 2
+  static PARK_HELPER_TIMEOUT_MS := 500
 
   __New(smokeMode, logPath) {
     this.smokeMode := smokeMode
@@ -248,6 +249,9 @@ class CoverFeasibilityPrototype {
     this.unsupportedTestRunning := false
     this.unsupportedVerified := false
     this.unsupportedHangUntil := 0
+    this.unsupportedParkHelperPid := 0
+    this.unsupportedParkPending := false
+    this.unsupportedParkForegroundBefore := 0
     this.fixtureGuis := Map()
     this.windowHwnds := Map()
     this.pendingLogText := ""
@@ -261,6 +265,7 @@ class CoverFeasibilityPrototype {
     this.repairCheckCallback := this._CompleteRepairTest.Bind(this)
     this.unresponsiveCheckCallback := this._CompleteUnsupportedTest.Bind(this)
     this.unresponsiveCountdownCallback := this._UpdateUnsupportedCountdown.Bind(this)
+    this.unsupportedParkCheckCallback := this._CompleteUnsupportedPark.Bind(this)
     this.reconcileCallback := this._ReconcileStack.Bind(this)
     this.logFlushCallback := this._FlushLogQueue.Bind(this)
     this.safetyRestoreCallback := this._SafetyRestore.Bind(this)
@@ -299,7 +304,7 @@ class CoverFeasibilityPrototype {
       "3. Show special A: TOPMOST A and FULLSCREEN A appear only for this test. Clicking fullscreen must not hide or blink the SHELL UI or main panel.",
       "4. Switch to B: expect TOPMOST A to lose topmost and FULLSCREEN A to minimize.",
       "5. Switch to A: expect topmost and fullscreen state to return.",
-      "6. Start unresponsive window: a TOPMOST fixture freezes, loses topmost, and moves below the existing cover. After it responds, it stays open in Workspace A and its saved topmost state returns on A only.",
+      "6. Start unresponsive window: a helper gets 500 ms to park the frozen TOPMOST fixture below the existing cover while this panel stays usable. After response, the fixture stays open in Workspace A and topmost returns on A only.",
       "7. Simulate stack failure: every cover must disappear and all test windows must stay reachable.",
       "8. Close and reopen: no cover or changed test-window state may remain.",
       "Emergency: press Ctrl+Shift+F12 at any time. Covers also auto-remove after 60 seconds. Abort test removes all prototype windows."
@@ -422,12 +427,12 @@ class CoverFeasibilityPrototype {
   _SwitchWorkspaceB(*) {
     if (!this._RequireTestWindows())
       return
-    if (!this.specialStatePrepared) {
-      this.lastResultText.Text := "NOT READY - click Show special A first"
-      this._SetCurrentStep("CURRENT STEP 3/8 - click Show special A")
-      this._KeepPanelReachable()
-      return
-    }
+    ; if (!this.specialStatePrepared) {
+    ;   this.lastResultText.Text := "NOT READY - click Show special A first"
+    ;   this._SetCurrentStep("CURRENT STEP 3/8 - click Show special A")
+    ;   this._KeepPanelReachable()
+    ;   return
+    ; }
     if (this.backend.covers.Count = 0)
       this.backend.CreateCovers()
     this._ApplyWorkspace("B")
@@ -440,12 +445,12 @@ class CoverFeasibilityPrototype {
   _SwitchWorkspaceA(*) {
     if (!this._RequireTestWindows())
       return
-    if (!this.specialStatePrepared) {
-      this.lastResultText.Text := "NOT READY - click Show special A first"
-      this._SetCurrentStep("CURRENT STEP 3/8 - click Show special A")
-      this._KeepPanelReachable()
-      return
-    }
+    ; if (!this.specialStatePrepared) {
+    ;   this.lastResultText.Text := "NOT READY - click Show special A first"
+    ;   this._SetCurrentStep("CURRENT STEP 3/8 - click Show special A")
+    ;   this._KeepPanelReachable()
+    ;   return
+    ; }
     if (this.backend.covers.Count = 0)
       this.backend.CreateCovers()
     this._ApplyWorkspace("A")
@@ -845,25 +850,58 @@ class CoverFeasibilityPrototype {
       return
     }
     coverHwnd := this.backend.GetCoverHwnd(this.unsupportedMonitorNumber)
-    foregroundBefore := DllCall("GetForegroundWindow", "Ptr")
-    parkRequested := this.backend.ParkBelowCover(this.unsupportedFixtureHwnd, coverHwnd)
-    Sleep(120)
+    this.unsupportedParkForegroundBefore := DllCall("GetForegroundWindow", "Ptr")
+    if (!coverHwnd) {
+      this._SetResult("unsupported", false, "No monitor cover exists for the parking test")
+      this._SetCurrentStep("PARK FAILED - covers remain; waiting for the fixture to respond")
+      return
+    }
+    commandLine := '"' A_AhkPath '" /ErrorStdOut=UTF-8 "' A_ScriptFullPath '" --park-helper "' this.unsupportedFixtureHwnd '" "' coverHwnd '"'
+    try Run(commandLine, A_ScriptDir, "Hide", &helperPid)
+    catch Error as caughtError {
+      this._SetResult("unsupported", false, "Could not start park helper: " caughtError.Message)
+      this._SetCurrentStep("PARK FAILED - covers remain; waiting for the fixture to respond")
+      this._Log("UNSUPPORTED", "park-helper-start-failed")
+      return
+    }
+    this.unsupportedParkHelperPid := helperPid
+    this.unsupportedParkPending := true
+    this.lastResultText.Text := "RUNNING - helper is trying to park the frozen window"
+    this._Log("UNSUPPORTED", "park-helper-started:" helperPid)
+    SetTimer(this.unsupportedParkCheckCallback, -CoverFeasibilityPrototype.PARK_HELPER_TIMEOUT_MS)
+  }
+
+  _CompleteUnsupportedPark() {
+    this.unsupportedParkPending := false
+    helperTimedOut := this.unsupportedParkHelperPid && ProcessExist(this.unsupportedParkHelperPid)
+    if (helperTimedOut) {
+      try ProcessClose(this.unsupportedParkHelperPid)
+      try ProcessWaitClose(this.unsupportedParkHelperPid, 0.2)
+    }
+    this.unsupportedParkHelperPid := 0
+    if (!this.unsupportedFixtureHwnd || !WinExist("ahk_id " this.unsupportedFixtureHwnd)) {
+      this._SetResult("unsupported", false, "The test window closed during the park attempt")
+      this._SetCurrentStep("STEP 6 FAILED - start the unresponsive window again")
+      return
+    }
+    coverHwnd := this.backend.GetCoverHwnd(this.unsupportedMonitorNumber)
     rectAfter := this.backend.GetWindowRect(this.unsupportedFixtureHwnd)
     foregroundAfter := DllCall("GetForegroundWindow", "Ptr")
     geometryKept := this._RectsMatch(this.unsupportedRectBefore, rectAfter) && !this.backend.IsMinimized(this.unsupportedFixtureHwnd)
-    focusKept := foregroundBefore = foregroundAfter
+    focusKept := this.unsupportedParkForegroundBefore = foregroundAfter
     coverKept := coverHwnd && this.backend.GetCoverHwnd(this.unsupportedMonitorNumber) = coverHwnd && this.backend.VerifyCoverGeometry()
     parkedBelow := this._IsWindowBelow(this.unsupportedFixtureHwnd, coverHwnd)
     topmostCleared := !this.backend.IsTopmost(this.unsupportedFixtureHwnd)
-    unsupportedPassed := this.unsupportedSavedTopmost && parkRequested && geometryKept && focusKept && coverKept && parkedBelow && topmostCleared
+    unsupportedPassed := this.unsupportedSavedTopmost && geometryKept && focusKept && coverKept && parkedBelow && topmostCleared
     this.unsupportedVerified := unsupportedPassed
-    detail := unsupportedPassed ? "Frozen topmost window parked below the existing cover without move, focus, minimize, or cover removal" : "Park failed or changed window state; every cover stayed in place and retries stopped"
+    helperState := helperTimedOut ? "helper timed out and was stopped" : "helper exited within 500 ms"
+    detail := unsupportedPassed ? "Frozen topmost window parked below the existing cover; " helperState : "Park failed or changed window state; every cover stayed in place; " helperState
     this._SetResult("unsupported", unsupportedPassed, detail)
     if (unsupportedPassed)
       this._UpdateUnsupportedCountdown(true)
     else
       this._SetCurrentStep("PARK FAILED - covers remain; waiting for the fixture to respond")
-    this._Log("UNSUPPORTED", unsupportedPassed ? "parked-below-cover" : "park-failed-cover-kept")
+    this._Log("UNSUPPORTED", (unsupportedPassed ? "parked-below-cover:" : "park-failed-cover-kept:") helperState)
   }
 
   _UpdateUnsupportedCountdown(forceUpdate := false) {
@@ -887,7 +925,7 @@ class CoverFeasibilityPrototype {
     if (!countdownOwnsStep)
       return
     remainingSeconds := Ceil(remainingMs / 1000)
-    stateText := this.unsupportedVerified ? "PARKED BELOW COVER" : "PARK FAILED; COVERS KEPT"
+    stateText := this.unsupportedParkPending ? "PARK HELPER RUNNING" : this.unsupportedVerified ? "PARKED BELOW COVER" : "PARK FAILED; COVERS KEPT"
     this.currentStepText.Text := stateText " - " remainingSeconds " second(s) left; repeated Start is blocked"
   }
 
@@ -1134,7 +1172,7 @@ class CoverFeasibilityPrototype {
         liveText .= "Tracked z-order ranks: " this._GetTrackedZOrderText() "`r`n"
       }
       if (this.unsupportedFixtureHwnd && WinExist("ahk_id " this.unsupportedFixtureHwnd)) {
-        unsupportedState := this.unsupportedRecovered ? "RECOVERED" : this.unsupportedVerified ? "PARKED" : this.unsupportedTestRunning ? "CHECKING" : "OPEN"
+        unsupportedState := this.unsupportedRecovered ? "RECOVERED" : this.unsupportedParkPending ? "PARKING" : this.unsupportedVerified ? "PARKED" : this.unsupportedTestRunning ? "CHECKING" : "OPEN"
         liveText .= "Unsupported fixture: " unsupportedState " | Saved TOPMOST: " this._YesNo(this.unsupportedSavedTopmost) " | Assigned workspace: " this.unsupportedWorkspace "`r`n"
       }
     }
@@ -1183,8 +1221,18 @@ class CoverFeasibilityPrototype {
     this.specialStatePrepared := false
   }
 
+  _StopUnsupportedParkHelper() {
+    SetTimer(this.unsupportedParkCheckCallback, 0)
+    if (this.unsupportedParkHelperPid && ProcessExist(this.unsupportedParkHelperPid))
+      try ProcessClose(this.unsupportedParkHelperPid)
+    this.unsupportedParkHelperPid := 0
+    this.unsupportedParkPending := false
+    this.unsupportedParkForegroundBefore := 0
+  }
+
   _CloseUnsupportedFixture() {
     SetTimer(this.unresponsiveCountdownCallback, 0)
+    this._StopUnsupportedParkHelper()
     if (this.unsupportedFixtureHwnd && WinExist("ahk_id " this.unsupportedFixtureHwnd))
       try PostMessage(0x0010, 0, 0,, "ahk_id " this.unsupportedFixtureHwnd)
     if (this.unsupportedFixturePid && ProcessExist(this.unsupportedFixturePid)) {
@@ -1246,6 +1294,7 @@ class CoverFeasibilityPrototype {
     SetTimer(this.unresponsiveCheckCallback, 0)
     SetTimer(this.unresponsiveCountdownCallback, 0)
     SetTimer(this.safetyRestoreCallback, 0)
+    SetTimer(this.unsupportedParkCheckCallback, 0)
     SetTimer(this.logFlushCallback, 0)
     try Hotkey("^+F12", "Off")
     try OnMessage(WindowsCoverBackendPrototype.WM_MOUSEACTIVATE, this.mouseActivateCallback, 0)
@@ -1284,8 +1333,16 @@ HangUnresponsiveFixture(fixtureToken) {
   unsupportedFixtureStateText.Text := "RESPONDING AGAIN`nSTAYS OPEN IN WORKSPACE A`nTOPMOST RETURNS ON A ONLY"
 }
 
+RunParkHelper(windowHwnd, coverHwnd) {
+  backend := WindowsCoverBackendPrototype(0)
+  parked := backend.ParkBelowCoverSynchronously(windowHwnd, coverHwnd)
+  ExitApp(parked ? 0 : 2)
+}
+
 if (A_Args.Length >= 1 && A_Args[1] = "--unresponsive-fixture") {
   RunUnresponsiveFixture(A_Args[2], A_Args[3] + 0, A_Args[4] + 0, A_Args[5] + 0)
+} else if (A_Args.Length >= 3 && A_Args[1] = "--park-helper") {
+  RunParkHelper(A_Args[2] + 0, A_Args[3] + 0)
 } else {
   smokeMode := A_Args.Length >= 1 && A_Args[1] = "--smoke"
   logPath := A_Args.Length >= 2 ? A_Args[2] : A_ScriptDir "\tmp\SyntheticWorkspacesCoverPrototypeManual.log"

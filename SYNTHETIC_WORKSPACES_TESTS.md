@@ -77,7 +77,7 @@ Canonical behavior: [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2) through [
 - [ ] A failed stack operation removes every cover and leaves all manageable windows reachable.
 - [ ] A controllable topmost window loses topmost only while its assigned workspace is inactive, then regains it when that workspace becomes active.
 - [ ] A controllable non-blocklisted fullscreen window minimizes while its assigned workspace is inactive, then returns to its prior fullscreen state when that workspace becomes active.
-- [ ] A non-responsive topmost window keeps its geometry and focus state while one bounded non-activating attempt clears topmost and parks it below the existing cover.
+- [ ] A non-responsive topmost window keeps its geometry and focus state while one bounded non-activating helper-process attempt clears topmost and parks it below the existing cover without blocking the main process.
 - [ ] Every cover remains in place while a window is unsupported; a rejected park stops retrying and reports that the window may remain above its cover.
 - [ ] When the window responds again, its saved topmost state returns only on its assigned active workspace and the window remains below the cover on other workspaces.
 
