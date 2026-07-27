@@ -14,6 +14,7 @@ class AKApp extends AKBase {
   _configFile := A_ScriptDir "\config.ini"
   _configFileDefault := A_ScriptDir "\config.ini"
   _assignedHotkeys := Map()
+  ; _startMenuSuppressHotkeys := Map()
   _toolTipIdsArr := Map()
   _toolTipGuis := Map()
   _warnedDeprecatedActions := Map()
@@ -762,20 +763,20 @@ class AKApp extends AKBase {
     if (!isBlocklisted)
       isBlocklisted := this.IsInBlocklist('Global', hwnd)
 
-    this.outputDebugLine(AKApp.LOG_DEBUG, ((isBlocklisted) ? "BLACKLISTED " : "OK ") '' windowClass " hwnd=" hwnd)
+    if (isBlocklisted) this.outputDebugLine(AKApp.LOG_TRACE, ((isBlocklisted) ? "BLOCKLISTED " : "OK ") '' windowClass " hwnd=" hwnd)
     return isBlocklisted
   }
 
   ; Check if a window matches any pattern in a named blocklist.
-  ; Blocklists are defined in [BLACKLISTS] config section.
+  ; Blocklists are defined in [BLOCKLISTS] config section.
   ; Pattern formats: "ClassName", "class:ClassName", "exe:Process.exe", "path:substring"
   IsInBlocklist(blocklistName, hwnd:=0) {
     if (hwnd = 0)
       MouseGetPos(,, &hwnd)
-    if (!this.Config.Has('BLACKLISTS') || !this.Config.BLACKLISTS.Has(blocklistName))
+    if (!this.Config.Has('BLOCKLISTS') || !this.Config.BLOCKLISTS.Has(blocklistName))
       return false
     
-    blocklistValue := this.Config.BLACKLISTS.%blocklistName%
+    blocklistValue := this.Config.BLOCKLISTS.%blocklistName%
     if (blocklistValue = '')
       return false
 
@@ -1074,9 +1075,9 @@ class AKApp extends AKBase {
       this.Config.THEME := {} 
     ProcessThemeConfigSection(this.Config.THEME)
     
-    if (!this.Config.Has("BLACKLISTS"))
-      this.Config.BLACKLISTS := {}
-    ProcessBlocklistsConfigSection(this.Config.BLACKLISTS)
+    if (!this.Config.Has("BLOCKLISTS"))
+      this.Config.BLOCKLISTS := {}
+    ProcessBlocklistsConfigSection(this.Config.BLOCKLISTS)
 
     if (!this.Config.Has("HOTKEYS"))
       this.Config.HOTKEYS := GetDefaultHotkeysConfig()
@@ -1941,11 +1942,63 @@ class AKApp extends AKBase {
   ; else
   ;   Send {LWin}
   ; return
+
+  ; _maybeSuppressStartMenuForHotkey(hotkey) {
+  ;   if (!this._isWinMouseButtonHotkey(hotkey))
+  ;     return
+  ;   for winKey in this._getPressedWinKeysForHotkey(hotkey)
+  ;     this._enableStartMenuSuppressHotkey(winKey)
+  ; }
+
+  ; _isWinMouseButtonHotkey(hotkey) {
+  ;   hk := StrUpper(RegExReplace("" hotkey, "\s+", ""))
+  ;   return InStr(hk, "#") && RegExMatch(hk, "(LBUTTON|RBUTTON|MBUTTON|XBUTTON1|XBUTTON2)")
+  ; }
+
+  ; _getPressedWinKeysForHotkey(hotkey) {
+  ;   hk := StrUpper(RegExReplace("" hotkey, "\s+", ""))
+  ;   keys := []
+  ;   if (InStr(hk, ">#")) {
+  ;     if (GetKeyState("RWin", "P"))
+  ;       keys.Push("RWin")
+  ;   } else if (InStr(hk, "<#")) {
+  ;     if (GetKeyState("LWin", "P"))
+  ;       keys.Push("LWin")
+  ;   } else {
+  ;     if (GetKeyState("LWin", "P"))
+  ;       keys.Push("LWin")
+  ;     if (GetKeyState("RWin", "P"))
+  ;       keys.Push("RWin")
+  ;   }
+  ;   return keys
+  ; }
+
+  ; _enableStartMenuSuppressHotkey(winKey) {
+  ;   hotkeyName := "*" winKey " up"
+  ;   if (this._startMenuSuppressHotkeys.Has(hotkeyName))
+  ;     return
+  ;   callback := this._handleStartMenuSuppressWinUp.Bind(this, hotkeyName)
+  ;   this._startMenuSuppressHotkeys[hotkeyName] := callback
+  ;   try Hotkey(hotkeyName, callback, "On")
+  ; }
+
+  ; _handleStartMenuSuppressWinUp(hotkeyName, *) {
+  ;   this._disableStartMenuSuppressHotkey(hotkeyName)
+  ; }
+
+  ; _disableStartMenuSuppressHotkey(hotkeyName) {
+  ;   if (!this._startMenuSuppressHotkeys.Has(hotkeyName))
+  ;     return
+  ;   try Hotkey(hotkeyName, "Off")
+  ;   this._startMenuSuppressHotkeys.Delete(hotkeyName)
+  ; }
+
   _runHotkeyAction(some*) {
     if (!this._assignedHotkeys.Has(A_ThisHotkey)) {
       this.outputDebugLine(AKApp.LOG_DEBUG, "Hotkey " A_ThisHotkey " was changed to some other, skipping") ; this is maybe implicit fail but since looks like ahk2 dont have yet proper way to unbind hotkey so
       return
     }
+    ; this._maybeSuppressStartMenuForHotkey(A_ThisHotkey) ; buggy, dont work.
     hkDef := this._assignedHotkeys[A_ThisHotKey]
     ; TODO: HotkeyThrottlingBlocklist?
     if (A_PriorHotkey = A_ThisHotkey && A_TimeSincePriorHotkey < this.HotkeyThrottlingTimeout) {
