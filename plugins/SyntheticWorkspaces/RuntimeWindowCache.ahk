@@ -41,6 +41,9 @@ class SyntheticWorkspaceRuntimeWindowRecord {
     this.Classification := snapshot.Get("classification", "")
     this.ClassificationReason := snapshot.Get("classificationReason", "")
     this._validateClassification(this.Classification, this.ClassificationReason)
+    this.Responsive := !!snapshot.Get("responsive", true)
+    this.MetadataReadable := !!snapshot.Get("metadataReadable", true)
+    this.SnapshotFailed := !!snapshot.Get("snapshotFailed", false)
     observedState := Map(
       "geometry", this._cloneMap(snapshot.Get("geometry", 0)),
       "monitor", this._cloneMap(snapshot.Get("monitor", 0)),
@@ -70,6 +73,10 @@ class SyntheticWorkspaceRuntimeWindowRecord {
     this._validateClassification(classification, reason)
     this.Classification := classification
     this.ClassificationReason := reason
+  }
+
+  UpdateObservedStackIndex(stackIndex) {
+    this.State.Observed["stackIndex"] := stackIndex
   }
 
   _validateClassification(classification, reason) {

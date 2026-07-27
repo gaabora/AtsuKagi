@@ -1,6 +1,7 @@
 #Include SyntheticWorkspaces\WorkspaceService.ahk
 #Include SyntheticWorkspaces\WorkspaceRuntime.ahk
 #Include SyntheticWorkspaces\Windows\WindowBackend.ahk
+#Include SyntheticWorkspaces\Windows\WindowEventService.ahk
 
 class SyntheticWorkspaces extends AKPlugin {
   __New(app, service:=0) {
@@ -10,7 +11,8 @@ class SyntheticWorkspaces extends AKPlugin {
     else if (service = 0) {
       workspaceModel := SyntheticWorkspaceService.CreateDefaultModel()
       windowBackend := WindowsSyntheticWorkspaceWindowBackend(this._isWorkspaceWindowBlocklisted.Bind(this))
-      workspaceRuntime := SyntheticWorkspaceRuntime(workspaceModel, windowBackend)
+      windowEventService := WindowsSyntheticWorkspaceWindowEventService()
+      workspaceRuntime := SyntheticWorkspaceRuntime(workspaceModel, windowBackend, 0, windowEventService)
       this._service := SyntheticWorkspaceService(workspaceModel, workspaceRuntime)
     }
     else

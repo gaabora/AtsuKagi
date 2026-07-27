@@ -10,7 +10,7 @@ The MVP is complete only when all required steps below are marked `✅` and the 
 <a id="mvp-2"></a>
 ## MVP-2: Status rules
 
-- Current status: Stage 0 through runtime window cache and classification are complete; native events and reconciliation have not started.
+- Current status: Stage 0 through native events and reconciliation are complete; guarded switching and recovery have not started.
 - Use `[ ]` for work that has not started.
 - Replace `[ ]` with `✅` only after the linked section is implemented.
 - Do not copy details from linked sections into this file.
@@ -32,7 +32,7 @@ The MVP is complete only when all required steps below are marked `✅` and the 
 - ✅ Implement the workspace model and invariants in [`STATE-2`](SYNTHETIC_WORKSPACES_STATE.md#state-2).
 - ✅ Add the public plugin actions and lifecycle in [`STATE-3`](SYNTHETIC_WORKSPACES_STATE.md#state-3).
 - ✅ Implement the runtime window cache and classification in [`STATE-4`](SYNTHETIC_WORKSPACES_STATE.md#state-4).
-- [ ] Implement native events and reconciliation in [`STATE-5`](SYNTHETIC_WORKSPACES_STATE.md#state-5).
+- ✅ Implement native events and reconciliation in [`STATE-5`](SYNTHETIC_WORKSPACES_STATE.md#state-5).
 - [ ] Implement guarded switching, covers, focus restore, and emergency recovery in [`STATE-6`](SYNTHETIC_WORKSPACES_STATE.md#state-6).
 - [ ] Implement the `freeform` geometry and monitor rules required by [`STATE-7`](SYNTHETIC_WORKSPACES_STATE.md#state-7).
 

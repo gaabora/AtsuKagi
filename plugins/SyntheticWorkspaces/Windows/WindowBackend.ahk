@@ -9,12 +9,14 @@ class WindowsSyntheticWorkspaceWindowBackend {
   static PROCESS_QUERY_LIMITED_INFORMATION := 0x1000
   static TOKEN_QUERY := 0x0008
   static TOKEN_ELEVATION := 20
+  static VT_LPWSTR := 31
   static SHELL_CLASSES := Map("Shell_TrayWnd", true, "Shell_SecondaryTrayWnd", true, "Progman", true, "WorkerW", true)
 
   __New(blocklistCallback:=0, globalWindowCallback:=0, shellProcessId:=0) {
     this._blocklistCallback := blocklistCallback
     this._globalWindowCallback := globalWindowCallback
     this._shellProcessId := shellProcessId ? shellProcessId : DllCall("GetCurrentProcessId", "UInt")
+    this._iconHandlesByPath := Map()
   }
 
   ReadTopLevelWindowSnapshots() {
@@ -27,9 +29,7 @@ class WindowsSyntheticWorkspaceWindowBackend {
         try snapshot := this._readWindowSnapshot(windowHwnd, stackIndex)
         catch Error as snapshotError
           snapshot := this._createFailedSnapshot(windowHwnd, stackIndex)
-        classification := this.ClassifySnapshot(snapshot)
-        snapshot["classification"] := classification["class"]
-        snapshot["classificationReason"] := classification["reason"]
+        this._applyClassification(snapshot)
         snapshots.Push(snapshot)
         stackIndex += 1
       }
@@ -37,6 +37,60 @@ class WindowsSyntheticWorkspaceWindowBackend {
       DetectHiddenWindows(previousDetectHiddenWindows)
     }
     return snapshots
+  }
+
+  ReadWindowSnapshot(windowHwnd) {
+    if (!windowHwnd || !DllCall("IsWindow", "Ptr", windowHwnd))
+      return 0
+    previousDetectHiddenWindows := A_DetectHiddenWindows
+    DetectHiddenWindows(true)
+    try {
+      stackIndex := this._readStackIndex(windowHwnd)
+      try snapshot := this._readWindowSnapshot(windowHwnd, stackIndex)
+      catch Error as snapshotError {
+        if (!DllCall("IsWindow", "Ptr", windowHwnd))
+          return 0
+        snapshot := this._createFailedSnapshot(windowHwnd, stackIndex)
+      }
+      this._applyClassification(snapshot)
+      return snapshot
+    } finally {
+      DetectHiddenWindows(previousDetectHiddenWindows)
+    }
+  }
+
+  ReadReconciliationWindowSnapshots() {
+    snapshots := []
+    previousDetectHiddenWindows := A_DetectHiddenWindows
+    DetectHiddenWindows(true)
+    try {
+      stackIndex := 1
+      for windowHwnd in WinGetList() {
+        try snapshots.Push(this._readReconciliationWindowSnapshot(windowHwnd, stackIndex))
+        stackIndex += 1
+      }
+    } finally {
+      DetectHiddenWindows(previousDetectHiddenWindows)
+    }
+    return snapshots
+  }
+
+  Close() {
+    for executablePath, iconHandle in this._iconHandlesByPath {
+      if (iconHandle)
+        try DllCall("DestroyIcon", "Ptr", iconHandle)
+    }
+    this._iconHandlesByPath := Map()
+  }
+
+  __Delete() {
+    try this.Close()
+  }
+
+  _applyClassification(snapshot) {
+    classification := this.ClassifySnapshot(snapshot)
+    snapshot["classification"] := classification["class"]
+    snapshot["classificationReason"] := classification["reason"]
   }
 
   ClassifySnapshot(snapshot) {
@@ -136,6 +190,11 @@ class WindowsSyntheticWorkspaceWindowBackend {
     globalRuleResult := this._readRule(this._globalWindowCallback, windowHwnd)
     snapshot["globalWindow"] := globalRuleResult["matched"]
     snapshot["globalRuleCheckFailed"] := globalRuleResult["failed"]
+    appUserModelIdResult := this._readAppUserModelId(windowHwnd)
+    snapshot["appUserModelId"] := appUserModelIdResult["value"]
+    snapshot["appUserModelIdAvailable"] := appUserModelIdResult["available"]
+    snapshot["appUserModelIdReason"] := appUserModelIdResult["reason"]
+    snapshot["icon"] := this._readCachedIcon(snapshot["executablePath"])
     snapshot["displayTitle"] := snapshot["title"]
     return snapshot
   }
@@ -265,5 +324,107 @@ class WindowsSyntheticWorkspaceWindowBackend {
     try return Map("matched", !!callback.Call(windowHwnd), "failed", false)
     catch
       return Map("matched", false, "failed", true)
+  }
+
+  _readStackIndex(windowHwnd) {
+    stackIndex := 1
+    for stackedHwnd in WinGetList() {
+      if (stackedHwnd = windowHwnd)
+        return stackIndex
+      stackIndex += 1
+    }
+    return 0
+  }
+
+  _readReconciliationWindowSnapshot(windowHwnd, stackIndex) {
+    if (!DllCall("IsWindow", "Ptr", windowHwnd))
+      throw Error("Window disappeared during reconciliation")
+    selector := "ahk_id " windowHwnd
+    title := ""
+    extendedStyle := 0
+    try title := WinGetTitle(selector)
+    try extendedStyle := WinGetExStyle(selector)
+    return Map(
+      "hwnd", windowHwnd,
+      "title", title,
+      "ownerHwnd", DllCall("GetWindow", "Ptr", windowHwnd, "UInt", WindowsSyntheticWorkspaceWindowBackend.GW_OWNER, "Ptr"),
+      "rootOwnerHwnd", DllCall("GetAncestor", "Ptr", windowHwnd, "UInt", WindowsSyntheticWorkspaceWindowBackend.GA_ROOTOWNER, "Ptr"),
+      "geometry", this._readVisibleFrame(windowHwnd),
+      "visible", !!DllCall("IsWindowVisible", "Ptr", windowHwnd),
+      "minimized", !!DllCall("IsIconic", "Ptr", windowHwnd),
+      "maximized", !!DllCall("IsZoomed", "Ptr", windowHwnd),
+      "topmost", (extendedStyle & WindowsSyntheticWorkspaceWindowBackend.WS_EX_TOPMOST) != 0,
+      "cloaked", this._isWindowCloaked(windowHwnd),
+      "responsive", !DllCall("IsHungAppWindow", "Ptr", windowHwnd),
+      "stackIndex", stackIndex
+    )
+  }
+
+  _readAppUserModelId(windowHwnd) {
+    propertyStorePointer := 0
+    propertyVariant := 0
+    try {
+      propertyStoreIid := this._createGuid("{886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99}")
+      result := DllCall("Shell32\SHGetPropertyStoreForWindow", "Ptr", windowHwnd, "Ptr", propertyStoreIid.Ptr, "Ptr*", &propertyStorePointer, "Int")
+      if (result < 0 || !propertyStorePointer)
+        return Map("value", "", "available", false, "reason", "AppUserModelID unavailable: " this._formatHResult(result))
+      propertyKey := this._createGuid("{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}", 20)
+      NumPut("UInt", 5, propertyKey, 16)
+      propertyVariant := Buffer(A_PtrSize = 8 ? 24 : 16, 0)
+      getValueMethod := NumGet(NumGet(propertyStorePointer, 0, "Ptr"), 5 * A_PtrSize, "Ptr")
+      result := DllCall(getValueMethod, "Ptr", propertyStorePointer, "Ptr", propertyKey.Ptr, "Ptr", propertyVariant.Ptr, "Int")
+      if (result < 0)
+        return Map("value", "", "available", false, "reason", "AppUserModelID unavailable: " this._formatHResult(result))
+      variantType := NumGet(propertyVariant, 0, "UShort")
+      if (variantType = 0)
+        return Map("value", "", "available", false, "reason", "AppUserModelID is not set")
+      if (variantType != WindowsSyntheticWorkspaceWindowBackend.VT_LPWSTR)
+        return Map("value", "", "available", false, "reason", "AppUserModelID has an unsupported value type")
+      valuePointer := NumGet(propertyVariant, 8, "Ptr")
+      appUserModelId := valuePointer ? StrGet(valuePointer, "UTF-16") : ""
+      if (appUserModelId = "")
+        return Map("value", "", "available", false, "reason", "AppUserModelID is empty")
+      return Map("value", appUserModelId, "available", true, "reason", "AppUserModelID read from the window property store")
+    } catch Error as appUserModelIdError {
+      return Map("value", "", "available", false, "reason", "AppUserModelID unavailable: " appUserModelIdError.Message)
+    } finally {
+      if (IsObject(propertyVariant))
+        try DllCall("Ole32\PropVariantClear", "Ptr", propertyVariant.Ptr)
+      if (propertyStorePointer)
+        this._releaseComPointer(propertyStorePointer)
+    }
+  }
+
+  _createGuid(guidText, bufferSize:=16) {
+    guidBuffer := Buffer(bufferSize, 0)
+    result := DllCall("Ole32\CLSIDFromString", "WStr", guidText, "Ptr", guidBuffer.Ptr, "Int")
+    if (result < 0)
+      throw Error("CLSIDFromString failed: " this._formatHResult(result))
+    return guidBuffer
+  }
+
+  _releaseComPointer(interfacePointer) {
+    releaseMethod := NumGet(NumGet(interfacePointer, 0, "Ptr"), 2 * A_PtrSize, "Ptr")
+    DllCall(releaseMethod, "Ptr", interfacePointer, "UInt")
+  }
+
+  _formatHResult(result) {
+    return Format("0x{:08X}", result & 0xFFFFFFFF)
+  }
+
+  _readCachedIcon(executablePath) {
+    if (executablePath = "")
+      return 0
+    cacheKey := StrLower(executablePath)
+    if (this._iconHandlesByPath.Has(cacheKey))
+      return this._iconHandlesByPath[cacheKey]
+    largeIconHandle := 0
+    smallIconHandle := 0
+    try DllCall("Shell32\ExtractIconExW", "WStr", executablePath, "Int", 0, "Ptr*", &largeIconHandle, "Ptr*", &smallIconHandle, "UInt", 1, "UInt")
+    iconHandle := smallIconHandle ? smallIconHandle : largeIconHandle
+    if (smallIconHandle && largeIconHandle)
+      DllCall("DestroyIcon", "Ptr", largeIconHandle)
+    this._iconHandlesByPath[cacheKey] := iconHandle
+    return iconHandle
   }
 }
