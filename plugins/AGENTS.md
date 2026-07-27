@@ -46,4 +46,4 @@
 
 ## Child DOX Index
 
-- [`SyntheticWorkspaces/AGENTS.md`](SyntheticWorkspaces/AGENTS.md): portable Synthetic Workspaces model and service components.
+- [`SyntheticWorkspaces/AGENTS.md`](SyntheticWorkspaces/AGENTS.md): Synthetic Workspaces portable engine and child platform backends.

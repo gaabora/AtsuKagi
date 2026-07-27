@@ -1,12 +1,18 @@
 #Include SyntheticWorkspaces\WorkspaceService.ahk
+#Include SyntheticWorkspaces\WorkspaceRuntime.ahk
+#Include SyntheticWorkspaces\Windows\WindowBackend.ahk
 
 class SyntheticWorkspaces extends AKPlugin {
   __New(app, service:=0) {
     super.__New(app)
     if (IsObject(service))
       this._service := service
-    else if (service = 0)
-      this._service := SyntheticWorkspaceService()
+    else if (service = 0) {
+      workspaceModel := SyntheticWorkspaceService.CreateDefaultModel()
+      windowBackend := WindowsSyntheticWorkspaceWindowBackend(this._isWorkspaceWindowBlocklisted.Bind(this))
+      workspaceRuntime := SyntheticWorkspaceRuntime(workspaceModel, windowBackend)
+      this._service := SyntheticWorkspaceService(workspaceModel, workspaceRuntime)
+    }
     else
       throw TypeError("Synthetic Workspaces service must be an object")
     this._exitFn := 0
@@ -89,6 +95,10 @@ class SyntheticWorkspaces extends AKPlugin {
 
   RestoreAllSyntheticWorkspaceWindows() {
     return this._service.RestoreAllSyntheticWorkspaceWindows()
+  }
+
+  _isWorkspaceWindowBlocklisted(windowHwnd) {
+    return this.IsWindowBlocklisted(windowHwnd, "SyntheticWorkspaces")
   }
 
   _shutdown() {
