@@ -80,6 +80,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
+- [`.deleted/AGENTS.md`](.deleted/AGENTS.md): files kept outside active source and test paths instead of being deleted.
 - [`.github/AGENTS.md`](.github/AGENTS.md): repository prompts and automation guidance.
 - [`.vscode/AGENTS.md`](.vscode/AGENTS.md): local editor, launch, and build-task configuration.
 - [`assets/AGENTS.md`](assets/AGENTS.md): packaged application icons and other static assets.

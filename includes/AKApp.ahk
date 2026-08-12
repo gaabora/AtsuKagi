@@ -1,4 +1,5 @@
 class AKApp extends AKBase {
+  static WM_INITMENUPOPUP := 0x0117
   ; public (let's agree on PascalCase)
   AvailableActions := Map()
   ; AvailableHooks := Map() ; TODO: maybe implement when needed, currently unused
@@ -20,11 +21,16 @@ class AKApp extends AKBase {
   _warnedDeprecatedActions := Map()
   _warnedActionCollisions := Map()
   _warnedActionNaming := Map()
+  _pluginsReadyNotified := false
   
   ; Plugin metadata registries
   _pluginRegistry := Map()        ; pluginId -> descriptor
   _actionRegistry := Map()        ; actionName -> actionDescriptor
   _pluginConfigRegistry := Map()  ; pluginId -> configSchema[]
+  _trayMenuExtensions := Map()
+  _trayMenuExtensionHandles := Map()
+  _trayMenuOpenFn := 0
+  _trayMenuReady := false
   _generalTypeIndex := 0
   _pluginTypeIndex := 0
 
@@ -559,6 +565,7 @@ class AKApp extends AKBase {
   }
   
   BindAllHotkeys() {
+    this._notifyPluginsReady()
     runHotkeyActionFn := this._runHotkeyAction.bind(this)
     AKBase.ClearProblems()
 
@@ -579,6 +586,17 @@ class AKApp extends AKBase {
     if (configProblems.Length = 0)
       this.outputDebugLine(AKApp.LOG_INFO, "Hotkey binding validation passed", Map("source", "hotkeys"))
     this._updateStartupDiagnostics()
+  }
+
+  _notifyPluginsReady() {
+    if (this._pluginsReadyNotified)
+      return
+    this._pluginsReadyNotified := true
+    for className, pluginInstance in this._addedLibs {
+      try pluginInstance.OnPluginsReady()
+      catch Error as readyError
+        this.outputDebugLine(AKApp.LOG_ERROR, "Plugin ready callback failed: " className " - " readyError.Message, Map("source", className, "settingRef", Map("page", "plugins")))
+    }
   }
 
   UnbindAllHotkeys() {
@@ -746,6 +764,36 @@ class AKApp extends AKBase {
     actionInfo := this._parseActionInfo(ActionString)
     actionHandler := this._getActionHandler(actionInfo.fnName)
     return this._callActionHandler(actionHandler, actionInfo.params, ActionString, this._getCurrentHotkeyLabel())
+  }
+
+  RunActionWithResult(ActionString, notifyOnError:=true) {
+    actionInfo := this._parseActionInfo(ActionString)
+    if (actionInfo.fnName = "" || !this._actionExists(actionInfo.fnName)) {
+      actionError := Error(actionInfo.fnName = "" ? "Action cannot be empty" : "Action not found: " actionInfo.fnName)
+      this._handleActionError(actionError, ActionString, "core", notifyOnError)
+      return Map("ok", false, "error", actionError.Message, "errorType", Type(actionError))
+    }
+    actionHandler := this._getActionHandler(actionInfo.fnName)
+    executionResult := this._callActionHandlerWithResult(actionHandler, actionInfo.params, ActionString, this._getCurrentHotkeyLabel(), notifyOnError)
+    if (executionResult["ok"] && executionResult["value"] is Map && executionResult["value"].Has("ok"))
+      return executionResult["value"]
+    return executionResult
+  }
+
+  IsActionAvailable(ActionString) {
+    actionInfo := this._parseActionInfo(ActionString)
+    return actionInfo.fnName != "" && this._actionExists(actionInfo.fnName)
+  }
+
+  GetAvailableActionNames() {
+    actionNames := []
+    for actionName, actionDefinition in this.AvailableActions
+      actionNames.Push(actionName)
+    return actionNames
+  }
+
+  GetConfigFilePath() {
+    return this._configFile
   }
 
   IsWindowBlocklisted(hwnd:=0, method:='') {
@@ -949,9 +997,33 @@ class AKApp extends AKBase {
     }
   }
 
+  RegisterTrayMenuExtension(extensionId, title, getItemsFn) {
+    extensionIdText := Trim("" extensionId)
+    titleText := Trim("" title)
+    if (extensionIdText = "")
+      throw ValueError("Tray menu extension ID cannot be empty")
+    if (titleText = "")
+      throw ValueError("Tray menu extension title cannot be empty")
+    if (!IsObject(getItemsFn) || !HasMethod(getItemsFn, "Call"))
+      throw TypeError("Tray menu extension item provider must be callable")
+
+    this._trayMenuExtensions[extensionIdText] := Map("title", titleText, "getItemsFn", getItemsFn, "menu", 0, "childMenus", [])
+    if (this._trayMenuReady)
+      this._initTrayMenu()
+    return true
+  }
+
+  RefreshTrayMenuExtension(extensionId) {
+    extensionIdText := Trim("" extensionId)
+    if (!this._trayMenuExtensions.Has(extensionIdText))
+      return false
+    return this._rebuildTrayMenuExtension(extensionIdText)
+  }
+
   _initTrayMenu() {
     trayMenu:= A_TrayMenu
     trayMenu.Delete()
+    this._trayMenuExtensionHandles := Map()
     fn := this._trayMenuHandler.bind(this)
     if (this.debugLevel = 0)
       trayMenu.Delete() ; V1toV2: not 100% replacement of NoStandard, Only if NoStandard is used at the beginning
@@ -961,11 +1033,105 @@ class AKApp extends AKBase {
     trayMenu.Add("Test", fn)
     trayMenu.Add()
     trayMenu.Add("Settings", fn)
+    if (this._trayMenuExtensions.Count) {
+      trayMenu.Add()
+      for extensionId, extension in this._trayMenuExtensions {
+        extensionMenu := Menu()
+        extension["menu"] := extensionMenu
+        extension["childMenus"] := []
+        trayMenu.Add(StrReplace(extension["title"], "&", "&&"), extensionMenu)
+        this._rebuildTrayMenuExtension(extensionId)
+      }
+    }
     trayMenu.Add()
     trayMenu.Add("Reload", fn)
     trayMenu.Add("Disable", fn)
     trayMenu.Add()
     trayMenu.Add("Exit", fn)
+    this._trayMenuReady := true
+    this._ensureTrayMenuOpenHook()
+  }
+
+  _ensureTrayMenuOpenHook() {
+    if (IsObject(this._trayMenuOpenFn))
+      return
+    this._trayMenuOpenFn := this._handleTrayMenuOpening.Bind(this)
+    OnMessage(AKApp.WM_INITMENUPOPUP, this._trayMenuOpenFn)
+  }
+
+  _handleTrayMenuOpening(menuHandle, *) {
+    if (this._trayMenuExtensionHandles.Has(menuHandle))
+      this._rebuildTrayMenuExtension(this._trayMenuExtensionHandles[menuHandle])
+  }
+
+  _rebuildTrayMenuExtension(extensionId) {
+    if (!this._trayMenuExtensions.Has(extensionId))
+      return false
+    extension := this._trayMenuExtensions[extensionId]
+    extensionMenu := extension["menu"]
+    if (!IsObject(extensionMenu))
+      return false
+
+    extensionMenu.Delete()
+    extension["childMenus"] := []
+    try items := extension["getItemsFn"].Call()
+    catch Error as menuError {
+      this.outputDebugLine(AKApp.LOG_ERROR, "Tray menu extension failed: " extensionId " - " menuError.Message, Map("source", "tray"))
+      items := []
+    }
+
+    addedCount := items is Array ? this._addTrayMenuItems(extensionMenu, items, extension["childMenus"]) : 0
+    if (addedCount = 0)
+      this._addDisabledTrayMenuItem(extensionMenu, "No items")
+    this._trayMenuExtensionHandles[extensionMenu.Handle] := extensionId
+    return true
+  }
+
+  _addTrayMenuItems(targetMenu, items, childMenus) {
+    addedCount := 0
+    for item in items {
+      if (!(item is Map))
+        continue
+      if (item.Get("separator", false)) {
+        targetMenu.Add()
+        addedCount += 1
+        continue
+      }
+
+      label := Trim("" item.Get("label", ""))
+      if (label = "")
+        continue
+      displayLabel := StrReplace(label, "&", "&&")
+      if (item.Has("items") && item["items"] is Array) {
+        childMenu := Menu()
+        childMenus.Push(childMenu)
+        childCount := this._addTrayMenuItems(childMenu, item["items"], childMenus)
+        if (childCount = 0)
+          this._addDisabledTrayMenuItem(childMenu, "No items")
+        targetMenu.Insert("", displayLabel, childMenu)
+      } else {
+        callback := item.Get("callback", this._ignoreTrayMenuItem.Bind(this))
+        if (!IsObject(callback) || !HasMethod(callback, "Call"))
+          callback := this._ignoreTrayMenuItem.Bind(this)
+        targetMenu.Insert("", displayLabel, callback)
+      }
+
+      addedCount += 1
+      itemPosition := addedCount "&"
+      if (!item.Get("enabled", true))
+        targetMenu.Disable(itemPosition)
+      if (item.Get("checked", false))
+        targetMenu.Check(itemPosition)
+    }
+    return addedCount
+  }
+
+  _addDisabledTrayMenuItem(targetMenu, label) {
+    targetMenu.Insert("", StrReplace(label, "&", "&&"), this._ignoreTrayMenuItem.Bind(this))
+    targetMenu.Disable("1&")
+  }
+
+  _ignoreTrayMenuItem(*) {
   }
 
   _trayMenuHandler(ItemName, ItemPos, TheMenu) {
@@ -1176,6 +1342,66 @@ class AKApp extends AKBase {
         return instance
     }
     return 0
+  }
+
+  GetAutomationsForSettings() {
+    pluginInstance := this._findPluginInstanceById("Automations")
+    if (!pluginInstance || !HasMethod(pluginInstance, "GetAutomationsJson"))
+      return this._jsonAtomicResult(false, "Automations plugin is not loaded")
+    return pluginInstance.GetAutomationsJson()
+  }
+
+  SaveAutomationsFromSettings(payload) {
+    pluginInstance := this._findPluginInstanceById("Automations")
+    if (!pluginInstance || !HasMethod(pluginInstance, "SaveAutomationsJson"))
+      return this._jsonAtomicResult(false, "Automations plugin is not loaded")
+    return pluginInstance.SaveAutomationsJson(payload)
+  }
+
+  RunAutomationFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("RunAutomation", automationId)
+  }
+
+  TestAutomationActionFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("TestAutomationAction", automationId)
+  }
+
+  EnableAutomationFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("EnableAutomation", automationId)
+  }
+
+  DisableAutomationFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("DisableAutomation", automationId)
+  }
+
+  ToggleAutomationFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("ToggleAutomation", automationId)
+  }
+
+  ShowLowBatteryOsdFromSettings() {
+    return this._runAutomationSettingsCommandWithoutParams("ShowLowBatteryOsd")
+  }
+
+  ShowTimeUntilSleepFromSettings() {
+    return this._runAutomationSettingsCommandWithoutParams("ShowTimeUntilSleep")
+  }
+
+  _runAutomationSettingsCommand(methodName, automationId) {
+    pluginInstance := this._findPluginInstanceById("Automations")
+    if (!pluginInstance || !HasMethod(pluginInstance, methodName))
+      return this._jsonAtomicResult(false, "Automations plugin is not loaded")
+    try return jsongo.Stringify(pluginInstance.%methodName%(automationId))
+    catch Error as commandError
+      return this._jsonAtomicResult(false, commandError.Message)
+  }
+
+  _runAutomationSettingsCommandWithoutParams(methodName) {
+    pluginInstance := this._findPluginInstanceById("Automations")
+    if (!pluginInstance || !HasMethod(pluginInstance, methodName))
+      return this._jsonAtomicResult(false, "Automations plugin is not loaded")
+    try return jsongo.Stringify(pluginInstance.%methodName%())
+    catch Error as commandError
+      return this._jsonAtomicResult(false, commandError.Message)
   }
 
   SaveGeneralSetting(key, valuePayload) {
@@ -2009,6 +2235,11 @@ class AKApp extends AKBase {
   }
 
   _callActionHandler(actionHandler, paramsArr, actionText, hotkeyLabel:="") {
+    executionResult := this._callActionHandlerWithResult(actionHandler, paramsArr, actionText, hotkeyLabel, true)
+    return executionResult["ok"] ? executionResult["value"] : false
+  }
+
+  _callActionHandlerWithResult(actionHandler, paramsArr, actionText, hotkeyLabel:="", notifyOnError:=true) {
     actionInfo := this._parseActionInfo(actionText)
     source := "core"
     if (this.AvailableActions.Has(actionInfo.fnName))
@@ -2017,32 +2248,36 @@ class AKApp extends AKBase {
 
     try {
       if (paramsArr.Length > 0) {
-        return (IsObject(actionHandler))
+        actionResult := (IsObject(actionHandler))
           ? actionHandler.Call(paramsArr*)
           : %actionHandler%(paramsArr*)
       } else {
-        return (IsObject(actionHandler))
+        actionResult := (IsObject(actionHandler))
           ? actionHandler.Call()
           : %actionHandler%()
       }
+      return Map("ok", true, "value", actionResult)
     } catch Error as err {
-      this._handleActionError(err, actionText, source)
-      return false
+      this._handleActionError(err, actionText, source, notifyOnError)
+      return Map("ok", false, "error", err.Message, "errorType", Type(err))
     }
   }
 
-  _handleActionError(err, actionText, source) {
+  _handleActionError(err, actionText, source, notifyOnError:=true) {
     errorDetails := Type(err) ": " err.Message "`nAction: " actionText "`nFile: " err.File "`nLine: " err.Line "`nWhat: " err.What "`nExtra: " err.Extra "`nStack:`n" err.Stack
     try errorDetails .= "`nNumber: " err.Number
     this.outputDebugLine(AKApp.LOG_ERROR, errorDetails, Map("source", source))
 
     if (this._isAccessDeniedError(err)) {
-      message := "Windows blocked running " actionText " because the other app is running as administrator.`nRun " this.ScriptName " as administrator and try again"
-      try this.ShowInfo(message, , 7000, "warning")
+      if (notifyOnError) {
+        message := "Windows blocked running " actionText " because the other app is running as administrator.`nRun " this.ScriptName " as administrator and try again"
+        try this.ShowInfo(message, , 7000, "warning")
+      }
       return
     }
 
-    try this.ShowInfo("The action could not be completed. Open Logs for technical details.", "Action failed", 6000, "error")
+    if (notifyOnError)
+      try this.ShowInfo("The action could not be completed. Open Logs for technical details.", "Action failed", 6000, "error")
   }
 
   _isAccessDeniedError(err) {

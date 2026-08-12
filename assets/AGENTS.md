@@ -7,6 +7,7 @@
 ## Ownership
 
 - Keep filenames stable when referenced by AHK source or build directives.
+- `eye.png` is the transparent fake screensaver exit control used by `WindowsFakeScreensaver`.
 
 ## Local Contracts
 

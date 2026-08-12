@@ -5,6 +5,9 @@ class AKGui extends AKBase {
   _isLogPageActive := false
   _hotkeyRecorder := unset
   _recordingSuspendedByRecorder := false
+  _settingsOpenPage := ""
+  _settingsPageRequest := 0
+  _settingsRequestSequence := 0
 
   __New(App) {
     this.App := App
@@ -43,10 +46,13 @@ class AKGui extends AKBase {
   }
 
   ; ── Settings Window (WebViewGui / HTML-based) ──────────────────────────────
-  ShowSettings() {
+  ShowSettings(openPage:="", pageRequest:=0) {
+    hasNavigationRequest := this._setSettingsNavigationRequest(openPage, pageRequest)
     ; If already open, just focus it
     if (this._settingsGui != 0) {
       try {
+        if (hasNavigationRequest)
+          this._populateSettingsPage(this._settingsGui)
         WinActivate("ahk_id " this._settingsGui.hWnd)
         return
       } catch {
@@ -69,6 +75,15 @@ class AKGui extends AKBase {
     nw.AddCallbackToScript("SaveSettingsJson", (wv, payload:="") => this._saveSettingsJson(payload))
     nw.AddCallbackToScript("SaveGeneralSetting", (wv, key:="", value:="") => this._saveGeneralSetting(key, value))
     nw.AddCallbackToScript("SavePluginSetting", (wv, pluginId:="", key:="", value:="") => this._savePluginSetting(pluginId, key, value))
+    nw.AddCallbackToScript("GetAutomations", (wv, *) => this.App.GetAutomationsForSettings())
+    nw.AddCallbackToScript("SaveAutomations", (wv, payload:="") => this.App.SaveAutomationsFromSettings(payload))
+    nw.AddCallbackToScript("RunAutomation", (wv, automationId:="") => this.App.RunAutomationFromSettings(automationId))
+    nw.AddCallbackToScript("TestAutomationAction", (wv, automationId:="") => this.App.TestAutomationActionFromSettings(automationId))
+    nw.AddCallbackToScript("EnableAutomation", (wv, automationId:="") => this.App.EnableAutomationFromSettings(automationId))
+    nw.AddCallbackToScript("DisableAutomation", (wv, automationId:="") => this.App.DisableAutomationFromSettings(automationId))
+    nw.AddCallbackToScript("ToggleAutomation", (wv, automationId:="") => this.App.ToggleAutomationFromSettings(automationId))
+    nw.AddCallbackToScript("ShowLowBatteryOsd", (wv, *) => this.App.ShowLowBatteryOsdFromSettings())
+    nw.AddCallbackToScript("ShowTimeUntilSleep", (wv, *) => this.App.ShowTimeUntilSleepFromSettings())
     nw.AddCallbackToScript("SaveHotkey", (wv, oldHotKey:="", hotKey:="", action:="", allowRiskyHotkeys:=0) => this._saveHotkey(oldHotKey, hotKey, action, allowRiskyHotkeys))
     nw.AddCallbackToScript("RemoveHotkey", (wv, hotKey:="") => this._removeHotkey(hotKey))
     nw.AddCallbackToScript("AddHotkey", (wv, hotKey:="", action:="", allowRiskyHotkeys:=0) => this._addHotkey(hotKey, action, allowRiskyHotkeys))
@@ -149,7 +164,14 @@ class AKGui extends AKBase {
       "title", this.App.ScriptName " — Settings"
     )
 
-    if (AKBase._hasBindingProblems) {
+    if (this._settingsOpenPage != "")
+      state["openPage"] := this._settingsOpenPage
+    if (IsObject(this._settingsPageRequest))
+      state["pageRequest"] := this._settingsPageRequest
+    this._settingsOpenPage := ""
+    this._settingsPageRequest := 0
+
+    if (AKBase._hasBindingProblems && !state.Has("openPage")) {
       state["openPage"] := "logs"
       state["logLevelFilter"] := [0, 1]
     }
@@ -164,6 +186,26 @@ class AKGui extends AKBase {
     if (this.App.Config.GENERAL.DebugLevel >= 4)
       FileOpen(A_ScriptDir "\_debug.js", "w", "UTF-8").Write(js)
     nw.ExecuteScriptAsync(js)
+  }
+
+  _setSettingsNavigationRequest(openPage, pageRequest) {
+    openPageText := Trim("" openPage)
+    if (openPageText = "" && !IsObject(pageRequest))
+      return false
+
+    if (openPageText != "") {
+      this._settingsOpenPage := openPageText
+      this._settingsPageRequest := 0
+    }
+    if (pageRequest is Map) {
+      requestCopy := Map()
+      for key, value in pageRequest
+        requestCopy[key] := value
+      this._settingsRequestSequence += 1
+      requestCopy["token"] := this._settingsRequestSequence
+      this._settingsPageRequest := requestCopy
+    }
+    return true
   }
 
   _saveSettingsJson(payload) {
@@ -321,6 +363,8 @@ class AKGui extends AKBase {
       this._hotkeyRecorder.StopRecording()
       this._resumeHotkeysAfterRecording()
       this._settingsGui := 0
+      this._settingsOpenPage := ""
+      this._settingsPageRequest := 0
       try nw.Destroy()
     }
   }
@@ -332,6 +376,8 @@ class AKGui extends AKBase {
     this._resumeHotkeysAfterRecording()
     this.outputDebugLine(AKApp.LOG_DEBUG, "Settings window closed", Map("source", "core"))
     this._settingsGui := 0
+    this._settingsOpenPage := ""
+    this._settingsPageRequest := 0
   }
 
   _suspendHotkeysForRecording() {
