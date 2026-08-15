@@ -45,6 +45,7 @@ class SyntheticWorkspaceModel {
     this._validateAndCopySlotMap(slotMap)
     this._requireKnownWorkspace(activeWorkspaceId)
     this._activeWorkspaceId := activeWorkspaceId
+    this._revision := 0
   }
 
   static GetSlotIds() {
@@ -99,6 +100,15 @@ class SyntheticWorkspaceModel {
   CommitActiveWorkspace(workspaceId) {
     this._requireKnownWorkspace(workspaceId)
     this._activeWorkspaceId := workspaceId
+  }
+
+  GetRevision() {
+    return this._revision
+  }
+
+  PublishRevision() {
+    this._revision += 1
+    return this._revision
   }
 
   SwapSlots(firstSlotId, secondSlotId) {

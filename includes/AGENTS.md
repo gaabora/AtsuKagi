@@ -16,6 +16,8 @@
 
 - Keep AutoHotkey v2 syntax and the existing public PascalCase/private `_camelCase` convention.
 - Changes to plugin descriptors, action dispatch, or settings payloads must remain compatible across `AKApp.ahk`, `AKPlugin.ahk`, and `ui/`.
+- A plugin action may set `trayLabel` in its descriptor to add an unsuspended tray command that still runs through central action dispatch.
+- App suspend calls optional `BeforeAppSuspend()` plugin hooks before hotkeys suspend and optional `AfterAppResume()` hooks after hotkeys resume; hook failures are logged and shown without an AutoHotkey error window.
 - Plugin debug overrides are stored in `[PLUGIN_DEBUG]`; missing plugin entries inherit `[GENERAL].DebugLevel`, and loaded plugins apply level changes without reload.
 - `AKBase.outputDebugLine` applies the instance debug threshold before writing to either `OutputDebug` or the settings log buffer.
 - Central action dispatch logs each action start at debug level with its hotkey plus active and hovered window context.
@@ -40,6 +42,8 @@
 - Preserve script-mode and compiled-build resource paths.
 
 ## Verification
+
+- `tests/SyntheticWorkspacesSwitchTests.ahk` checks generic descriptor tray actions and plugin suspend/resume hooks statically.
 
 ## Child DOX Index
 

@@ -10,7 +10,7 @@ The MVP is complete only when all required steps below are marked `✅` and the 
 <a id="mvp-2"></a>
 ## MVP-2: Status rules
 
-- Current status: Stage 0 through native events and reconciliation are complete; guarded switching and recovery have not started.
+- Current status: Stage 0 through native events and reconciliation are complete; guarded switching and recovery are implemented and await verification; freeform geometry has not started.
 - Use `[ ]` for work that has not started.
 - Replace `[ ]` with `✅` only after the linked section is implemented.
 - Do not copy details from linked sections into this file.

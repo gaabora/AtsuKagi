@@ -12,6 +12,7 @@ testFiles := [
    "SyntheticWorkspacesPluginTests.ahk",
    "SyntheticWorkspacesRuntimeTests.ahk",
    "SyntheticWorkspacesEventTests.ahk",
+   "SyntheticWorkspacesSwitchTests.ahk",
    "TextToSpeechTests.ahk",
    "AutomationsTests.ahk",
    "TouchGesturesSimulatorTests.ahk",
