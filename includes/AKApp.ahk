@@ -27,6 +27,7 @@ class AKApp extends AKBase {
   _pluginRegistry := Map()        ; pluginId -> descriptor
   _actionRegistry := Map()        ; actionName -> actionDescriptor
   _pluginConfigRegistry := Map()  ; pluginId -> configSchema[]
+  _trayActionByLabel := Map()
   _trayMenuExtensions := Map()
   _trayMenuExtensionHandles := Map()
   _trayMenuOpenFn := 0
@@ -650,8 +651,30 @@ class AKApp extends AKBase {
   }
 
   ToggleAppSuspend(some*) {
-    Suspend
+    if (A_IsSuspended) {
+      Suspend
+      this._runPluginLifecycleHook("AfterAppResume")
+    } else {
+      this._runPluginLifecycleHook("BeforeAppSuspend")
+      Suspend
+    }
     this.UpdateAppSuspendedStatus()
+  }
+
+  _runPluginLifecycleHook(methodName) {
+    failedPlugins := []
+    for className, libObj in this._addedLibs {
+      if (!HasMethod(libObj, methodName))
+        continue
+      try libObj.%methodName%()
+      catch Error as lifecycleError {
+        failedPlugins.Push(className)
+        this.outputDebugLine(AKApp.LOG_ERROR, "Plugin lifecycle hook failed: " className "." methodName " - " lifecycleError.Message, Map("source", className))
+      }
+    }
+    if (failedPlugins.Length)
+      this.ShowInfo("A plugin could not finish suspend or resume cleanup. It was stopped for safety. Open Logs for details.", "Plugin cleanup failed", 7000, "error")
+    return failedPlugins.Length = 0
   }
 
   UpdateAppSuspendedStatus() {
@@ -1043,6 +1066,22 @@ class AKApp extends AKBase {
         this._rebuildTrayMenuExtension(extensionId)
       }
     }
+    this._trayActionByLabel := Map()
+    for actionName, actionDescriptor in this._actionRegistry {
+      trayLabel := actionDescriptor.Get("trayLabel", "")
+      if (trayLabel = "")
+        continue
+      if (this._trayActionByLabel.Has(trayLabel)) {
+        this.outputDebugLine(AKApp.LOG_WARNING, "Duplicate tray action label skipped: " trayLabel, Map("source", "tray"))
+        continue
+      }
+      this._trayActionByLabel[trayLabel] := actionName
+    }
+    if (this._trayActionByLabel.Count) {
+      trayMenu.Add()
+      for trayLabel, actionName in this._trayActionByLabel
+        trayMenu.Add(trayLabel, fn)
+    }
     trayMenu.Add()
     trayMenu.Add("Reload", fn)
     trayMenu.Add("Disable", fn)
@@ -1135,6 +1174,10 @@ class AKApp extends AKBase {
   }
 
   _trayMenuHandler(ItemName, ItemPos, TheMenu) {
+    if (this._trayActionByLabel.Has(ItemName)) {
+      this.RunAction(this._trayActionByLabel[ItemName])
+      return
+    }
     switch (ItemName) {
       case "Test":
         this.TestActions()

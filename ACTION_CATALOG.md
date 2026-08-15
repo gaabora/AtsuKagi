@@ -122,10 +122,23 @@ Text-to-speech placeholder. Currently stub implementation using Windows SAPI. No
 
 **Status:** Experimental/disabled by default. Not recommended for use.
 
-## TimerHandlers
-Placeholder for timer-based actions and system event handling. Planned for future use.
+## Automations
+Run registered app actions from saved schedules, intervals, and conditions. The custom Settings page owns automation creation, validation, examples, weekly timetable editing, temporary extension, runtime status, and tray pinning.
 
-**Status:** Experimental/disabled. Not yet fully implemented.
+- **RunAutomation(automationId)** - Run an automation by stable ID. This ignores triggers and expiry but still checks its conditions.
+- **TestAutomationAction(automationId)** - Run only the stored action by stable ID. This ignores triggers, expiry, and conditions.
+- **EnableAutomation(automationId)** - Enable a valid automation by stable ID and save the change.
+- **DisableAutomation(automationId)** - Disable an automation by stable ID and save the change.
+- **ToggleAutomation(automationId)** - Toggle the saved enabled state by stable ID.
+- **PreventSleep(hotkey='RShift')** - Send a small key pulse to keep Windows awake.
+- **ShowLowBatteryOsd()** - Show current battery state and the configured Windows low and critical battery policy.
+- **ShowTimeUntilSleep()** - Show the earliest known app automation or Windows sleep countdown.
+- **StartFakeScreensaver(hotkeyToExit='Escape', hotkeyToKeepAwake='RShift', sendHotkeyIntervalSec=10)** - Cover configured monitors with black overlays and send a keep-awake pulse. This does not lock or secure the computer.
+- **StopFakeScreensaver()** - Close all fake screensaver overlays and stop their timers and hotkeys.
+- **NormalizeMatchingWindows(windowSelector, operations)** - Apply requested `remove-topmost`, `lower`, `minimize`, or `close` operations to matching windows.
+- **DismissMatchingWindows(windowSelector, hotkey='{Escape}')** - Send a key to matching windows without activating them.
+
+Schedules use five fields: minute, hour, day of month, month, and weekday. Intervals are stored in milliseconds and support `1000-59999 ms` in this version.
 
 ## SwapButtonsHandler
 Placeholder for mouse button remapping. Intended to provide quick layout switching for mice with extra buttons.
@@ -143,10 +156,12 @@ Placeholder for mouse button remapping. Intended to provide quick layout switchi
 - ToggleWindowFrame, ToggleHoveredWindowFrame
 - ToggleWindowTransparency, ToggleHoveredWindowTransparency
 - ToggleTaskView
+- ToggleAutomation
 
 **Show*** (UI/info display):
 - ShowWindowList, ShowHoveredWindowInfo, ShowWindowInfo, ShowResizeWindowDialog
 - ShowCurrentKeyboardLayout, ShowUsersKeyboardLayouts
+- ShowLowBatteryOsd, ShowTimeUntilSleep
 
 **Enter*** (mode transitions):
 - EnterWindowMovingMode, EnterWindowResizingMode
@@ -164,6 +179,11 @@ Placeholder for mouse button remapping. Intended to provide quick layout switchi
 
 **Set*** (explicit value setters):
 - SetWindowBorderColor, SetDesktopName, SetPrecisionTouchpadRegistryConfig
+
+**Automation actions**:
+- RunAutomation, TestAutomationAction, EnableAutomation, DisableAutomation, ToggleAutomation
+- PreventSleep, ShowLowBatteryOsd, ShowTimeUntilSleep
+- StartFakeScreensaver, StopFakeScreensaver, NormalizeMatchingWindows, DismissMatchingWindows
 
 **Is/Minimize/Move/Close** (miscellaneous):
 - IsMouseOverTaskbar, IsMouseOverWindowTitlebar, IsMouseOverWindowAnyBorder, IsMouseOverWindowResizableBorder

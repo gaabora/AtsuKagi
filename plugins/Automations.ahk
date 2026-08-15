@@ -36,7 +36,7 @@ class Automations extends AKPlugin {
         "category", "System Events"
       ),
       "page", Map(
-        "description", "Configure the automation scheduler and battery monitoring",
+        "description", "Build scheduled and conditional actions, and configure scheduler and battery monitoring",
         "icon", "icons10-clock"
       ),
       "config", [
@@ -48,8 +48,8 @@ class Automations extends AKPlugin {
         Map("key", "FakeScreensaverMonitors", "label", "Fake screensaver monitors", "description", "Comma-separated monitor numbers, or empty for all monitors", "type", "string", "control", "text", "default", "", "section", "Fake screensaver")
       ],
       "actions", [
-        Map("action", "RunAutomation", "label", "Run automation", "description", "Run an automation now after checking its conditions", "params", ["automationId"], "category", "Automations"),
-        Map("action", "TestAutomationAction", "label", "Test automation action", "description", "Run only the stored action without checking triggers or conditions", "params", ["automationId"], "category", "Automations"),
+        Map("action", "RunAutomation", "label", "Run automation", "description", "Run an automation now by stable ID; ignore triggers and expiry but check its conditions", "params", ["automationId"], "category", "Automations"),
+        Map("action", "TestAutomationAction", "label", "Test automation action", "description", "Run only the stored action by stable ID without checking triggers, expiry, or conditions", "params", ["automationId"], "category", "Automations"),
         Map("action", "EnableAutomation", "label", "Enable automation", "description", "Enable an automation by its stable ID", "params", ["automationId"], "category", "Automations"),
         Map("action", "DisableAutomation", "label", "Disable automation", "description", "Disable an automation by its stable ID", "params", ["automationId"], "category", "Automations"),
         Map("action", "ToggleAutomation", "label", "Toggle automation", "description", "Toggle an automation by its stable ID", "params", ["automationId"], "category", "Automations"),
@@ -58,10 +58,9 @@ class Automations extends AKPlugin {
         Map("action", "ShowTimeUntilSleep", "label", "Show time until sleep", "description", "Show the earliest known App automation or Windows sleep countdown", "params", [], "category", "Automations"),
         Map("action", "StartFakeScreensaver", "label", "Start fake screensaver", "description", "Cover configured monitors with a black overlay; this does not lock or secure the computer", "params", [Map("name", "hotkeyToExit", "default", "Escape"), Map("name", "hotkeyToKeepAwake", "default", "RShift"), Map("name", "sendHotkeyIntervalSec", "default", 10)], "category", "Automations"),
         Map("action", "StopFakeScreensaver", "label", "Stop fake screensaver", "description", "Close every fake screensaver overlay and stop its timers", "params", [], "category", "Automations"),
-        Map("action", "NormalizeMatchingWindows", "label", "Normalize matching windows", "description", "Apply only the explicit remove-topmost, lower, minimize, or close operations", "params", ["windowSelector", "operations"], "category", "Automations"),
-        Map("action", "DismissMatchingWindows", "label", "Dismiss matching windows", "description", "Send a configured key to matching windows without activating them", "params", [Map("name", "windowSelector"), Map("name", "hotkey", "default", "{Escape}")], "category", "Automations")
-      ],
-      "hooks", []
+        Map("action", "NormalizeMatchingWindows", "label", "Normalize matching windows", "description", "Apply only the requested remove-topmost, lower, minimize, or close operations to matching windows", "params", ["windowSelector", "operations"], "category", "Automations"),
+        Map("action", "DismissMatchingWindows", "label", "Dismiss matching windows", "description", "Send a configured key to matching windows without activating or closing them directly", "params", [Map("name", "windowSelector"), Map("name", "hotkey", "default", "{Escape}")], "category", "Automations")
+      ]
     )
   }
 
