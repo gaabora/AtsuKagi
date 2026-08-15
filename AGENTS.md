@@ -66,19 +66,24 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
-- the app to be converted in later major version to crossplatform win/mac/linux app, probably in c++ or rust, so use wrappers for os-specific logic so the code is well reusable 
+- the app to be converted in later major version to crossplatform win/mac/linux app, probably in c++ or rust, so use wrappers for os-specific logic so the code is well reusable
+
+- write in ASD-STE100 Simplified Technical English
+- speak in simplified english please, so even a foreigner without tech background can understand what you mean, without fancy metaphors but using simple practical examples
 - no newlines between params in methods and conditions if line <200 symbols
 - Never use one-letter variable names. Use `idx` for index variables.
 - Use `this` when accessing class members from class methods.
 - never ever use Em dash `—` but use `-` instead
-- first write shorly in simple lang what code changes are you going to do (except .md files changes), then only after approve do.
-- do not build anything and run tests until asked
+- in C++ never create nameless namespace { ... } in the middle of code, use coresponding helper files
+- Before you change code or documentation, briefly describe the planned changes. Make changes only after approval.
+- do not build anything and run tests until asked, and no need to notify about that it in every response
 - no need for backward compatibility, app is not yet released
 - when implementing tasks from md todo/fixme/plan document, mark completed sections or steps with ✅ emoji, and when the entire doc is completed, make its main header start with "# ✅ COMPLETED: "
-- never do staging-unstaging/commiting, user manages git himself
+- do not do staging-unstaging/commiting until asked, user manages git himself. never push changes
 - never hard-wrap text at a fixed line width
 - never delete in code todo/fixme comments until they were implemented/fixed
 - if summarizing a completed work iteration, also say very briefly what will be the next step/stage to complete and if something is required from user (like review unclear decisions in doc) then say what is expected to be done by user now
+- never delete files/folders but rather move them to ./.deleted/ folder in workspace root
 
 Write at about CEFR A2-B1 English.
 If a word is uncommon for an English learner, replace it with a simpler one.

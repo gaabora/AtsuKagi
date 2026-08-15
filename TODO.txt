@@ -1,6 +1,52 @@
 
 Haribol! ()
 
+need to make md plan for feature partly described in ROADMAP.md
+about **Synthetic workspaces**
+basically now want to have them implemented as mvp with
+- there are 8 workspaces that can we switched by key chords* made of pseudo-modifier caps and wasd like caps+w+d switches to right top etc
+- caps+space opens some kind of workspace overwiev
+-- workspace overwiev is a webwiev splitted to equal 9 parts with all 8 spaces and control center in the middle
+--- can navigate between windows/workspaces in that mode using wasd and other keys, see 'one-left' feature
+--- spaces can be configured from there using some icons on bottom of each (shown when hovered)
+---- dragndrop button to swap with another space
+---- set other things like tiling template for that space
+---- custom space name (default are like 'top right' or 'NE' or 'North East', etc), color (default from Vastu (n=green, s=red, e=orange, w=dark blue, etc)
+---- windows in spaces are shown as colorful rectangles with app icon and title and some extra info if needed (like number of window of same app, custom title format etc)
+---- active window should have some thick white rounded border or maybe just shown somehow standing out, maybe by dimming other windows, same with spaces, each has some last active window that will be active on switching to that space
+---- windows have also some quick setting icons on hover, (some are maybe with texts) like: settings
+----- custom title
+----- custom icon
+----- color swatch for default window color (opens color picker) or even gradient
+------ color icon for picking also can be shown blurred and bigger in some dedicated place so its easier to pick window default color 
+----- color gradation preset dropdown for multiple instances/windows of same app (like maybe brightness gradation/saturation/idk)
+---- windows can be moved from space to space or within one in that wiew with snapping
+- control center is something like mini desktop with widgets, quick launch stuff and customizable search a-la raycast
+- windows positions and space assignments etc should be stored somehow, even when there are multiple windows of same app like different vscode projects, so each can be identifiable somehow and in advanced settings user can set some identification custom rules
+
+* for key chords we probably need support into entire app, like currently we define keys with Hotkey() ahk fn (right?) but its limited sometimes like for windrag we have extra modifier keys that can alter windrag behavior to quickposition etc like pressed win+leftclick=move window with cursor, added shift=quickposition, but when doing in not exact order like win+shift+click!=quickposition instantly - need to think about options on how is better to implement this kind of support, maybe there is some fast binary way to query currently pressed buttons etc that we can use somehow?
+- 'one-left' feature or 'one-hand-control' - osk overlay, a-la helping interactive (clickable) keyboard that shows actions for some context like:
+(Capital letter represents the key)
+Quit Window E? Run Top/tile?
+App Space/shutdown/sleep Drag Find Grid
+Z X(overlap) Color V B
+
+
+
+
+TODO: animations plugin:
+- after moving frozen window offscreen need to indicate in ui that the app is frozen, maybe some half-transparent icon inside some ice-cube png small block on its place of the screen
+- if window opened or requested activation/focus on non active workspace, there should be app icon jumping on some side of screen
+
+
+TODO: active window border (if not fullscreen of course), also need some better border drawing methods + some window size/position subscription, maybe shell hook for that exists?
+
+
+
+
+try mvp 'mouse button scroll' plugin with configurable mouse button, for example right to try to fake scroll bar messages or fake mouse wheel messages - as a test replacement for current RButton=SkipIfBlocklisted(NoRightClickGesture, EnterGestureMode(1, 4)) to be able to scroll with a button like if using touchpad
+
+
 features:
 
 from ike:
@@ -20,15 +66,17 @@ CapsLock Up::SwitchLocale()
 	ShowLayout()
 return
 
-
+icons10 icons list with previews https://github.com/windows-ui/icons/blob/main/README_LIST.md
+https://windows-ui.github.io/index.html
 
 TODO:
 
 need to plan:
 - low battery alert - some half transparent animation-osd that watches trend of battery discharge and alert at some percent or time remaining (consider also windows thresholds for sleep/hibernate, so it can say LOW BATTERY! sleep after 5 min) update interval 15 s
-
+- power modes control on simple page/popup/tray menu? some quick access to settings, settings from here https://github.com/Axorax/winpower and https://github.com/zoicware/PowerPlanSettingsEditor/blob/main/PowerPlanEditor.ps1
 - "bedtime routine" get somehow and show how long (h:mm:ss) until auto sleep
 
+when synth workspaces implemented, need to save initial window sizes/positions + ability to set for each window prevered nim/max sizes, positions, main screen/workspace attachment etc for all modes like tiling mode and free mode
 
 
 - StartFakeScreensaver(hotkeyToExit:=Escape,hotkeyToKeepAwake:=Shift,sendHotkeyIntervalSec=10) create black fullscreen windows on top unfocused and send shift each interval
@@ -251,7 +299,6 @@ See AtsuKagi in action:
 
 - 🖱️ Easily accessible menu via mouse Right Click and hold 500 milliseconds
 - 🌐 Integrated web search capabilities
-- 🤖 AI-powered text enhancement with ChatGPT integration
 - 📊 Multi-source news aggregation
 - 🛒 Cross-platform shopping comparison
 - 📁 Bulk file and folder operations

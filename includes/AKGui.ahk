@@ -103,9 +103,9 @@ class AKGui extends AKBase {
 
     nw.OnEvent("Close", (*) => this._onSettingsClosed())
     nw.Navigate("includes/ui/settings.html")
-    nw.Show("w820 h560")
-    if (this.App.Config.GENERAL.DebugLevel >= 4)
-      this._openDevTools()
+    nw.Show("w820 h560") ; TODO: save size/position of conf window, before restoring (probably using some global restore function and inside it check if window restores to visible area, not off-screen and to active monitor) -need to think about this kind of behavior globally for any app and possible problems
+    ; if (this.App.Config.GENERAL.DebugLevel >= 4)
+    ;   this._openDevTools()
   }
 
   _getWebViewSettings() {
