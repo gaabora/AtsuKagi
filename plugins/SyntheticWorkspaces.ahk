@@ -2,6 +2,7 @@
 #Include SyntheticWorkspaces\WorkspaceRuntime.ahk
 #Include SyntheticWorkspaces\Windows\WindowBackend.ahk
 #Include SyntheticWorkspaces\Windows\WindowEventService.ahk
+#Include SyntheticWorkspaces\Windows\WorkspacePlacementBackend.ahk
 
 class SyntheticWorkspaces extends AKPlugin {
   __New(app, service:=0) {
@@ -10,9 +11,10 @@ class SyntheticWorkspaces extends AKPlugin {
       this._service := service
     else if (service = 0) {
       workspaceModel := SyntheticWorkspaceService.CreateDefaultModel()
-      windowBackend := WindowsSyntheticWorkspaceWindowBackend(this._isWorkspaceWindowBlocklisted.Bind(this))
+      placementBackend := WindowsSyntheticWorkspacePlacementBackend()
+      windowBackend := WindowsSyntheticWorkspaceWindowBackend(this._isWorkspaceWindowBlocklisted.Bind(this), 0, 0, placementBackend.IsInternalWindow.Bind(placementBackend))
       windowEventService := WindowsSyntheticWorkspaceWindowEventService()
-      workspaceRuntime := SyntheticWorkspaceRuntime(workspaceModel, windowBackend, 0, windowEventService)
+      workspaceRuntime := SyntheticWorkspaceRuntime(workspaceModel, windowBackend, 0, windowEventService, placementBackend)
       this._service := SyntheticWorkspaceService(workspaceModel, workspaceRuntime)
     }
     else
@@ -42,7 +44,7 @@ class SyntheticWorkspaces extends AKPlugin {
         Map("action", "HideSyntheticWorkspaceOverview", "label", "Hide synthetic workspace overview", "description", "Close the synthetic workspace overview", "params", [], "category", "Workspace Overview"),
         Map("action", "ToggleSyntheticWorkspaceOverview", "label", "Toggle synthetic workspace overview", "description", "Open or close the synthetic workspace overview", "params", [], "category", "Workspace Overview"),
         Map("action", "DisableSyntheticWorkspaces", "label", "Disable synthetic workspaces", "description", "Stop synthetic workspace services and restore safe window access", "params", [], "category", "Recovery"),
-        Map("action", "RestoreAllSyntheticWorkspaceWindows", "label", "Restore all synthetic workspace windows", "description", "Make every window managed by synthetic workspaces reachable", "params", [], "category", "Recovery")
+        Map("action", "RestoreAllSyntheticWorkspaceWindows", "label", "Restore all synthetic workspace windows", "description", "Make every window managed by synthetic workspaces reachable", "params", [], "category", "Recovery", "trayLabel", "Restore synthetic workspace windows")
       ],
       "hooks", []
     )
@@ -97,6 +99,26 @@ class SyntheticWorkspaces extends AKPlugin {
 
   RestoreAllSyntheticWorkspaceWindows() {
     return this._service.RestoreAllSyntheticWorkspaceWindows()
+  }
+
+  BeforeAppSuspend() {
+    if (!this._service.IsRunning())
+      return false
+    try return this._service.PrepareForSuspend()
+    catch Error as suspendError {
+      try this._service.Stop()
+      throw suspendError
+    }
+  }
+
+  AfterAppResume() {
+    if (!this._service.IsRunning())
+      return false
+    try return this._service.ResumeAfterSuspend()
+    catch Error as resumeError {
+      try this._service.Stop()
+      throw resumeError
+    }
   }
 
   _isWorkspaceWindowBlocklisted(windowHwnd) {

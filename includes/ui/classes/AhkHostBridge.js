@@ -45,6 +45,51 @@ class AhkHostBridge {
     return this._parseHostResult(this.host.SavePluginSetting(`${pluginId || ''}`, `${key || ''}`, JSON.stringify(value)));
   }
 
+  getAutomations() {
+    this._checkHostFunction('GetAutomations');
+    return this._parseHostResult(this.host.GetAutomations());
+  }
+
+  saveAutomations(automationData) {
+    this._checkHostFunction('SaveAutomations');
+    return this._parseHostResult(this.host.SaveAutomations(JSON.stringify(automationData)));
+  }
+
+  runAutomation(automationId) {
+    this._checkHostFunction('RunAutomation');
+    return this._parseHostResult(this.host.RunAutomation(`${automationId || ''}`));
+  }
+
+  testAutomationAction(automationId) {
+    this._checkHostFunction('TestAutomationAction');
+    return this._parseHostResult(this.host.TestAutomationAction(`${automationId || ''}`));
+  }
+
+  enableAutomation(automationId) {
+    this._checkHostFunction('EnableAutomation');
+    return this._parseHostResult(this.host.EnableAutomation(`${automationId || ''}`));
+  }
+
+  disableAutomation(automationId) {
+    this._checkHostFunction('DisableAutomation');
+    return this._parseHostResult(this.host.DisableAutomation(`${automationId || ''}`));
+  }
+
+  toggleAutomation(automationId) {
+    this._checkHostFunction('ToggleAutomation');
+    return this._parseHostResult(this.host.ToggleAutomation(`${automationId || ''}`));
+  }
+
+  showLowBatteryOsd() {
+    this._checkHostFunction('ShowLowBatteryOsd');
+    return this._parseHostResult(this.host.ShowLowBatteryOsd());
+  }
+
+  showTimeUntilSleep() {
+    this._checkHostFunction('ShowTimeUntilSleep');
+    return this._parseHostResult(this.host.ShowTimeUntilSleep());
+  }
+
   saveHotkey(oldHotKey, hotKey, action, allowRiskyHotkeys = false) {
     this._checkHostFunction('SaveHotkey');
     return this._parseHostResult(this.host.SaveHotkey(`${oldHotKey || ''}`, `${hotKey || ''}`, `${action || ''}`, allowRiskyHotkeys ? 1 : 0));

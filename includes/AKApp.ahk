@@ -20,11 +20,13 @@ class AKApp extends AKBase {
   _warnedDeprecatedActions := Map()
   _warnedActionCollisions := Map()
   _warnedActionNaming := Map()
+  _pluginsReadyNotified := false
   
   ; Plugin metadata registries
   _pluginRegistry := Map()        ; pluginId -> descriptor
   _actionRegistry := Map()        ; actionName -> actionDescriptor
   _pluginConfigRegistry := Map()  ; pluginId -> configSchema[]
+  _trayActionByLabel := Map()
   _generalTypeIndex := 0
   _pluginTypeIndex := 0
 
@@ -559,6 +561,7 @@ class AKApp extends AKBase {
   }
   
   BindAllHotkeys() {
+    this._notifyPluginsReady()
     runHotkeyActionFn := this._runHotkeyAction.bind(this)
     AKBase.ClearProblems()
 
@@ -579,6 +582,17 @@ class AKApp extends AKBase {
     if (configProblems.Length = 0)
       this.outputDebugLine(AKApp.LOG_INFO, "Hotkey binding validation passed", Map("source", "hotkeys"))
     this._updateStartupDiagnostics()
+  }
+
+  _notifyPluginsReady() {
+    if (this._pluginsReadyNotified)
+      return
+    this._pluginsReadyNotified := true
+    for className, pluginInstance in this._addedLibs {
+      try pluginInstance.OnPluginsReady()
+      catch Error as readyError
+        this.outputDebugLine(AKApp.LOG_ERROR, "Plugin ready callback failed: " className " - " readyError.Message, Map("source", className, "settingRef", Map("page", "plugins")))
+    }
   }
 
   UnbindAllHotkeys() {
@@ -632,8 +646,30 @@ class AKApp extends AKBase {
   }
 
   ToggleAppSuspend(some*) {
-    Suspend
+    if (A_IsSuspended) {
+      Suspend
+      this._runPluginLifecycleHook("AfterAppResume")
+    } else {
+      this._runPluginLifecycleHook("BeforeAppSuspend")
+      Suspend
+    }
     this.UpdateAppSuspendedStatus()
+  }
+
+  _runPluginLifecycleHook(methodName) {
+    failedPlugins := []
+    for className, libObj in this._addedLibs {
+      if (!HasMethod(libObj, methodName))
+        continue
+      try libObj.%methodName%()
+      catch Error as lifecycleError {
+        failedPlugins.Push(className)
+        this.outputDebugLine(AKApp.LOG_ERROR, "Plugin lifecycle hook failed: " className "." methodName " - " lifecycleError.Message, Map("source", className))
+      }
+    }
+    if (failedPlugins.Length)
+      this.ShowInfo("A plugin could not finish suspend or resume cleanup. It was stopped for safety. Open Logs for details.", "Plugin cleanup failed", 7000, "error")
+    return failedPlugins.Length = 0
   }
 
   UpdateAppSuspendedStatus() {
@@ -746,6 +782,36 @@ class AKApp extends AKBase {
     actionInfo := this._parseActionInfo(ActionString)
     actionHandler := this._getActionHandler(actionInfo.fnName)
     return this._callActionHandler(actionHandler, actionInfo.params, ActionString, this._getCurrentHotkeyLabel())
+  }
+
+  RunActionWithResult(ActionString, notifyOnError:=true) {
+    actionInfo := this._parseActionInfo(ActionString)
+    if (actionInfo.fnName = "" || !this._actionExists(actionInfo.fnName)) {
+      actionError := Error(actionInfo.fnName = "" ? "Action cannot be empty" : "Action not found: " actionInfo.fnName)
+      this._handleActionError(actionError, ActionString, "core", notifyOnError)
+      return Map("ok", false, "error", actionError.Message, "errorType", Type(actionError))
+    }
+    actionHandler := this._getActionHandler(actionInfo.fnName)
+    executionResult := this._callActionHandlerWithResult(actionHandler, actionInfo.params, ActionString, this._getCurrentHotkeyLabel(), notifyOnError)
+    if (executionResult["ok"] && executionResult["value"] is Map && executionResult["value"].Has("ok"))
+      return executionResult["value"]
+    return executionResult
+  }
+
+  IsActionAvailable(ActionString) {
+    actionInfo := this._parseActionInfo(ActionString)
+    return actionInfo.fnName != "" && this._actionExists(actionInfo.fnName)
+  }
+
+  GetAvailableActionNames() {
+    actionNames := []
+    for actionName, actionDefinition in this.AvailableActions
+      actionNames.Push(actionName)
+    return actionNames
+  }
+
+  GetConfigFilePath() {
+    return this._configFile
   }
 
   IsWindowBlocklisted(hwnd:=0, method:='') {
@@ -961,6 +1027,22 @@ class AKApp extends AKBase {
     trayMenu.Add("Test", fn)
     trayMenu.Add()
     trayMenu.Add("Settings", fn)
+    this._trayActionByLabel := Map()
+    for actionName, actionDescriptor in this._actionRegistry {
+      trayLabel := actionDescriptor.Get("trayLabel", "")
+      if (trayLabel = "")
+        continue
+      if (this._trayActionByLabel.Has(trayLabel)) {
+        this.outputDebugLine(AKApp.LOG_WARNING, "Duplicate tray action label skipped: " trayLabel, Map("source", "tray"))
+        continue
+      }
+      this._trayActionByLabel[trayLabel] := actionName
+    }
+    if (this._trayActionByLabel.Count) {
+      trayMenu.Add()
+      for trayLabel, actionName in this._trayActionByLabel
+        trayMenu.Add(trayLabel, fn)
+    }
     trayMenu.Add()
     trayMenu.Add("Reload", fn)
     trayMenu.Add("Disable", fn)
@@ -969,6 +1051,10 @@ class AKApp extends AKBase {
   }
 
   _trayMenuHandler(ItemName, ItemPos, TheMenu) {
+    if (this._trayActionByLabel.Has(ItemName)) {
+      this.RunAction(this._trayActionByLabel[ItemName])
+      return
+    }
     switch (ItemName) {
       case "Test":
         this.TestActions()
@@ -1176,6 +1262,66 @@ class AKApp extends AKBase {
         return instance
     }
     return 0
+  }
+
+  GetAutomationsForSettings() {
+    pluginInstance := this._findPluginInstanceById("Automations")
+    if (!pluginInstance || !HasMethod(pluginInstance, "GetAutomationsJson"))
+      return this._jsonAtomicResult(false, "Automations plugin is not loaded")
+    return pluginInstance.GetAutomationsJson()
+  }
+
+  SaveAutomationsFromSettings(payload) {
+    pluginInstance := this._findPluginInstanceById("Automations")
+    if (!pluginInstance || !HasMethod(pluginInstance, "SaveAutomationsJson"))
+      return this._jsonAtomicResult(false, "Automations plugin is not loaded")
+    return pluginInstance.SaveAutomationsJson(payload)
+  }
+
+  RunAutomationFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("RunAutomation", automationId)
+  }
+
+  TestAutomationActionFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("TestAutomationAction", automationId)
+  }
+
+  EnableAutomationFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("EnableAutomation", automationId)
+  }
+
+  DisableAutomationFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("DisableAutomation", automationId)
+  }
+
+  ToggleAutomationFromSettings(automationId) {
+    return this._runAutomationSettingsCommand("ToggleAutomation", automationId)
+  }
+
+  ShowLowBatteryOsdFromSettings() {
+    return this._runAutomationSettingsCommandWithoutParams("ShowLowBatteryOsd")
+  }
+
+  ShowTimeUntilSleepFromSettings() {
+    return this._runAutomationSettingsCommandWithoutParams("ShowTimeUntilSleep")
+  }
+
+  _runAutomationSettingsCommand(methodName, automationId) {
+    pluginInstance := this._findPluginInstanceById("Automations")
+    if (!pluginInstance || !HasMethod(pluginInstance, methodName))
+      return this._jsonAtomicResult(false, "Automations plugin is not loaded")
+    try return jsongo.Stringify(pluginInstance.%methodName%(automationId))
+    catch Error as commandError
+      return this._jsonAtomicResult(false, commandError.Message)
+  }
+
+  _runAutomationSettingsCommandWithoutParams(methodName) {
+    pluginInstance := this._findPluginInstanceById("Automations")
+    if (!pluginInstance || !HasMethod(pluginInstance, methodName))
+      return this._jsonAtomicResult(false, "Automations plugin is not loaded")
+    try return jsongo.Stringify(pluginInstance.%methodName%())
+    catch Error as commandError
+      return this._jsonAtomicResult(false, commandError.Message)
   }
 
   SaveGeneralSetting(key, valuePayload) {
@@ -2009,6 +2155,11 @@ class AKApp extends AKBase {
   }
 
   _callActionHandler(actionHandler, paramsArr, actionText, hotkeyLabel:="") {
+    executionResult := this._callActionHandlerWithResult(actionHandler, paramsArr, actionText, hotkeyLabel, true)
+    return executionResult["ok"] ? executionResult["value"] : false
+  }
+
+  _callActionHandlerWithResult(actionHandler, paramsArr, actionText, hotkeyLabel:="", notifyOnError:=true) {
     actionInfo := this._parseActionInfo(actionText)
     source := "core"
     if (this.AvailableActions.Has(actionInfo.fnName))
@@ -2017,32 +2168,36 @@ class AKApp extends AKBase {
 
     try {
       if (paramsArr.Length > 0) {
-        return (IsObject(actionHandler))
+        actionResult := (IsObject(actionHandler))
           ? actionHandler.Call(paramsArr*)
           : %actionHandler%(paramsArr*)
       } else {
-        return (IsObject(actionHandler))
+        actionResult := (IsObject(actionHandler))
           ? actionHandler.Call()
           : %actionHandler%()
       }
+      return Map("ok", true, "value", actionResult)
     } catch Error as err {
-      this._handleActionError(err, actionText, source)
-      return false
+      this._handleActionError(err, actionText, source, notifyOnError)
+      return Map("ok", false, "error", err.Message, "errorType", Type(err))
     }
   }
 
-  _handleActionError(err, actionText, source) {
+  _handleActionError(err, actionText, source, notifyOnError:=true) {
     errorDetails := Type(err) ": " err.Message "`nAction: " actionText "`nFile: " err.File "`nLine: " err.Line "`nWhat: " err.What "`nExtra: " err.Extra "`nStack:`n" err.Stack
     try errorDetails .= "`nNumber: " err.Number
     this.outputDebugLine(AKApp.LOG_ERROR, errorDetails, Map("source", source))
 
     if (this._isAccessDeniedError(err)) {
-      message := "Windows blocked running " actionText " because the other app is running as administrator.`nRun " this.ScriptName " as administrator and try again"
-      try this.ShowInfo(message, , 7000, "warning")
+      if (notifyOnError) {
+        message := "Windows blocked running " actionText " because the other app is running as administrator.`nRun " this.ScriptName " as administrator and try again"
+        try this.ShowInfo(message, , 7000, "warning")
+      }
       return
     }
 
-    try this.ShowInfo("The action could not be completed. Open Logs for technical details.", "Action failed", 6000, "error")
+    if (notifyOnError)
+      try this.ShowInfo("The action could not be completed. Open Logs for technical details.", "Action failed", 6000, "error")
   }
 
   _isAccessDeniedError(err) {

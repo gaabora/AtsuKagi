@@ -6,6 +6,7 @@ class SettingsPage {
     this.colorPicker = new ColorPickerController(this.dom);
     this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys, fullActionHandler) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys, fullActionHandler));
     this.logs = new LogsController(this.hostBridge, (settingRef) => this._goToSetting(settingRef));
+    this.automations = new AutomationsController(this.hostBridge);
     this._isApplyingState = false;
     this._fieldSaveTimers = new Map();
     this._currentSection = null;
@@ -699,6 +700,7 @@ class SettingsPage {
     const t0 = performance.now();
     const prevState = this._lastAppliedState || null;
     const changes = this.form.applyState(state, prevState);
+    this.automations.applyState(state);
     const t1 = performance.now();
     // Keep exact incoming AHK payload for DevTools export/import replay.
     this._lastAppliedState = state ? JSON.parse(JSON.stringify(state)) : null;

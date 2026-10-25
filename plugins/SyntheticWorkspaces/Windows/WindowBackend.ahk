@@ -12,10 +12,11 @@ class WindowsSyntheticWorkspaceWindowBackend {
   static VT_LPWSTR := 31
   static SHELL_CLASSES := Map("Shell_TrayWnd", true, "Shell_SecondaryTrayWnd", true, "Progman", true, "WorkerW", true)
 
-  __New(blocklistCallback:=0, globalWindowCallback:=0, shellProcessId:=0) {
+  __New(blocklistCallback:=0, globalWindowCallback:=0, shellProcessId:=0, internalWindowCallback:=0) {
     this._blocklistCallback := blocklistCallback
     this._globalWindowCallback := globalWindowCallback
     this._shellProcessId := shellProcessId ? shellProcessId : DllCall("GetCurrentProcessId", "UInt")
+    this._internalWindowCallback := internalWindowCallback
     this._iconHandlesByPath := Map()
   }
 
@@ -96,6 +97,11 @@ class WindowsSyntheticWorkspaceWindowBackend {
   ClassifySnapshot(snapshot) {
     if (!(snapshot is Map))
       throw TypeError("Window classification snapshot must be a Map")
+    internalWindowResult := this._readRule(this._internalWindowCallback, snapshot.Get("hwnd", 0))
+    if (internalWindowResult["matched"])
+      return Map("class", "ignored", "reason", "window is an internal synthetic workspace surface")
+    if (internalWindowResult["failed"])
+      return Map("class", "unsupported", "reason", "internal-window check failed")
     if (snapshot.Get("snapshotFailed", false))
       return Map("class", "unsupported", "reason", "window snapshot could not be read")
     if (snapshot.Get("pid", 0) = this._shellProcessId)
@@ -133,6 +139,7 @@ class WindowsSyntheticWorkspaceWindowBackend {
     snapshot := Map(
       "hwnd", windowHwnd,
       "pid", 0,
+      "isHaribolShell", false,
       "executablePath", "",
       "executableName", "",
       "windowClass", "",
@@ -158,6 +165,7 @@ class WindowsSyntheticWorkspaceWindowBackend {
     try snapshot["pid"] := WinGetPID(selector)
     catch
       snapshot["metadataReadable"] := false
+    snapshot["isHaribolShell"] := snapshot["pid"] = this._shellProcessId
     try snapshot["executablePath"] := WinGetProcessPath(selector)
     catch
       snapshot["metadataReadable"] := false
@@ -203,6 +211,7 @@ class WindowsSyntheticWorkspaceWindowBackend {
     return Map(
       "hwnd", windowHwnd,
       "pid", 0,
+      "isHaribolShell", false,
       "executablePath", "",
       "executableName", "",
       "windowClass", "",

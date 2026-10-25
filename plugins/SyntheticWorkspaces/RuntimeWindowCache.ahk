@@ -27,6 +27,7 @@ class SyntheticWorkspaceRuntimeWindowRecord {
       throw ValueError("Runtime window record HWND cannot change", -1, windowHwnd)
     this.Hwnd := windowHwnd
     this.Pid := snapshot.Get("pid", 0)
+    this.IsHaribolShell := !!snapshot.Get("isHaribolShell", false)
     this.ExecutablePath := snapshot.Get("executablePath", "")
     this.ExecutableName := snapshot.Get("executableName", "")
     this.WindowClass := snapshot.Get("windowClass", "")

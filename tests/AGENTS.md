@@ -10,6 +10,7 @@
 - `Yunit/` is bundled third-party test infrastructure.
 - `RunAllTests.ahk` runs all suites through Yunit stdout mode for CLI/task output.
 - `RunAllTestsGui.ahk` opens each suite in Yunit window mode for manual GUI review.
+- `SyntheticWorkspacesSwitchTests.ahk` uses fake snapshot and placement backends and must not create covers, move real windows, or change real focus.
 
 ## Local Contracts
 

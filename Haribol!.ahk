@@ -55,6 +55,7 @@ if (APP.Config.GENERAL.WelcomeMessage) {
 ;@Ahk2Exe-AddResource lib\WebViewToo-main\Lib\32bit\WebView2Loader.dll, 32bit\WebView2Loader.dll
 ;@Ahk2Exe-AddResource lib\WebViewToo-main\Lib\64bit\WebView2Loader.dll, 64bit\WebView2Loader.dll
 ;@Ahk2Exe-AddResource includes\ui\classes\AhkHostBridge.js, includes\ui\classes\AhkHostBridge.js
+;@Ahk2Exe-AddResource includes\ui\classes\AutomationsController.js, includes\ui\classes\AutomationsController.js
 ;@Ahk2Exe-AddResource includes\ui\app.js, includes\ui\app.js
 ;@Ahk2Exe-AddResource includes\ui\classes\ColorPickerController.js, includes\ui\classes\ColorPickerController.js
 ;@Ahk2Exe-AddResource includes\ui\classes\HotkeyRecorderController.js, includes\ui\classes\HotkeyRecorderController.js

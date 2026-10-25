@@ -117,6 +117,16 @@ class SyntheticWorkspaceService {
     return this._callCapability(this._workspaceRuntime, "RestoreAllWindows", "restoring synthetic workspace windows")
   }
 
+  PrepareForSuspend() {
+    this._requireRunning()
+    return this._callCapability(this._workspaceRuntime, "PrepareForSuspend", "preparing synthetic workspaces for suspend")
+  }
+
+  ResumeAfterSuspend() {
+    this._requireRunning()
+    return this._callCapability(this._workspaceRuntime, "ResumeAfterSuspend", "resuming synthetic workspaces")
+  }
+
   _requireRunning() {
     if (!this._isRunning)
       throw Error("Synthetic Workspaces service is not running")

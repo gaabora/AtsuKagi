@@ -31,6 +31,7 @@
 - `TextLocaleManager` automatic text conversion supports exact standard US QWERTY KLID `00000409` and standard Russian KLID `00000419`; variants and ambiguous same-language HKL matches must skip safely.
 - `TextLocaleManager.SwitchSelectedTextLayout()` validates a compatible installed pair, the exact final HKL, and the target window before pasting; explicit layout names must use the same validation.
 - `TextLocaleManager.SwitchKeyboardLayout()` uses `INPUTLANGCHANGE_FORWARD` for its no-argument next-layout action and the exact resolved active HKL for named switching.
+- `Automations` stores user records in `automations.json` beside the active config, stores battery samples in `automation-history.sqlite3`, and keeps interval values in milliseconds with a first-release minimum of `1000 ms`.
 - Use AutoHotkey v2 syntax and existing plugin naming conventions.
 
 ## Work Guidance
@@ -46,4 +47,5 @@
 
 ## Child DOX Index
 
+- [`Automations/AGENTS.md`](Automations/AGENTS.md): automation validation, scheduling, persistence, battery monitoring, and Windows system adapters.
 - [`SyntheticWorkspaces/AGENTS.md`](SyntheticWorkspaces/AGENTS.md): Synthetic Workspaces portable engine, runtime events, and child platform backends.

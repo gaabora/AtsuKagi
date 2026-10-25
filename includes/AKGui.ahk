@@ -69,6 +69,15 @@ class AKGui extends AKBase {
     nw.AddCallbackToScript("SaveSettingsJson", (wv, payload:="") => this._saveSettingsJson(payload))
     nw.AddCallbackToScript("SaveGeneralSetting", (wv, key:="", value:="") => this._saveGeneralSetting(key, value))
     nw.AddCallbackToScript("SavePluginSetting", (wv, pluginId:="", key:="", value:="") => this._savePluginSetting(pluginId, key, value))
+    nw.AddCallbackToScript("GetAutomations", (wv, *) => this.App.GetAutomationsForSettings())
+    nw.AddCallbackToScript("SaveAutomations", (wv, payload:="") => this.App.SaveAutomationsFromSettings(payload))
+    nw.AddCallbackToScript("RunAutomation", (wv, automationId:="") => this.App.RunAutomationFromSettings(automationId))
+    nw.AddCallbackToScript("TestAutomationAction", (wv, automationId:="") => this.App.TestAutomationActionFromSettings(automationId))
+    nw.AddCallbackToScript("EnableAutomation", (wv, automationId:="") => this.App.EnableAutomationFromSettings(automationId))
+    nw.AddCallbackToScript("DisableAutomation", (wv, automationId:="") => this.App.DisableAutomationFromSettings(automationId))
+    nw.AddCallbackToScript("ToggleAutomation", (wv, automationId:="") => this.App.ToggleAutomationFromSettings(automationId))
+    nw.AddCallbackToScript("ShowLowBatteryOsd", (wv, *) => this.App.ShowLowBatteryOsdFromSettings())
+    nw.AddCallbackToScript("ShowTimeUntilSleep", (wv, *) => this.App.ShowTimeUntilSleepFromSettings())
     nw.AddCallbackToScript("SaveHotkey", (wv, oldHotKey:="", hotKey:="", action:="", allowRiskyHotkeys:=0) => this._saveHotkey(oldHotKey, hotKey, action, allowRiskyHotkeys))
     nw.AddCallbackToScript("RemoveHotkey", (wv, hotKey:="") => this._removeHotkey(hotKey))
     nw.AddCallbackToScript("AddHotkey", (wv, hotKey:="", action:="", allowRiskyHotkeys:=0) => this._addHotkey(hotKey, action, allowRiskyHotkeys))
@@ -88,9 +97,9 @@ class AKGui extends AKBase {
 
     nw.OnEvent("Close", (*) => this._onSettingsClosed())
     nw.Navigate("includes/ui/settings.html")
-    nw.Show("w820 h560")
-    if (this.App.Config.GENERAL.DebugLevel >= 4)
-      this._openDevTools()
+    nw.Show("w820 h560") ; TODO: save size/position of conf window, before restoring (probably using some global restore function and inside it check if window restores to visible area, not off-screen and to active monitor) -need to think about this kind of behavior globally for any app and possible problems
+    ; if (this.App.Config.GENERAL.DebugLevel >= 4)
+    ;   this._openDevTools()
   }
 
   _getWebViewSettings() {
