@@ -16,6 +16,7 @@
 - Preserve public methods called by `SettingsPage.js` and global bridge code.
 - Host return values must be normalized before page code relies on them.
 - `AhkHostBridge` owns JSON-normalized load, save, run, test, enable, disable, toggle, and OSD calls for `Automations`.
+- `AutomationsController` consumes one-time `automation` page requests and opens Edit or Extend by stable automation ID.
 - Keep structured automation UI out of the generic scalar plugin-field renderer.
 - Plugin list state includes `debugLevels` overrides and `globalDebugLevel`; `-1` in the selector means inherit the global level.
 

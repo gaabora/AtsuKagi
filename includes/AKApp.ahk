@@ -1,4 +1,5 @@
 class AKApp extends AKBase {
+  static WM_INITMENUPOPUP := 0x0117
   ; public (let's agree on PascalCase)
   AvailableActions := Map()
   ; AvailableHooks := Map() ; TODO: maybe implement when needed, currently unused
@@ -27,6 +28,10 @@ class AKApp extends AKBase {
   _actionRegistry := Map()        ; actionName -> actionDescriptor
   _pluginConfigRegistry := Map()  ; pluginId -> configSchema[]
   _trayActionByLabel := Map()
+  _trayMenuExtensions := Map()
+  _trayMenuExtensionHandles := Map()
+  _trayMenuOpenFn := 0
+  _trayMenuReady := false
   _generalTypeIndex := 0
   _pluginTypeIndex := 0
 
@@ -1015,9 +1020,33 @@ class AKApp extends AKBase {
     }
   }
 
+  RegisterTrayMenuExtension(extensionId, title, getItemsFn) {
+    extensionIdText := Trim("" extensionId)
+    titleText := Trim("" title)
+    if (extensionIdText = "")
+      throw ValueError("Tray menu extension ID cannot be empty")
+    if (titleText = "")
+      throw ValueError("Tray menu extension title cannot be empty")
+    if (!IsObject(getItemsFn) || !HasMethod(getItemsFn, "Call"))
+      throw TypeError("Tray menu extension item provider must be callable")
+
+    this._trayMenuExtensions[extensionIdText] := Map("title", titleText, "getItemsFn", getItemsFn, "menu", 0, "childMenus", [])
+    if (this._trayMenuReady)
+      this._initTrayMenu()
+    return true
+  }
+
+  RefreshTrayMenuExtension(extensionId) {
+    extensionIdText := Trim("" extensionId)
+    if (!this._trayMenuExtensions.Has(extensionIdText))
+      return false
+    return this._rebuildTrayMenuExtension(extensionIdText)
+  }
+
   _initTrayMenu() {
     trayMenu:= A_TrayMenu
     trayMenu.Delete()
+    this._trayMenuExtensionHandles := Map()
     fn := this._trayMenuHandler.bind(this)
     if (this.debugLevel = 0)
       trayMenu.Delete() ; V1toV2: not 100% replacement of NoStandard, Only if NoStandard is used at the beginning
@@ -1027,6 +1056,16 @@ class AKApp extends AKBase {
     trayMenu.Add("Test", fn)
     trayMenu.Add()
     trayMenu.Add("Settings", fn)
+    if (this._trayMenuExtensions.Count) {
+      trayMenu.Add()
+      for extensionId, extension in this._trayMenuExtensions {
+        extensionMenu := Menu()
+        extension["menu"] := extensionMenu
+        extension["childMenus"] := []
+        trayMenu.Add(StrReplace(extension["title"], "&", "&&"), extensionMenu)
+        this._rebuildTrayMenuExtension(extensionId)
+      }
+    }
     this._trayActionByLabel := Map()
     for actionName, actionDescriptor in this._actionRegistry {
       trayLabel := actionDescriptor.Get("trayLabel", "")
@@ -1048,6 +1087,90 @@ class AKApp extends AKBase {
     trayMenu.Add("Disable", fn)
     trayMenu.Add()
     trayMenu.Add("Exit", fn)
+    this._trayMenuReady := true
+    this._ensureTrayMenuOpenHook()
+  }
+
+  _ensureTrayMenuOpenHook() {
+    if (IsObject(this._trayMenuOpenFn))
+      return
+    this._trayMenuOpenFn := this._handleTrayMenuOpening.Bind(this)
+    OnMessage(AKApp.WM_INITMENUPOPUP, this._trayMenuOpenFn)
+  }
+
+  _handleTrayMenuOpening(menuHandle, *) {
+    if (this._trayMenuExtensionHandles.Has(menuHandle))
+      this._rebuildTrayMenuExtension(this._trayMenuExtensionHandles[menuHandle])
+  }
+
+  _rebuildTrayMenuExtension(extensionId) {
+    if (!this._trayMenuExtensions.Has(extensionId))
+      return false
+    extension := this._trayMenuExtensions[extensionId]
+    extensionMenu := extension["menu"]
+    if (!IsObject(extensionMenu))
+      return false
+
+    extensionMenu.Delete()
+    extension["childMenus"] := []
+    try items := extension["getItemsFn"].Call()
+    catch Error as menuError {
+      this.outputDebugLine(AKApp.LOG_ERROR, "Tray menu extension failed: " extensionId " - " menuError.Message, Map("source", "tray"))
+      items := []
+    }
+
+    addedCount := items is Array ? this._addTrayMenuItems(extensionMenu, items, extension["childMenus"]) : 0
+    if (addedCount = 0)
+      this._addDisabledTrayMenuItem(extensionMenu, "No items")
+    this._trayMenuExtensionHandles[extensionMenu.Handle] := extensionId
+    return true
+  }
+
+  _addTrayMenuItems(targetMenu, items, childMenus) {
+    addedCount := 0
+    for item in items {
+      if (!(item is Map))
+        continue
+      if (item.Get("separator", false)) {
+        targetMenu.Add()
+        addedCount += 1
+        continue
+      }
+
+      label := Trim("" item.Get("label", ""))
+      if (label = "")
+        continue
+      displayLabel := StrReplace(label, "&", "&&")
+      if (item.Has("items") && item["items"] is Array) {
+        childMenu := Menu()
+        childMenus.Push(childMenu)
+        childCount := this._addTrayMenuItems(childMenu, item["items"], childMenus)
+        if (childCount = 0)
+          this._addDisabledTrayMenuItem(childMenu, "No items")
+        targetMenu.Insert("", displayLabel, childMenu)
+      } else {
+        callback := item.Get("callback", this._ignoreTrayMenuItem.Bind(this))
+        if (!IsObject(callback) || !HasMethod(callback, "Call"))
+          callback := this._ignoreTrayMenuItem.Bind(this)
+        targetMenu.Insert("", displayLabel, callback)
+      }
+
+      addedCount += 1
+      itemPosition := addedCount "&"
+      if (!item.Get("enabled", true))
+        targetMenu.Disable(itemPosition)
+      if (item.Get("checked", false))
+        targetMenu.Check(itemPosition)
+    }
+    return addedCount
+  }
+
+  _addDisabledTrayMenuItem(targetMenu, label) {
+    targetMenu.Insert("", StrReplace(label, "&", "&&"), this._ignoreTrayMenuItem.Bind(this))
+    targetMenu.Disable("1&")
+  }
+
+  _ignoreTrayMenuItem(*) {
   }
 
   _trayMenuHandler(ItemName, ItemPos, TheMenu) {

@@ -23,6 +23,8 @@
 - Keep Windows API calls inside `WindowsAutomationPlatform` or a clearly named Windows-specific persistence or visual class.
 - Keep the fake screensaver non-activating and state clearly that it is not a lock or security boundary.
 - Scheduler actions must use the central App action dispatcher.
+- `RunAutomation` ignores triggers and expiry but checks conditions; `TestAutomationAction` runs only the stored action. Both target stable automation IDs.
+- The Automations tray menu must use stable automation IDs, show persistent rows only for `showInTray`, and refresh after data changes and when the submenu opens.
 
 ## Work Guidance
 

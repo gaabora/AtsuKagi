@@ -16,6 +16,7 @@
 
 - Plugin filenames, class names, and descriptor `plugin.id` values must match.
 - Public actions must be declared in `__DescribePlugin()` and keep signatures compatible with configured action strings.
+- Plugin tray submenus must use `AKApp.RegisterTrayMenuExtension`; plugins must not rebuild `A_TrayMenu`.
 - Window-mutating actions must resolve and validate target HWNDs and respect the applicable blocklist contract.
 - `WindowResizeDialog.ahk` owns the numeric resize dialog and its focused directional-key controls; `WindowManager.ahk` must not duplicate that action or dialog state.
 - The resize dialog key layout, move modifier, step modifier, default precision mode, and pixel step sizes are descriptor-backed plugin settings.

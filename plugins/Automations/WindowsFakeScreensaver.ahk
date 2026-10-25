@@ -78,7 +78,7 @@ class WindowsFakeScreensaver {
     instructionControl.SetFont("s10 cFFFFFF", "Segoe UI")
     pictureControl := interactionGui.AddPicture("x178 y60 w64 h64 BackgroundTrans", this._eyeImagePath)
     pictureControl.OnEvent("Click", this.Stop.Bind(this))
-    pictureControl.OnEvent("ContextMenu", this._stopMonitor.Bind(this, monitorIndex))
+    interactionGui.OnEvent("ContextMenu", this._handleContextMenu.Bind(this, monitorIndex))
     interactionLeft := monitorLeft + Floor((monitorWidth - 420) / 2)
     interactionTop := monitorTop + Floor((monitorHeight - 132) / 2)
     interactionGui.Show("x" interactionLeft " y" interactionTop " w420 h132 Hide NoActivate")
@@ -119,6 +119,13 @@ class WindowsFakeScreensaver {
     this._log(AKBase.LOG_INFO, "Fake screensaver stopped on monitor " monitorIndex)
     if (this._screens.Count = 0)
       this.Stop()
+  }
+
+  _handleContextMenu(monitorIndex, interactionGui, guiControl, item, isRightClick, mouseLeft, mouseTop) {
+    if (!isRightClick || !this._screens.Has(monitorIndex) || !IsObject(guiControl))
+      return
+    if (guiControl.Hwnd = this._screens[monitorIndex]["pictureControl"].Hwnd)
+      this._stopMonitor(monitorIndex)
   }
 
   _sendKeepAwakePulse(*) {

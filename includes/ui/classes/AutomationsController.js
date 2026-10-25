@@ -10,10 +10,13 @@ class AutomationsController {
     this.messageKind = 'info';
     this.timetable = null;
     this.pointerPaint = null;
+    this.pendingPageRequest = null;
+    this.lastPageRequestToken = '';
   }
 
   applyState(state) {
     this.availableActions = this._collectAvailableActions(state);
+    this._capturePageRequest(state?.pageRequest);
     const section = document.getElementById('section-plugin-Automations');
     if (!section) return;
 
@@ -29,7 +32,10 @@ class AutomationsController {
       return;
     }
     this.root = root;
-    if (this.data) this.render();
+    if (this.data) {
+      this.render();
+      this._applyPageRequest();
+    }
   }
 
   load() {
@@ -45,10 +51,47 @@ class AutomationsController {
       if (Array.isArray(result.availableActions)) this.availableActions = [...new Set(result.availableActions.map((action) => `${action}`.trim()).filter(Boolean))].sort((firstAction, secondAction) => firstAction.localeCompare(secondAction));
       if (result.loadError) this._setMessage(result.loadError, 'error');
       this.render();
+      if (!result.loadError) this._applyPageRequest();
     } catch (error) {
       this.data = { schemaVersion: 1, automations: [], runtime: {} };
       this._setMessage(error.message || `${error}`, 'error');
       this.render();
+    }
+  }
+
+  _capturePageRequest(request) {
+    if (!request || request.kind !== 'automation') return;
+    const token = `${request.token || ''}`;
+    if (!token || token === this.lastPageRequestToken) return;
+    this.pendingPageRequest = { token, mode: `${request.mode || ''}`, automationId: `${request.automationId || ''}` };
+  }
+
+  _applyPageRequest() {
+    if (!this.data || !this.pendingPageRequest) return;
+    const request = this.pendingPageRequest;
+    this.pendingPageRequest = null;
+    this.lastPageRequestToken = request.token;
+    const automation = this.data.automations.find((entry) => entry.id === request.automationId);
+    if (!automation) {
+      this.draft = null;
+      this.timetable = null;
+      this._setMessage(`Automation was not found: ${request.automationId}`, 'error');
+      this.render();
+      return;
+    }
+
+    if (this.draft && this.draft.id !== request.automationId && !window.confirm('Close the current automation editor and discard its unsaved changes?')) return;
+    if (request.mode === 'edit') {
+      if (!this.draft || this.draft.id !== request.automationId) this._openEditor(automation, 'edit');
+      else {
+        this.timetable = null;
+        this.render();
+      }
+      return;
+    }
+    if (request.mode === 'extend') {
+      if (!this.draft || this.draft.id !== request.automationId) this._openEditor(automation, 'edit');
+      this._openTimetable(-1, 'extend');
     }
   }
 

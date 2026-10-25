@@ -10,6 +10,7 @@ It is built around a plugin system, but you do not need to think about plugins t
 - Switch virtual desktops faster and move windows between them.
 - Convert mistyped text between keyboard layouts.
 - Use mouse-driven gesture actions.
+- Run app actions from schedules, short intervals, idle state, battery state, power source, and window conditions.
 - Keep hotkeys and plugin enable/disable settings in one config file and one settings window.
 - See startup diagnostics, logs, and config problems in the built-in UI.
 
@@ -42,7 +43,7 @@ Notes:
 | `VirtualDesktopManager` | Switch desktops, move windows between desktops, rename desktops | Stable |
 | `TouchGesturesSimulator` | Mouse-driven touch gesture simulation | Stable |
 | `TextLocaleManager` | Keyboard layout switching and text layout conversion | Stable |
-| `TimerHandlers` | Future timer and scheduled task features | Experimental |
+| `Automations` | Scheduled and conditional actions, battery monitoring, OSD tools, and safe window tasks | Available |
 | `TextToSpeech` | Windows SAPI speech support placeholder | Experimental |
 | `SwapButtonsHandler` | Future mouse button remapping | Experimental |
 | `ShellMessageHook` | Low-level shell window event hooks | Experimental |
@@ -68,6 +69,19 @@ These examples come from the current default config.
 
 See the full list in [includes/defaultConfig.ahk](includes\defaultConfig.ahk).
 
+## Automations
+
+Open `Settings`, then select `Automations`. You can add an automation from an example or build one from these parts:
+
+- One or more five-field schedules or short intervals. Intervals are stored in milliseconds and start at `1000 ms` in this version.
+- Optional idle, window, power, charging, or battery conditions. Top-level conditions use AND. Nested OR and NOT groups are also available.
+- Any registered app action, such as `PreventSleep()` or `ShowLowBatteryOsd()`.
+- Options for catch-up, run logging, error messages, and a concise tray row.
+
+The weekly timetable uses a compact 7 by 24 grid. `Extend` adds temporary schedule triggers and requires an expiry date. The tray `Automations` submenu shows the next known run and lets you run, test, enable, disable, edit, or extend an automation by its stable ID.
+
+Automation records are stored in `automations.json` beside the active config file. Battery trend samples are stored separately in `automation-history.sqlite3`. The fake screensaver action only draws black overlays and keeps the computer awake. It does not lock or secure the computer.
+
 ## Settings And Troubleshooting
 
 Open `Settings` from the tray icon to manage:
@@ -92,6 +106,7 @@ Useful built-in controls:
 - Reload hotkey default: `Ctrl+Win+Alt+Backspace`
 - Suspend hotkey default: `Ctrl+Win+Alt+Esc`
 - Tray menu: `Settings`, `Reload`, `Disable`, `Exit`
+- Automations tray submenu: next run, open settings, run or extend an automation, and optional pinned automation rows
 
 ## Browser UI Development
 

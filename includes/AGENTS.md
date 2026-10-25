@@ -25,7 +25,9 @@
 - `AKApp.RunActionWithResult` uses the same central dispatch and returns structured success or failure data while allowing a caller to suppress the visible failure notification.
 - `AKApp.RunActionWithResult` preserves a returned action result map when it contains its own `ok` field.
 - `AKApp.GetAvailableActionNames` is the public source for complete automation action suggestions and validation.
+- `AKApp.RegisterTrayMenuExtension` owns plugin tray submenus. Providers return menu item data and callbacks, and `AKApp` builds and refreshes the native menus when a submenu opens.
 - Settings automation callbacks delegate through `AKApp` to the loaded `Automations` plugin and return JSON strings to the WebView.
+- `AKGui.ShowSettings` accepts an optional page ID and one-time page request so a tray command can open a specific editor without keeping forced navigation state.
 - `AKApp` calls `OnPluginsReady()` once after all dynamic plugins and their actions are registered, before hotkeys are bound.
 - `AKBase.ShowInfo` supports `info`, `success`, `warning`, and `error` notification styles through its fourth parameter.
 - `AKBase.ShowInfo` uses live `[GENERAL]` notification appearance settings; a timeout of `-1` uses `NotificationDurationMs`.

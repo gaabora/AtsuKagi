@@ -8,6 +8,9 @@
 #Include Automations\WindowsFakeScreensaver.ahk
 
 class Automations extends AKPlugin {
+  static TRAY_EXTENSION_ID := "Automations"
+  static SETTINGS_PAGE_ID := "plugin-Automations"
+
   __New(app) {
     super.__New(app)
     this._platform := 0
@@ -33,7 +36,7 @@ class Automations extends AKPlugin {
         "category", "System Events"
       ),
       "page", Map(
-        "description", "Configure the automation scheduler and battery monitoring",
+        "description", "Build scheduled and conditional actions, and configure scheduler and battery monitoring",
         "icon", "icons10-clock"
       ),
       "config", [
@@ -45,8 +48,8 @@ class Automations extends AKPlugin {
         Map("key", "FakeScreensaverMonitors", "label", "Fake screensaver monitors", "description", "Comma-separated monitor numbers, or empty for all monitors", "type", "string", "control", "text", "default", "", "section", "Fake screensaver")
       ],
       "actions", [
-        Map("action", "RunAutomation", "label", "Run automation", "description", "Run an automation now after checking its conditions", "params", ["automationId"], "category", "Automations"),
-        Map("action", "TestAutomationAction", "label", "Test automation action", "description", "Run only the stored action without checking triggers or conditions", "params", ["automationId"], "category", "Automations"),
+        Map("action", "RunAutomation", "label", "Run automation", "description", "Run an automation now by stable ID; ignore triggers and expiry but check its conditions", "params", ["automationId"], "category", "Automations"),
+        Map("action", "TestAutomationAction", "label", "Test automation action", "description", "Run only the stored action by stable ID without checking triggers, expiry, or conditions", "params", ["automationId"], "category", "Automations"),
         Map("action", "EnableAutomation", "label", "Enable automation", "description", "Enable an automation by its stable ID", "params", ["automationId"], "category", "Automations"),
         Map("action", "DisableAutomation", "label", "Disable automation", "description", "Disable an automation by its stable ID", "params", ["automationId"], "category", "Automations"),
         Map("action", "ToggleAutomation", "label", "Toggle automation", "description", "Toggle an automation by its stable ID", "params", ["automationId"], "category", "Automations"),
@@ -55,10 +58,9 @@ class Automations extends AKPlugin {
         Map("action", "ShowTimeUntilSleep", "label", "Show time until sleep", "description", "Show the earliest known App automation or Windows sleep countdown", "params", [], "category", "Automations"),
         Map("action", "StartFakeScreensaver", "label", "Start fake screensaver", "description", "Cover configured monitors with a black overlay; this does not lock or secure the computer", "params", [Map("name", "hotkeyToExit", "default", "Escape"), Map("name", "hotkeyToKeepAwake", "default", "RShift"), Map("name", "sendHotkeyIntervalSec", "default", 10)], "category", "Automations"),
         Map("action", "StopFakeScreensaver", "label", "Stop fake screensaver", "description", "Close every fake screensaver overlay and stop its timers", "params", [], "category", "Automations"),
-        Map("action", "NormalizeMatchingWindows", "label", "Normalize matching windows", "description", "Apply only the explicit remove-topmost, lower, minimize, or close operations", "params", ["windowSelector", "operations"], "category", "Automations"),
-        Map("action", "DismissMatchingWindows", "label", "Dismiss matching windows", "description", "Send a configured key to matching windows without activating them", "params", [Map("name", "windowSelector"), Map("name", "hotkey", "default", "{Escape}")], "category", "Automations")
-      ],
-      "hooks", []
+        Map("action", "NormalizeMatchingWindows", "label", "Normalize matching windows", "description", "Apply only the requested remove-topmost, lower, minimize, or close operations to matching windows", "params", ["windowSelector", "operations"], "category", "Automations"),
+        Map("action", "DismissMatchingWindows", "label", "Dismiss matching windows", "description", "Send a configured key to matching windows without activating or closing them directly", "params", [Map("name", "windowSelector"), Map("name", "hotkey", "default", "{Escape}")], "category", "Automations")
+      ]
     )
   }
 
@@ -86,6 +88,7 @@ class Automations extends AKPlugin {
     this._osd := WindowsAutomationOsd()
     this._fakeScreensaver := WindowsFakeScreensaver(this._platform, A_ScriptDir "\assets\eye.png", this._log.Bind(this))
     this._loadAutomationFile()
+    this.App.RegisterTrayMenuExtension(Automations.TRAY_EXTENSION_ID, "Automations", this._getTrayMenuItems.Bind(this))
     this._registerExitCallback()
   }
 
@@ -94,6 +97,7 @@ class Automations extends AKPlugin {
     this._automations := normalizedResult["automations"]
     this._scheduler.SetAutomations(this._automations)
     this._applySchedulerConfiguration()
+    this._refreshTrayMenu()
   }
 
   OnConfigChanged(key, value) {
@@ -134,6 +138,7 @@ class Automations extends AKPlugin {
       this._loadError := ""
       this._scheduler.SetAutomations(this._automations)
       this._applySchedulerConfiguration()
+      this._refreshTrayMenu()
       return this._jsonResult(true, "", Map("automations", this._getUiAutomations()))
     } catch Error as saveError {
       this._log(AKBase.LOG_ERROR, "Saving automations failed: " saveError.Message)
@@ -142,11 +147,15 @@ class Automations extends AKPlugin {
   }
 
   RunAutomation(automationId) {
-    return this._scheduler.RunAutomation(automationId)
+    result := this._scheduler.RunAutomation(automationId)
+    this._refreshTrayMenu()
+    return result
   }
 
   TestAutomationAction(automationId) {
-    return this._scheduler.TestAutomationAction(automationId)
+    result := this._scheduler.TestAutomationAction(automationId)
+    this._refreshTrayMenu()
+    return result
   }
 
   EnableAutomation(automationId) {
@@ -162,6 +171,117 @@ class Automations extends AKPlugin {
     if (!IsObject(automation))
       return Map("ok", false, "error", "Automation not found: " automationId)
     return this._setAutomationEnabled(automationId, !automation["enabled"])
+  }
+
+  _getTrayMenuItems() {
+    runtime := this._scheduler.GetRuntimeSnapshot()
+    items := [
+      Map("label", this._getNextTrayLabel(runtime), "enabled", false),
+      Map("label", "Open Automations", "callback", this._openAutomationsSettings.Bind(this)),
+      Map("label", "Run automation...", "items", this._getTrayAutomationSelectionItems("run")),
+      Map("label", "Extend automation...", "items", this._getTrayAutomationSelectionItems("extend"))
+    ]
+
+    pinnedItems := []
+    for automation in this._automations {
+      if (!automation["options"]["showInTray"])
+        continue
+      pinnedItems.Push(Map("label", this._getTrayAutomationLabel(automation), "checked", automation["enabled"], "items", this._getPinnedAutomationItems(automation, runtime)))
+    }
+    if (pinnedItems.Length > 0) {
+      items.Push(Map("separator", true))
+      for pinnedItem in pinnedItems
+        items.Push(pinnedItem)
+    }
+    return items
+  }
+
+  _getTrayAutomationSelectionItems(command) {
+    items := []
+    for automation in this._automations {
+      isValid := automation["_validationErrors"].Length = 0
+      callback := command = "run" ? this._handleTrayAutomationCommand.Bind(this, "run", automation["id"]) : this._openAutomationSettings.Bind(this, automation["id"], "extend")
+      items.Push(Map("label", this._getTrayAutomationLabel(automation), "callback", callback, "enabled", command != "run" || isValid, "checked", automation["enabled"]))
+    }
+    return items
+  }
+
+  _getPinnedAutomationItems(automation, runtime) {
+    automationRuntime := runtime["automations"].Has(automation["id"]) ? runtime["automations"][automation["id"]] : Map()
+    toggleLabel := automation["enabled"] ? "Disable" : "Enable"
+    return [
+      Map("label", this._getAutomationStateTrayLabel(automation, automationRuntime), "enabled", false),
+      Map("label", "Run now", "callback", this._handleTrayAutomationCommand.Bind(this, "run", automation["id"]), "enabled", automation["_validationErrors"].Length = 0),
+      Map("label", "Test action", "callback", this._handleTrayAutomationCommand.Bind(this, "test", automation["id"]), "enabled", automation["action"] != ""),
+      Map("label", toggleLabel, "callback", this._handleTrayAutomationCommand.Bind(this, "toggle", automation["id"]), "enabled", !automation["enabled"] || automation["_validationErrors"].Length = 0),
+      Map("label", "Edit", "callback", this._openAutomationSettings.Bind(this, automation["id"], "edit")),
+      Map("label", "Extend", "callback", this._openAutomationSettings.Bind(this, automation["id"], "extend"))
+    ]
+  }
+
+  _getNextTrayLabel(runtime) {
+    nextDue := runtime["nextDue"]
+    if (!nextDue["known"])
+      return "Next: no known run"
+    name := SubStr(Trim("" nextDue["name"]), 1, 80)
+    return "Next: " name " in " this._formatDuration(nextDue["secondsUntil"])
+  }
+
+  _getAutomationStateTrayLabel(automation, automationRuntime) {
+    if (!automation["enabled"])
+      return "State: disabled"
+    if (automation["_validationErrors"].Length > 0)
+      return "State: invalid"
+    if (automationRuntime.Get("running", false))
+      return "State: running now"
+    nextDue := automationRuntime.Get("nextDue", Map("known", false))
+    if (nextDue["known"])
+      return "Remaining: " this._formatDuration(nextDue["secondsUntil"])
+    if (automationRuntime.Get("conditionPassed", false))
+      return "State: waiting for trigger"
+    return "State: waiting for conditions"
+  }
+
+  _getTrayAutomationLabel(automation) {
+    name := Trim("" automation["name"])
+    if (name = "")
+      name := automation["id"]
+    return SubStr(name, 1, 100)
+  }
+
+  _handleTrayAutomationCommand(command, automationId, *) {
+    if (command = "run") {
+      result := this.RunAutomation(automationId)
+      successMessage := "Automation run completed."
+    } else if (command = "test") {
+      result := this.TestAutomationAction(automationId)
+      successMessage := "Automation action test completed."
+    } else {
+      result := this.ToggleAutomation(automationId)
+      successMessage := result.Get("enabled", false) ? "Automation enabled." : "Automation disabled."
+    }
+    this._showTrayCommandResult(result, successMessage)
+  }
+
+  _showTrayCommandResult(result, successMessage) {
+    if (result.Get("ok", false)) {
+      this.App.ShowInfo(successMessage, "Automations", 3500, "success")
+      return
+    }
+    style := result.Get("skipped", false) ? "warning" : "error"
+    this.App.ShowInfo(result.Get("error", "Automation command failed."), "Automations", 6000, style)
+  }
+
+  _openAutomationsSettings(*) {
+    this.App.GUI.ShowSettings(Automations.SETTINGS_PAGE_ID)
+  }
+
+  _openAutomationSettings(automationId, mode, *) {
+    this.App.GUI.ShowSettings(Automations.SETTINGS_PAGE_ID, Map("kind", "automation", "mode", mode, "automationId", automationId))
+  }
+
+  _refreshTrayMenu() {
+    this.App.RefreshTrayMenuExtension(Automations.TRAY_EXTENSION_ID)
   }
 
   PreventSleep(hotkey:="RShift") {
@@ -329,6 +449,7 @@ class Automations extends AKPlugin {
       this._jsonStore.Save(this._automations)
       this._scheduler.SetAutomations(this._automations)
       this._applySchedulerConfiguration()
+      this._refreshTrayMenu()
       return Map("ok", true, "enabled", automation["enabled"])
     } catch Error as saveError {
       automation["enabled"] := previousEnabled

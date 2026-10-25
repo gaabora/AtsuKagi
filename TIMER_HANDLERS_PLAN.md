@@ -1,22 +1,17 @@
-# Timer Handlers Implementation Plan
+# ✅ COMPLETED: Automations Implementation Plan
 
 ## Status
 
-- Planning document for `plugins/TimerHandlers.ahk`, to be renamed to
-  `plugins/Automations.ahk`.
-- The plugin is currently experimental and incomplete.
-- This plan is intended to be edited before implementation.
+- Completed implementation record for `plugins/Automations.ahk`.
+- The old `TimerHandlers` source and test are stored under `.deleted/`.
+- All seven implementation phases are complete.
 
 ## Goal
 
 Build a configurable automation runner for App actions based on time,
 intervals, physical idle state, battery state, and optional window conditions.
 
-No need to keep the existing `TimerHandlers` class and plugin ID for
-compatibility. Rename the file, class, and plugin ID to `Automations`. Present
-the feature in the settings UI as **Automations**. Use "cron" specifically for
-the documented five-field schedule trigger, but not as the name of the overall
-automation feature.
+The old `TimerHandlers` class and plugin ID were not kept. The file, class, and plugin ID are named `Automations`, and the settings UI presents the feature as **Automations**. "Cron" is used only for the documented five-field schedule trigger, not as the name of the overall automation feature.
 
 ## Source Ideas
 
@@ -780,9 +775,9 @@ Battery alerts and sleep countdown need a small reusable OSD capability:
 - Keep the first implementation local to `Automations` unless another plugin
   immediately needs the same API; extract it only when reuse is real.
 
-## Existing Code to Replace
+## ✅ Replaced Prototype Code
 
-The current prototype has these known issues:
+The old prototype had these known issues:
 
 - The scheduler timer is commented out and never starts.
 - Storage is named `ScheduledTasks`, while processing references `CronJobs`.
@@ -792,9 +787,7 @@ The current prototype has these known issues:
 - Exact-minute checks would execute every polling tick during that minute.
 - Popup dismissal and keep-awake behavior are hard-coded.
 
-Remove the unfinished cron-string parser after structured automation loading is
-implemented. Do not preserve it as a second configuration format unless a real
-compatibility requirement appears.
+The unfinished cron-string parser was removed after structured automation loading was implemented. It is not kept as a second configuration format.
 
 ## Implementation Phases
 
@@ -882,13 +875,13 @@ Success criteria:
 - Popup actions perform only explicitly configured operations.
 - Fake screensaver covers all monitors without activating its windows.
 
-### Phase 6: Tray Integration
+### ✅ Phase 6: Tray Integration
 
-- [ ] Add a core-owned tray menu extension contract.
-- [ ] Add the Automations submenu.
-- [ ] Show next-run and remaining-time information.
-- [ ] Add run, test, enable/disable, and edit commands.
-- [ ] Refresh tray state after automation changes and when the menu opens.
+- [x] ✅ Add a core-owned tray menu extension contract.
+- [x] ✅ Add the Automations submenu.
+- [x] ✅ Show next-run and remaining-time information.
+- [x] ✅ Add run, test, enable/disable, and edit commands.
+- [x] ✅ Refresh tray state after automation changes and when the menu opens.
 
 Success criteria:
 
@@ -896,14 +889,14 @@ Success criteria:
 - Edit opens the correct automation in Settings.
 - The menu remains concise through `showInTray`.
 
-### Phase 7: Documentation and Cleanup
+### ✅ Phase 7: Documentation and Cleanup
 
-- [ ] Update the plugin descriptor and action definitions.
-- [ ] Remove obsolete cron terminology and prototype code.
-- [ ] Update `plugins/AGENTS.md` with the automation contracts.
-- [ ] Update `README.md`.
-- [ ] Update `ACTION_CATALOG.md`.
-- [ ] Perform the final DOX pass for every changed path.
+- [x] ✅ Update the plugin descriptor and action definitions.
+- [x] ✅ Remove obsolete cron terminology and prototype code.
+- [x] ✅ Update `plugins/AGENTS.md` with the automation contracts.
+- [x] ✅ Update `README.md`.
+- [x] ✅ Update `ACTION_CATALOG.md`.
+- [x] ✅ Perform the final DOX pass for every changed path.
 
 ## Static Verification
 
