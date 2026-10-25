@@ -93,6 +93,24 @@ Useful built-in controls:
 - Suspend hotkey default: `Ctrl+Win+Alt+Esc`
 - Tray menu: `Settings`, `Reload`, `Disable`, `Exit`
 
+## Browser UI Development
+
+Install [Bun](https://bun.sh/) if it is not available. From the repository root, run:
+
+```text
+bun run dev
+```
+
+Open [the Automations preview](http://127.0.0.1:3000/?page=plugin-Automations). No package install or application build is needed. The server uses the same HTML, CSS, and JavaScript as the application. Save a UI file to reload the browser page automatically. Restart the command after changes to `includes/ui/dev/server.ts`.
+
+- The preview bar selects normal data, an empty list, long text, an invalid rule, or a save error. It also switches the theme and resets the current example.
+- Mock automation changes stay in browser storage. The open section, automation draft, timetable, and scroll position are restored after a page reload in the same tab.
+- Run and Test only add simulated log entries. They do not run Windows commands. The preview has no scheduler and does not check real battery or window state.
+- Preview scope is Automations. Other settings pages do not yet have full mock host support. Use F12 for browser developer tools.
+- The development server listens only on `127.0.0.1:3000`. It serves files from `includes/ui/`, not the repository root.
+
+The preview uses full-page live reload, not JavaScript module replacement. It keeps the existing classic scripts and does not add a production bundling step. For example, add `&scenario=long&theme=dark` to the preview URL to inspect long text in the dark theme.
+
 ## Advanced Docs
 
 - [ACTION_CATALOG.md](ACTION_CATALOG.md)

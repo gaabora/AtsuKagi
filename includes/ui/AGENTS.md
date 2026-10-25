@@ -11,6 +11,7 @@
 - `classes/` owns reusable settings controllers and renderers.
 - `Pages/` owns page-level orchestration.
 - `vendor/` owns bundled third-party frontend assets.
+- `dev/` owns the Bun browser preview with mock host data; the root `package.json` exposes `bun run dev`.
 
 ## Local Contracts
 
@@ -19,6 +20,8 @@
 - The Plugins page exposes enable state and per-plugin log levels; enable changes require reload, while log-level changes apply immediately.
 - The dynamically rendered General page includes global notification appearance controls backed by `[GENERAL]`.
 - New runtime-loaded frontend files must be represented in compiled-build resource directives in `Haribol!.ahk`.
+- Browser preview scripts are development-only and must not be added to compiled resources or the production HTML.
+- `app.js` can pass `window.settingsDevHostBridge` to `SettingsPage`; an absent value selects the normal AHK bridge.
 
 ## Work Guidance
 
@@ -34,3 +37,4 @@
 - [`classes/AGENTS.md`](classes/AGENTS.md): reusable frontend controllers, bridges, serializers, and renderers.
 - [`Pages/AGENTS.md`](Pages/AGENTS.md): page-level settings behavior.
 - [`vendor/AGENTS.md`](vendor/AGENTS.md): bundled third-party frontend files.
+- [`dev/AGENTS.md`](dev/AGENTS.md): local browser preview server, example data, and mock host behavior.

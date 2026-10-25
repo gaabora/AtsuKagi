@@ -1,7 +1,7 @@
 class SettingsPage {
-  constructor() {
+  constructor(hostBridge = new AhkHostBridge()) {
     this.dom = new SettingsDom();
-    this.hostBridge = new AhkHostBridge();
+    this.hostBridge = hostBridge;
     this.form = new SettingsForm(this.dom);
     this.colorPicker = new ColorPickerController(this.dom);
     this.hotkeyRecorder = new HotkeyRecorderController(this.dom, (actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys, fullActionHandler) => this._applyActionHotkey(actionName, hotkeyRaw, replaceRaw, allowRiskyHotkeys, fullActionHandler));

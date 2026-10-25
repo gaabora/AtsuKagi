@@ -47,7 +47,7 @@ class SettingsDom {
 
 // Initialize on page load
 (function initialize() {
-  window.settingsPage = new SettingsPage();
+  window.settingsPage = new SettingsPage(window.settingsDevHostBridge);
   window.SettingsPageBridge = {
     applyState: (state) => window.settingsPage.applyState(state),
     refresh: () => window.settingsPage.refreshUI(),

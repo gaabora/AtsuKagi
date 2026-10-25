@@ -1,0 +1,7 @@
+{
+  "name": "haribol-ui-dev",
+  "private": true,
+  "scripts": {
+    "dev": "bun run includes/ui/dev/server.ts"
+  }
+}
